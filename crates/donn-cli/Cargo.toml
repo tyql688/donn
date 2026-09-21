@@ -1,0 +1,33 @@
+[package]
+name = "donn-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "donn — single-binary Claude Code profile manager (CLI + TUI)"
+
+[[bin]]
+name = "donn"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+donn-core = { path = "../donn-core" }
+clap.workspace = true
+ratatui.workspace = true
+unicode-width.workspace = true
+unicode-truncate = "2"
+crossterm.workspace = true
+tui-input = "0.15.3"
+comfy-table = { version = "7.2.2", default-features = false }
+shlex.workspace = true
+nucleo-matcher = "0.3"
+serde_json.workspace = true
+# system default app for URLs (key console) — cross-platform, no shell forks
+open = "5"
+arboard.workspace = true
+linkify = "0.11"
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,48 @@
+[preset]
+key = "mimo"
+label = "Xiaomi MiMo"
+description = "Pay-as-you-go — V2.5-Pro / UltraSpeed / V2.5 (V2 series deprecated 2026-06-30)"
+base_url = "https://api.xiaomimimo.com/anthropic"
+auth_mode = "auth_token"
+key_url = "https://platform.xiaomimimo.com/#/console/api-keys"
+
+# 官方 Claude Code 接入指南（仅推荐 mimo-v2.5-pro 与其 [1m] 形式）：
+#   https://mimo.mi.com/docs/en-US/tokenplan/integration/claudecode
+#   模型 mimo-v2.5-pro；长上下文加 [1m] → mimo-v2.5-pro[1m]
+# UltraSpeed 的 API id：mimo-v2.5-pro-ultraspeed（mimo.mi.com 模型页）
+# 轻量档：mimo-v2.5
+[preset.models]
+sonnet = "mimo-v2.5-pro"
+opus = "mimo-v2.5-pro"
+fable = "mimo-v2.5-pro"
+haiku = "mimo-v2.5-pro-ultraspeed"
+
+[[preset.model_choices]]
+id = "mimo-v2.5-pro[1m]"
+label = "V2.5-Pro · 1M (Claude Code form)"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "mimo-v2.5-pro"
+label = "V2.5-Pro · default"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "mimo-v2.5-pro-ultraspeed"
+label = "V2.5-Pro UltraSpeed"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "mimo-v2.5-pro-ultraspeed[1m]"
+label = "V2.5-Pro UltraSpeed · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "mimo-v2.5"
+label = "V2.5 · lighter"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "mimo-v2.5[1m]"
+label = "V2.5 · 1M"
+max_context = 1048576

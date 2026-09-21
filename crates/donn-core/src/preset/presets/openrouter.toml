@@ -1,0 +1,112 @@
+[preset]
+key = "openrouter"
+label = "OpenRouter"
+description = "Multi-provider router; type any openrouter model id, or pick a listed coding model"
+base_url = "https://openrouter.ai/api"
+auth_mode = "auth_token"
+key_url = "https://openrouter.ai/settings/keys"
+
+# 默认值用 OpenRouter 自己的 slug，全部条目与 context_length 经
+# openrouter.ai/api/v1/models live 目录逐条核对。目录变动频繁，
+# 这里只保留当前主力编码模型；其余模型自由输入即可。
+[preset.models]
+sonnet = "anthropic/claude-sonnet-5"
+opus = "anthropic/claude-opus-5"
+fable = "anthropic/claude-fable-5.1"
+haiku = "anthropic/claude-haiku-4.5"
+
+# ── Anthropic（openrouter.ai/anthropic）───────────────────────────
+[[preset.model_choices]]
+id = "anthropic/claude-fable-5.1"
+label = "Claude Fable 5.1"
+
+[[preset.model_choices]]
+id = "anthropic/claude-fable-5"
+label = "Claude Fable 5"
+
+[[preset.model_choices]]
+id = "anthropic/claude-sonnet-5"
+label = "Claude Sonnet 5"
+
+[[preset.model_choices]]
+id = "anthropic/claude-opus-5"
+label = "Claude Opus 5"
+
+[[preset.model_choices]]
+id = "anthropic/claude-sonnet-4.6"
+label = "Claude Sonnet 4.6"
+
+[[preset.model_choices]]
+id = "anthropic/claude-haiku-4.5"
+label = "Claude Haiku 4.5"
+
+# ── 开源权重编码模型（slug 已核对）─────────────────────────────────
+[[preset.model_choices]]
+id = "moonshotai/kimi-k3"
+label = "Kimi K3 · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "moonshotai/kimi-k2.7-code"
+label = "Kimi K2.7 Code · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "z-ai/glm-5.3"
+label = "GLM-5.3 · 1.25M"
+max_context = 1310720
+
+[[preset.model_choices]]
+id = "z-ai/glm-5.3-flash"
+label = "GLM-5.3-Flash · 1.25M"
+max_context = 1310720
+
+[[preset.model_choices]]
+id = "deepseek/deepseek-v4-pro"
+label = "DeepSeek V4 Pro · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "deepseek/deepseek-v4.1-flash"
+label = "DeepSeek V4.1 Flash · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "minimax/minimax-m3"
+label = "MiniMax M3 · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "minimax/minimax-m2.7"
+label = "MiniMax M2.7"
+max_context = 204800
+
+[[preset.model_choices]]
+id = "xiaomi/mimo-v2.5-pro"
+label = "MiMo V2.5-Pro · 1M"
+max_context = 1050000
+
+[[preset.model_choices]]
+id = "x-ai/grok-4.20"
+label = "Grok 4.20 · 2M"
+max_context = 2000000
+
+[[preset.model_choices]]
+id = "x-ai/grok-4.6"
+label = "Grok 4.6 · 500K"
+max_context = 500000
+
+[[preset.model_choices]]
+id = "x-ai/grok-4.3"
+label = "Grok 4.3 · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "x-ai/grok-build-0.1"
+label = "Grok Build 0.1 · 256K"
+max_context = 256000
+
+[[preset.model_choices]]
+id = "qwen/qwen3.8-flash"
+label = "Qwen3.8-Flash · 1M"
+max_context = 1000000

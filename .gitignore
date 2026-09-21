@@ -1,0 +1,16 @@
+/target/
+/tmp/
+
+# OS / editor droppings
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local session artifacts (Claude Code); skills/ is checked in.
+/.claude/*
+!/.claude/skills/
+
+# Not part of the build; a stray local install must never show up as project files.
+/node_modules/
+
+.vscode/

@@ -1,0 +1,160 @@
+{
+  "providers": {
+    "anthropic": {
+      "preset": "custom",
+      "ignore": "-20\\d{6}$",
+      "ignore_reason": "带日期的 id 是同一模型的别名"
+    },
+    "ant-ling": {
+      "preset": "ant-ling"
+    },
+    "deepseek": {
+      "preset": "deepseek"
+    },
+    "fireworks": {
+      "preset": "fireworks",
+      "gateway": true
+    },
+    "huggingface": {
+      "preset": "huggingface",
+      "gateway": true
+    },
+    "kimi-coding": {
+      "preset": "kimi-plan",
+      "vendor_windows": {
+        "k3": "Kimi Code 文档：裸 k3 在 Moderato 档是 256K，1M 用 k3[1m]"
+      }
+    },
+    "minimax": {
+      "preset": "minimax",
+      "vendor_windows": {
+        "MiniMax-M3": "MiniMax 文档写 1,000,000",
+        "MiniMax-M3[1m]": "MiniMax 文档写 1,000,000"
+      }
+    },
+    "minimax-cn": {
+      "preset": "minimax-cn",
+      "vendor_windows": {
+        "MiniMax-M3": "MiniMax 文档写 1,000,000",
+        "MiniMax-M3[1m]": "MiniMax 文档写 1,000,000"
+      }
+    },
+    "moonshotai-cn": {
+      "preset": "kimi-cn"
+    },
+    "opencode": {
+      "preset": "opencode",
+      "gateway": true
+    },
+    "opencode-go": {
+      "preset": "opencode-go",
+      "gateway": true
+    },
+    "openrouter": {
+      "preset": "openrouter",
+      "gateway": true,
+      "vendor_windows": {
+        "z-ai/glm-5.3": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
+        "z-ai/glm-5.3-flash": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
+        "minimax/minimax-m3": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
+        "xiaomi/mimo-v2.5-pro": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准"
+      }
+    },
+    "qwen-token-plan-cn": {
+      "preset": "qwen-plan",
+      "ignore": "^(?!qwen)",
+      "ignore_reason": "套餐附带的 glm / kimi / deepseek：没核实 /apps/anthropic 端点是否提供，本 preset 只收千问"
+    },
+    "vercel-ai-gateway": {
+      "preset": "vercel",
+      "gateway": true
+    },
+    "xai": {
+      "preset": "xai"
+    },
+    "xiaomi": {
+      "preset": "mimo"
+    },
+    "xiaomi-token-plan-cn": {
+      "preset": "mimo-plan"
+    },
+    "zai": {
+      "preset": "zai"
+    },
+    "zai-coding-cn": {
+      "preset": "zai-cn"
+    },
+    "moonshotai": {
+      "skip": "kimi-cn 的国际站，模型 id 相同；用户在 profile 里覆盖 base_url"
+    },
+    "qwen-token-plan": {
+      "skip": "qwen-plan 的国际站，覆盖 base_url"
+    },
+    "qwen-token-plan-individual": {
+      "skip": "qwen-plan 的个人版套餐，覆盖 base_url"
+    },
+    "xiaomi-token-plan-ams": {
+      "skip": "mimo-plan 的区域变体，覆盖 base_url"
+    },
+    "xiaomi-token-plan-sgp": {
+      "skip": "mimo-plan 的区域变体，覆盖 base_url"
+    },
+    "cloudflare-ai-gateway": {
+      "skip": "base_url 含用户自己的 account/gateway id，用 custom preset"
+    },
+    "github-copilot": {
+      "skip": "要 Copilot OAuth 换 token，donn 只支持静态 key"
+    },
+    "radius": {
+      "skip": "pi 自家网关，pi-messages 协议"
+    },
+    "amazon-bedrock": {
+      "skip": "云厂商协议，不走 base_url + key"
+    },
+    "google-vertex": {
+      "skip": "云厂商协议，不走 base_url + key"
+    },
+    "azure-openai-responses": {
+      "skip": "只有 OpenAI 协议"
+    },
+    "openai": {
+      "skip": "只有 OpenAI 协议；模型经 vercel / openrouter 网关可用"
+    },
+    "openai-codex": {
+      "skip": "只有 OpenAI 协议"
+    },
+    "google": {
+      "skip": "只有 Google 协议；模型经网关可用"
+    },
+    "mistral": {
+      "skip": "只有自家协议；模型经网关可用"
+    },
+    "groq": {
+      "skip": "只有 OpenAI 协议"
+    },
+    "cerebras": {
+      "skip": "只有 OpenAI 协议"
+    },
+    "together": {
+      "skip": "只有 OpenAI 协议"
+    },
+    "nvidia": {
+      "skip": "只有 OpenAI 协议"
+    },
+    "baseten": {
+      "skip": "只有 OpenAI 协议"
+    },
+    "cloudflare-workers-ai": {
+      "skip": "只有 OpenAI 协议"
+    },
+    "meta": {
+      "pending": "pi 只记 OpenAI 协议；api.meta.ai/v1/messages 实测回 Anthropic 错误信封，缺厂商接入文档确认认证头和 key_url。Muse Spark 目前经 vercel 候选可用"
+    }
+  },
+  "presets_not_in_pi": [
+    "official",
+    "siliconflow",
+    "ollama",
+    "lmstudio"
+  ]
+}

@@ -1,0 +1,57 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/donn-core",
+    "crates/donn-cli",
+]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+# panic 路径与调试残留不进主干代码（测试豁免见 clippy.toml）
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+# 质量基线
+uninlined_format_args = "warn"
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+semicolon_if_nothing_returned = "warn"
+# 禁用清单的执行开关（清单本身在 clippy.toml，逐条带 reason）
+disallowed_methods = "deny"
+disallowed_macros = "deny"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+toml_edit = { version = "0.22", features = ["serde"] }
+thiserror = "2"
+dirs = "6"
+which = "7"
+clap = { version = "4", features = ["derive"] }
+# line_count（modal/settings 盒高自适应）在 ratatui 尚属 unstable feature，升级时留意 API 漂移
+ratatui = { version = "0.30.2", features = ["unstable-rendered-line-info"] }
+crossterm = "0.29"
+unicode-width = "0.2"
+tempfile = "3"
+shlex = "1.3"
+regex = "1"
+wait-timeout = "0.2"
+arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+# 主干代码已 deny panic!；运行期残余 panic（越界等）直接 abort，不展开
+panic = "abort"

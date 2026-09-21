@@ -1,0 +1,47 @@
+[preset]
+key = "kimi-cn"
+label = "Kimi / Moonshot (CN)"
+description = "Moonshot open platform (pay-as-you-go); kimi-k3 1M + K2.7 Code"
+base_url = "https://api.moonshot.cn/anthropic"
+auth_mode = "auth_token"
+key_url = "https://platform.kimi.com/console/api-keys"
+
+# 官方 Claude Code 接入指南：
+#   https://platform.kimi.ai/docs/guide/claude-code-kimi
+# 模型列表：https://platform.kimi.ai/docs/models
+#   在售：kimi-k3（1M）、kimi-k2.7-code / -highspeed（256K）、kimi-k2.6（256K，多模态）；
+#   kimi-k2.5、kimi-k2 系、moonshot-v1 系已退役。
+[preset.models]
+sonnet = "kimi-k3[1m]"
+opus = "kimi-k3[1m]"
+fable = "kimi-k3[1m]"
+haiku = "kimi-k3[1m]"
+
+[preset.env]
+# 该端点不支持 tool search（全渠道如此）
+ENABLE_TOOL_SEARCH = "false"
+
+[[preset.model_choices]]
+id = "kimi-k3[1m]"
+label = "Kimi K3 · 1M (Claude Code form)"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "kimi-k3"
+label = "Kimi K3 · API id"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "kimi-k2.7-code"
+label = "Kimi K2.7 Code · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "kimi-k2.7-code-highspeed"
+label = "Kimi K2.7 Code HighSpeed · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "kimi-k2.6"
+label = "Kimi K2.6 · 256K (vision)"
+max_context = 262144

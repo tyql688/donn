@@ -1,0 +1,20 @@
+[preset]
+key = "opencode-go"
+label = "OpenCode Go"
+description = "Official opencode Go endpoint; open models (Qwen/GLM/Kimi/DeepSeek/MiniMax)"
+base_url = "https://opencode.ai/zen/go"
+auth_mode = "auth_token"
+key_url = "https://opencode.ai/auth"
+
+# 端点实测：opencode.ai/zen/go/v1/messages 回 Anthropic 错误信封。
+# 候选只列 pi 远程模型目录里走 anthropic-messages 协议的模型；Go 上其余模型走 OpenAI 协议，Claude Code 接不了。
+
+[[preset.model_choices]]
+id = "minimax-m3"
+label = "MiniMax M3 · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "qwen3.8-flash"
+label = "Qwen3.8 Flash · 1M"
+max_context = 1000000

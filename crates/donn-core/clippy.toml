@@ -1,0 +1,31 @@
+# donn-core 专属配置。clippy 取最近的 clippy.toml 且不合并，
+# 因此根配置的内容必须在此复制一份（改根配置时同步这里）。
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-dbg-in-tests = true
+
+[[disallowed-methods]]
+path = "std::fs::canonicalize"
+reason = "returns \\\\?\\ paths on Windows, breaking external tools; use std::path::absolute"
+
+[[disallowed-methods]]
+path = "std::path::Path::canonicalize"
+reason = "returns \\\\?\\ paths on Windows, breaking external tools; use std::path::absolute"
+
+# core 是纯库：任何终端输出（可能携带 secret）都必须经 CLI 层
+[[disallowed-macros]]
+path = "std::println"
+reason = "donn-core is a library: no terminal output; return data and let the CLI print"
+
+[[disallowed-macros]]
+path = "std::eprintln"
+reason = "donn-core is a library: no terminal output; return errors via Result"
+
+[[disallowed-macros]]
+path = "std::print"
+reason = "donn-core is a library: no terminal output"
+
+[[disallowed-macros]]
+path = "std::eprint"
+reason = "donn-core is a library: no terminal output"

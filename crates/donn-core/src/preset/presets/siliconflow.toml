@@ -1,0 +1,51 @@
+[preset]
+key = "siliconflow"
+label = "SiliconFlow"
+description = "Multi-model host; ids use org prefix (e.g. zai-org/GLM-5.3)"
+base_url = "https://api.siliconflow.cn"
+auth_mode = "auth_token"
+key_url = "https://cloud.siliconflow.cn/account/ak"
+
+# 全部条目经 siliconflow.cn/models 目录核对（注意 org/Name 大小写）。
+# GLM-5.3 已上架（1024K）；Qwen3.5-397B-A17B 已下架，换 Qwen3.8-27B。
+# 目录变动频繁——其余模型自由输入即可。
+[preset.models]
+sonnet = "zai-org/GLM-5.3"
+opus = "zai-org/GLM-5.3"
+fable = "zai-org/GLM-5.3"
+haiku = "deepseek-ai/DeepSeek-V4-Flash"
+
+[[preset.model_choices]]
+id = "zai-org/GLM-5.3"
+label = "GLM-5.3 · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "zai-org/GLM-5.2"
+label = "GLM-5.2 · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "moonshotai/Kimi-K2.7-Code"
+label = "Kimi K2.7 Code · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "MiniMaxAI/MiniMax-M2.5"
+label = "MiniMax M2.5 · 192K"
+max_context = 196608
+
+[[preset.model_choices]]
+id = "Qwen/Qwen3.8-27B"
+label = "Qwen3.8 27B · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "deepseek-ai/DeepSeek-V4-Pro"
+label = "DeepSeek V4 Pro · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "deepseek-ai/DeepSeek-V4-Flash"
+label = "DeepSeek V4 Flash · 1M"
+max_context = 1048576

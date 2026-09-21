@@ -1,0 +1,16 @@
+[preset]
+key = "ollama"
+label = "Ollama (local)"
+description = "Local models; quirk: needs AUTH_TOKEN and API_KEY both set — use \"ollama\" as the key"
+base_url = "http://localhost:11434"
+auth_mode = "auth_token"
+
+# 本地服务，无核对日期；模型 id 以本机 `ollama list` 为准。
+[preset.models]
+sonnet = "qwen3.5"
+opus = "qwen3.5"
+fable = "qwen3.5"
+haiku = "qwen3.5"
+
+[preset.flags]
+auth_token_also_sets_api_key = true

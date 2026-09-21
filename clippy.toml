@@ -1,0 +1,15 @@
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-dbg-in-tests = true
+
+# 禁用清单（clippy::disallowed_methods，workspace lints 已 deny）。
+# std canonicalize 在 Windows 返回 \\?\C:\... 扩展路径，写进 CLAUDE_CONFIG_DIR /
+# wrapper 会破坏外部工具。用 std::path::absolute。
+[[disallowed-methods]]
+path = "std::fs::canonicalize"
+reason = "returns \\\\?\\ paths on Windows, breaking external tools; use std::path::absolute"
+
+[[disallowed-methods]]
+path = "std::path::Path::canonicalize"
+reason = "returns \\\\?\\ paths on Windows, breaking external tools; use std::path::absolute"

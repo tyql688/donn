@@ -1,0 +1,28 @@
+[preset]
+key = "deepseek"
+label = "DeepSeek"
+description = "Pay-as-you-go Anthropic-compatible API — V4 Pro / Flash (V4.1), 1M context"
+base_url = "https://api.deepseek.com/anthropic"
+auth_mode = "auth_token"
+key_url = "https://platform.deepseek.com/api_keys"
+
+# 官方 API 模型名（api-docs.deepseek.com/quick_start/pricing）：
+#   deepseek-v4-pro | deepseek-flash（= DeepSeek-V4.1-Flash）
+#   deepseek-v4-flash / deepseek-v4-flash-vision-exp 已退役，请求自动由 V4.1-Flash 服务，
+#   按 Flash 计费；deepseek-chat / deepseek-reasoner 同样映射到 Flash。
+# 两者都是 1M 上下文；厂商只标「1M」，精确数取 pi 远程模型目录的 1000000。
+[preset.models]
+sonnet = "deepseek-v4-pro"
+opus = "deepseek-v4-pro"
+fable = "deepseek-v4-pro"
+haiku = "deepseek-flash"
+
+[[preset.model_choices]]
+id = "deepseek-v4-pro"
+label = "V4 Pro · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "deepseek-flash"
+label = "Flash (V4.1) · 1M"
+max_context = 1000000

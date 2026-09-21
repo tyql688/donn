@@ -1,0 +1,52 @@
+[preset]
+key = "minimax-cn"
+label = "MiniMax (CN)"
+description = "China endpoint — same M-series ids as international"
+base_url = "https://api.minimaxi.com/anthropic"
+auth_mode = "auth_token"
+key_url = "https://platform.minimaxi.com/user-center/basic-information/interface-key"
+
+# 模型 id 与 minimax.io 相同（只是国内主机名不同）；模型表核对同 minimax.toml，
+# 端点实测：api.minimaxi.com/anthropic/v1/messages 回 Anthropic 错误信封。
+[preset.models]
+sonnet = "MiniMax-M3[1m]"
+opus = "MiniMax-M3[1m]"
+fable = "MiniMax-M3[1m]"
+haiku = "MiniMax-M2.7-highspeed"
+
+[[preset.model_choices]]
+id = "MiniMax-M3[1m]"
+label = "M3 · 1M (Claude Code form)"
+max_context = 1000000
+auto_compact = 1000000
+
+[[preset.model_choices]]
+id = "MiniMax-M3"
+label = "M3 · API id · 1M"
+max_context = 1000000
+auto_compact = 1000000
+
+[[preset.model_choices]]
+id = "MiniMax-M2.7-highspeed"
+label = "M2.7 HighSpeed · 200K"
+max_context = 204800
+
+[[preset.model_choices]]
+id = "MiniMax-M2.7"
+label = "M2.7 · 200K"
+max_context = 204800
+
+[[preset.model_choices]]
+id = "MiniMax-M2"
+label = "M2 · legacy"
+max_context = 204800
+
+[[preset.model_choices]]
+id = "MiniMax-M2.5-highspeed"
+label = "M2.5 Highspeed · 204K"
+max_context = 204800
+
+[[preset.model_choices]]
+id = "MiniMax-M2.5"
+label = "M2.5 · 204K"
+max_context = 204800

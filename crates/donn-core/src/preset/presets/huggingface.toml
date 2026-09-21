@@ -1,0 +1,99 @@
+[preset]
+key = "huggingface"
+label = "Hugging Face"
+description = "Inference Providers router; type any HF model id, optionally with :provider or :cheapest/:fastest/:preferred suffix"
+base_url = "https://router.huggingface.co"
+auth_mode = "auth_token"
+key_url = "https://huggingface.co/settings/tokens"
+
+# 官方 Claude Code 接入文档：
+#   https://huggingface.co/docs/inference-providers/integrations/claude-code
+#   base_url = router.huggingface.co；官方示例同时导出 ANTHROPIC_AUTH_TOKEN 与
+#   ANTHROPIC_API_KEY（同一个 HF token），故开 auth_token_also_sets_api_key。
+#   id 可加 :provider 或 :cheapest/:fastest/:preferred 后缀选路由策略。
+# 默认值取官方文档示例（zai-org/GLM-5.1 全槽位）；候选经 Inference
+# Providers live 目录核对（huggingface.co/models?inference_provider=all）。
+# max_context 取 pi 远程模型目录的 huggingface 数字；用 :provider 后缀钉到某个 provider 时窗口可能不同。
+[preset.models]
+sonnet = "zai-org/GLM-5.1"
+opus = "zai-org/GLM-5.1"
+fable = "zai-org/GLM-5.1"
+haiku = "zai-org/GLM-5.1"
+
+[[preset.model_choices]]
+id = "zai-org/GLM-5.3"
+label = "GLM-5.3"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "zai-org/GLM-5.3-Flash"
+label = "GLM-5.3 Flash"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "zai-org/GLM-5.2"
+label = "GLM-5.2"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "zai-org/GLM-5.1"
+label = "GLM-5.1"
+max_context = 202752
+
+[[preset.model_choices]]
+id = "moonshotai/Kimi-K3"
+label = "Kimi K3"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "MiniMaxAI/MiniMax-M3"
+label = "MiniMax M3"
+max_context = 524288
+
+[[preset.model_choices]]
+id = "MiniMaxAI/MiniMax-M2.7"
+label = "MiniMax M2.7"
+max_context = 204800
+
+[[preset.model_choices]]
+id = "deepseek-ai/DeepSeek-V4-Pro-0813"
+label = "DeepSeek V4 Pro 0813"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "deepseek-ai/DeepSeek-V4.1-Flash"
+label = "DeepSeek V4.1 Flash"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "Qwen/Qwen3.8-2.4T-A95B"
+label = "Qwen3.8 2.4T A95B"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "Qwen/Qwen3-Coder-Next"
+label = "Qwen3 Coder Next"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "openai/gpt-oss-120b"
+label = "GPT-OSS 120B"
+max_context = 131072
+
+[[preset.model_choices]]
+id = "moonshotai/Kimi-K2.7-Code"
+label = "Kimi K2.7 Code"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "XiaomiMiMo/MiMo-V2.5-Pro"
+label = "MiMo V2.5 Pro"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "Qwen/Qwen3.8-27B"
+label = "Qwen3.8 27B"
+max_context = 262144
+
+[preset.flags]
+auth_token_also_sets_api_key = true

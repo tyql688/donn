@@ -1,0 +1,71 @@
+[preset]
+key = "fireworks"
+label = "Fireworks AI"
+description = "Open-model hosting; type the model id yourself"
+base_url = "https://api.fireworks.ai/inference"
+auth_mode = "auth_token"
+key_url = "https://app.fireworks.ai/settings/users/api-keys"
+
+# 端点实测：api.fireworks.ai/inference/v1/messages 回 Anthropic 错误信封。
+# id 带 accounts/fireworks/ 前缀。候选取自 pi 远程模型目录里走 anthropic-messages 协议的模型：优先列
+# routers/*-latest 稳定别名，具体版本只列主力，其余自由输入。
+
+[[preset.model_choices]]
+id = "accounts/fireworks/routers/deepseek-pro-latest"
+label = "DeepSeek Pro (latest) · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "accounts/fireworks/routers/deepseek-flash-latest"
+label = "DeepSeek Flash (latest) · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "accounts/fireworks/routers/kimi-latest"
+label = "Kimi (latest) · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "accounts/fireworks/routers/kimi-fast-latest"
+label = "Kimi Fast (latest) · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "accounts/fireworks/routers/minimax-latest"
+label = "MiniMax (latest) · 512K"
+max_context = 512000
+
+[[preset.model_choices]]
+id = "accounts/fireworks/routers/qwen-max-latest"
+label = "Qwen Max (latest) · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/deepseek-v4-pro"
+label = "DeepSeek V4 Pro · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/deepseek-v4p1-flash"
+label = "DeepSeek V4.1 Flash · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/kimi-k2p7-code"
+label = "Kimi K2.7 Code · 262K"
+max_context = 262000
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/minimax-m3"
+label = "MiniMax M3 · 512K"
+max_context = 512000
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/qwen3p8-max"
+label = "Qwen3.8 Max · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/gpt-oss-120b"
+label = "GPT-OSS 120B · 131K"
+max_context = 131072

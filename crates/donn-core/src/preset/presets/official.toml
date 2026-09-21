@@ -1,0 +1,8 @@
+[preset]
+key = "official"
+label = "Anthropic (official)"
+description = "Official Anthropic; OAuth login, clean isolated sandbox (no auth or base_url written)"
+auth_mode = "none"
+key_url = "https://console.anthropic.com/settings/keys"
+
+# 不带端点与模型槽，无需核对；官方模型 id 的候选在 custom.toml。

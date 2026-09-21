@@ -1,0 +1,44 @@
+[preset]
+key = "ant-ling"
+label = "Ling (Ant)"
+description = "Ant Group Ling/Ring models via native Anthropic-compatible endpoint"
+base_url = "https://api.ant-ling.com/anthropic"
+auth_mode = "api_key"
+key_url = "https://chat.ant-ling.com/open"
+
+# 官方 Claude Code 接入文档：
+#   https://developer.ant-ling.com/en/docs/integrations/claude-code/
+#   认证用 ANTHROPIC_API_KEY；模型 id 大小写敏感；推荐所有槽位映射到同一个 Ling
+#   模型以免回落到 Anthropic 模型。推荐：复杂推理 Ling-2.6-1T；通用/快速 Ling-3.0-flash。
+# 端点实测：api.ant-ling.com/anthropic/v1/messages 回 Anthropic 错误信封。
+# 厂商没公布窗口数字：2.6 系列取 pi 远程模型目录的 ant-ling（262144），3.0-flash 取同目录 Vercel 网关上的数字（256000）。
+[preset.models]
+sonnet = "Ling-2.6-1T"
+opus = "Ling-2.6-1T"
+fable = "Ling-2.6-1T"
+haiku = "Ling-3.0-flash"
+
+[[preset.model_choices]]
+id = "Ling-2.6-1T"
+label = "Ling 2.6 1T"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "Ring-2.6-1T"
+label = "Ring 2.6 1T (reasoning)"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "Ling-3.0-flash"
+label = "Ling 3.0 Flash"
+max_context = 256000
+
+[[preset.model_choices]]
+id = "Ling-3.0-flash-VL"
+label = "Ling 3.0 Flash VL (vision)"
+max_context = 256000
+
+[[preset.model_choices]]
+id = "Ling-2.6-flash"
+label = "Ling 2.6 Flash"
+max_context = 262144

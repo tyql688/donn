@@ -1,0 +1,8 @@
+[preset]
+key = "lmstudio"
+label = "LM Studio (local)"
+description = "Local model server; use the ids of locally loaded models"
+base_url = "http://localhost:1234"
+auth_mode = "none"
+
+# 本地服务，无核对日期；模型 id 以 LM Studio 已加载模型为准。

@@ -1,0 +1,49 @@
+[preset]
+key = "kimi-plan"
+label = "Kimi Code plan"
+description = "Kimi For Coding subscription; default k3 1M (Allegretto+). Tier: Andante=kimi-for-coding (K2.8 Preview, 1M); Moderato=k3/k3-256k@256K; Allegretto+=k3@1M + highspeed"
+base_url = "https://api.kimi.com/coding/"
+auth_mode = "auth_token"
+key_url = "https://www.kimi.com/code/console"
+
+# 官方模型 id（Kimi Code 文档）：
+#   https://www.kimi.com/code/docs/en/kimi-code/models
+#   k3 | k3-256k | kimi-for-coding | kimi-for-coding-highspeed
+#   kimi-for-coding 当前指向 K2.8 Preview，窗口 1,048,576，所有档位可用；
+#   k3 1M 需 Allegretto+，HighSpeed 约 6 倍速、3 倍配额。
+# Claude Code 1M 用 k3[1m]（仅限 Claude Code env），不是裸 k3：
+#   https://www.kimi.com/code/docs/en/third-party-tools/claude-code.html
+[preset.models]
+sonnet = "k3[1m]"
+opus = "k3[1m]"
+fable = "k3[1m]"
+haiku = "k3[1m]"
+
+[preset.env]
+CLAUDE_CODE_EFFORT_LEVEL = "high"
+
+# ── Kimi Code 官方阵容 ─────────────────────────────────────────────
+[[preset.model_choices]]
+id = "k3[1m]"
+label = "K3 · 1M (Allegretto+; Claude Code form)"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "k3"
+label = "K3 · up to plan limit (API / Moderato 256K)"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "k3-256k"
+label = "K3-256k · 256K (lower quota than k3 1M)"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "kimi-for-coding"
+label = "K2.8 Preview · 1M (all tiers)"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "kimi-for-coding-highspeed"
+label = "K2.7 Code HighSpeed · 256K (Allegretto+)"
+max_context = 262144

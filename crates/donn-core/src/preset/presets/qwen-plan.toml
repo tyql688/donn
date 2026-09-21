@@ -1,0 +1,53 @@
+[preset]
+key = "qwen-plan"
+label = "Qwen Token Plan"
+description = "阿里云百炼 Token Plan (cn-beijing); Qwen3.8 Max / Flash, 3.7 / 3.6 Flash"
+base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic"
+auth_mode = "auth_token"
+key_url = "https://bailian.console.aliyun.com/cn-beijing?tab=plan#/efm/subscription/overview"
+
+# 官方 Claude Code 接入与套餐目录：
+#   https://help.aliyun.com/zh/model-studio/claude-code
+#   https://help.aliyun.com/zh/model-studio/token-plan-personal-overview
+#   文本模型：qwen3.8-max | qwen3.8-flash | qwen3.7-max | qwen3.7-plus | qwen3.6-flash
+#   套餐目录另含 glm/deepseek 等模型；本 Qwen preset 只维护千问文本模型。
+# 上下文：默认 200K，官方写明加 [1m] 后缀扩至 1M（1,000,000）；接入页示例的
+#   CLAUDE_CODE_MAX_CONTEXT_TOKENS 写 983616，这里按 [1m] 的 1000000。官方 subagent 示例为 qwen3.7-max。
+# 区域变体：国际站 https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic（profile 里覆盖 base_url）。
+# Coding Plan 是另一款套餐（coding.dashscope.aliyuncs.com/apps/anthropic，qwen3.7-plus），不在本 preset。
+# 端点实测：cn-beijing 与 ap-southeast-1 的 /apps/anthropic/v1/messages 均存在。
+[preset.models]
+sonnet = "qwen3.8-max"
+opus = "qwen3.8-max"
+fable = "qwen3.8-max"
+haiku = "qwen3.6-flash"
+
+[[preset.model_choices]]
+id = "qwen3.8-max"
+label = "Qwen3.8-Max · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "qwen3.8-flash"
+label = "Qwen3.8-Flash · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "qwen3.7-max"
+label = "Qwen3.7-Max · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "qwen3.7-plus"
+label = "Qwen3.7-Plus · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "qwen3.6-flash"
+label = "Qwen3.6-Flash · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "qwen3.6-plus"
+label = "Qwen3.6 Plus · 1M"
+max_context = 1000000
