@@ -82,14 +82,24 @@ label = "MiniMax M2.7"
 max_context = 204800
 
 [[preset.model_choices]]
-id = "xiaomi/mimo-v2.5-pro"
-label = "MiMo V2.5-Pro · 1M"
-max_context = 1050000
+id = "xiaomi/mimo-v2.6-pro"
+label = "MiMo V2.6-Pro · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "xiaomi/mimo-v2.6-flash"
+label = "MiMo V2.6-Flash · 1M"
+max_context = 1048576
 
 [[preset.model_choices]]
 id = "x-ai/grok-4.20"
 label = "Grok 4.20 · 2M"
 max_context = 2000000
+
+[[preset.model_choices]]
+id = "x-ai/grok-4.7"
+label = "Grok 4.7 · 500K"
+max_context = 500000
 
 [[preset.model_choices]]
 id = "x-ai/grok-4.6"

@@ -57,7 +57,7 @@
         "z-ai/glm-5.3": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
         "z-ai/glm-5.3-flash": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
         "minimax/minimax-m3": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
-        "xiaomi/mimo-v2.5-pro": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准"
+        "deepseek/deepseek-v4-pro": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准"
       }
     },
     "qwen-token-plan-cn": {
@@ -73,7 +73,9 @@
       "preset": "xai"
     },
     "xiaomi": {
-      "preset": "mimo"
+      "preset": "mimo",
+      "ignore": "^mimo-v2\\.5-pro-ultraspeed$",
+      "ignore_reason": "厂商模型总览已不再列出，UltraSpeed 档只剩 mimo-v2.6-pro-ultraspeed"
     },
     "xiaomi-token-plan-cn": {
       "preset": "mimo-plan"

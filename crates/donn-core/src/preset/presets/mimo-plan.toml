@@ -6,30 +6,41 @@ base_url = "https://token-plan-cn.xiaomimimo.com/anthropic"
 auth_mode = "auth_token"
 key_url = "https://platform.xiaomimimo.com/#/console/plan-manage"
 
-# 模型 id 与按量付费一致（mimo.mi.com Claude Code 文档）；
+# 模型 id 与按量付费一致（mimo.mi.com Claude Code 文档）；Token Plan 只含 mimo-v2.6-pro / mimo-v2.6-flash
+# （UltraSpeed 不在套餐内），mimo-v2.5-pro 与 mimo-v2.5 于 2026-10-21 10:00（北京）下线。
 # 端点实测：token-plan-cn.xiaomimimo.com/anthropic/v1/messages 回 Anthropic 错误信封。
 [preset.models]
-sonnet = "mimo-v2.5-pro"
-opus = "mimo-v2.5-pro"
-fable = "mimo-v2.5-pro"
-haiku = "mimo-v2.5"
+sonnet = "mimo-v2.6-pro"
+opus = "mimo-v2.6-pro"
+fable = "mimo-v2.6-pro"
+haiku = "mimo-v2.6-flash"
 
 [[preset.model_choices]]
-id = "mimo-v2.5-pro[1m]"
-label = "V2.5-Pro · 1M (Claude Code form)"
+id = "mimo-v2.6-pro[1m]"
+label = "V2.6-Pro · 1M (Claude Code form)"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "mimo-v2.6-pro"
+label = "V2.6-Pro · plan default"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "mimo-v2.6-flash[1m]"
+label = "V2.6-Flash · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "mimo-v2.6-flash"
+label = "V2.6-Flash · lighter"
 max_context = 1048576
 
 [[preset.model_choices]]
 id = "mimo-v2.5-pro"
-label = "V2.5-Pro · plan default"
+label = "V2.5-Pro · offline 2026-10-21"
 max_context = 1048576
 
 [[preset.model_choices]]
 id = "mimo-v2.5"
-label = "V2.5 · lighter"
-max_context = 1048576
-
-[[preset.model_choices]]
-id = "mimo-v2.5[1m]"
-label = "V2.5 · 1M"
+label = "V2.5 · offline 2026-10-21"
 max_context = 1048576

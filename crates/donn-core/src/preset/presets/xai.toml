@@ -1,23 +1,28 @@
 [preset]
 key = "xai"
 label = "xAI Grok"
-description = "Native Anthropic-compatible endpoint at api.x.ai — Grok 4.6 / 4.5 / 4.20 / 4.3 / Build"
+description = "Native Anthropic-compatible endpoint at api.x.ai — Grok 4.7 / 4.6 / 4.5 / 4.20 / 4.3 / Build"
 base_url = "https://api.x.ai"
 auth_mode = "auth_token"
 key_url = "https://console.x.ai"
 
-# 模型 id 经 docs.x.ai/developers/models 核对：grok-4.6（500k，官方推荐编码主力）、
-# grok-4.5（500k）、grok-4.20-multi-agent-0309（1M，官方推荐 agentic 工作流）、
+# 模型 id 经 docs.x.ai/developers/models 核对：grok-4.7（500k，官方推荐编码主力）、
+# grok-4.6（500k）、grok-4.5（500k）、grok-4.20-multi-agent-0309（1M，官方推荐 agentic 工作流）、
 # grok-4.20（原生 1M——该页数据 maxPromptLength=1000000，别名 grok-4.20；路由平台标 2M 与原生无关）、
 # grok-4.3（1M）、grok-build-0.1（256k，agentic/build 专用）。
 # 端点实测：api.x.ai/v1/messages 存在、收 x-api-key 与 Bearer、按 Anthropic 格式校验
 # payload——docs.x.ai API reference 首页未列此端点，以实测与 REST 全量参考为准。
 # 上下文精确值取 pi 远程模型目录（厂商页只标 500k/1M/256k 无精确数）。
 [preset.models]
-sonnet = "grok-4.6"
-opus = "grok-4.6"
-fable = "grok-4.6"
+sonnet = "grok-4.7"
+opus = "grok-4.7"
+fable = "grok-4.7"
 haiku = "grok-build-0.1"
+
+[[preset.model_choices]]
+id = "grok-4.7"
+label = "Grok 4.7 · 500K"
+max_context = 500000
 
 [[preset.model_choices]]
 id = "grok-4.20"
