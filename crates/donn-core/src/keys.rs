@@ -48,12 +48,14 @@ pub fn attribution_hidden() -> serde_json::Value {
 /// [官方·二进制 schema] settings.json 顶层键：持久化思考强度（档位见
 /// [`EFFORT_SETTING_LEVELS`]）。v2.1.251 起 `/effort` 改存 `modelSettings`（按模型），
 /// 同文件内按模型的存档优先于本键；env [`EFFORT`] 优先于本键与 `--effort` flag。
+/// user settings（含 `CLAUDE_CONFIG_DIR/settings.json`）里的本键对 Opus 5.5 及之后的模型
+/// 不生效，它们从自身默认档起步；project、local、managed、`--settings` 来源的本键对所有模型生效。
 pub const EFFORT_SETTING: &str = "effortLevel";
 /// [官方·二进制 schema] `effortLevel` 持久化设置的合法档位
 /// （与 env 的 [`Effort`] 不同：无 max，auto = 不设）。
 pub const EFFORT_SETTING_LEVELS: [&str; 4] = ["low", "medium", "high", "xhigh"];
 /// [官方] settings.json 顶层键：`false` 为所有会话关闭 extended thinking
-/// （thinking 默认开，`true` 无效果；Fable 等恒思考模型忽略此键）。
+/// （thinking 默认开，`true` 无效果；Opus 5.5、Fable 等恒思考模型忽略此键）。
 pub const ALWAYS_THINKING: &str = "alwaysThinkingEnabled";
 /// [官方] settings.json 顶层键：思考强度上限（v2.1.267+），任何更高档位按上限运行；
 /// 合法档位见 [`MAX_EFFORT_LEVELS`]，`max` = 不设上限。

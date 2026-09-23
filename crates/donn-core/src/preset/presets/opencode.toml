@@ -14,6 +14,10 @@ id = "claude-fable-5-1"
 label = "Claude Fable 5.1"
 
 [[preset.model_choices]]
+id = "claude-opus-5-5"
+label = "Claude Opus 5.5"
+
+[[preset.model_choices]]
 id = "claude-opus-5"
 label = "Claude Opus 5"
 

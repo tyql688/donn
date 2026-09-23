@@ -11,7 +11,7 @@ key_url = "https://openrouter.ai/settings/keys"
 # 这里只保留当前主力编码模型；其余模型自由输入即可。
 [preset.models]
 sonnet = "anthropic/claude-sonnet-5"
-opus = "anthropic/claude-opus-5"
+opus = "anthropic/claude-opus-5.5"
 fable = "anthropic/claude-fable-5.1"
 haiku = "anthropic/claude-haiku-4.5"
 
@@ -27,6 +27,10 @@ label = "Claude Fable 5"
 [[preset.model_choices]]
 id = "anthropic/claude-sonnet-5"
 label = "Claude Sonnet 5"
+
+[[preset.model_choices]]
+id = "anthropic/claude-opus-5.5"
+label = "Claude Opus 5.5"
 
 [[preset.model_choices]]
 id = "anthropic/claude-opus-5"
