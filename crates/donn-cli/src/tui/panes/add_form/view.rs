@@ -1,10 +1,10 @@
 //! Add 表单渲染：选渠道列表/详情 + 填表预览。状态与按键逻辑在父模块。
 
-use donn_core::Isolation;
-use donn_core::keys::ModelSlot;
-use donn_core::preset::AuthMode;
+use donn_core::keys::{self, ModelSlot};
+use donn_core::{AuthMode, Isolation};
 use ratatui::Frame;
 use ratatui::layout::Rect;
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{ListItem, Paragraph, Wrap};
 
@@ -12,6 +12,8 @@ use super::{AddForm, Field};
 use crate::tui::app::{Core, PaneId};
 use crate::tui::components::{draw_list, fit_left, fit_right, list_hit_area, pad};
 use crate::tui::i18n;
+use crate::tui::modals::model_pick;
+use crate::tui::theme::Theme;
 
 /// Add 时左栏：渠道列表。
 pub fn render_providers(form: &mut AddForm, core: &mut Core, f: &mut Frame, area: Rect) {
@@ -64,7 +66,7 @@ pub fn render_provider_detail(form: &AddForm, core: &Core, f: &mut Frame, area: 
         field(theme, "auth", p.auth_mode.label()),
     ];
     if let Some(url) = &p.key_url {
-        lines.push(field(theme, i18n::PROVIDER_GET_KEY, url));
+        lines.push(field(theme, i18n::HINT_KEY_URL, url));
     }
     if !p.models.is_empty() {
         lines.push(Line::default());
@@ -74,7 +76,7 @@ pub fn render_provider_detail(form: &AddForm, core: &Core, f: &mut Frame, area: 
             }
         }
     }
-    let choices = crate::tui::modals::model_pick::collect_choices(p);
+    let choices = model_pick::collect_choices(p);
     if !choices.is_empty() {
         lines.push(Line::default());
         lines.push(Line::from(Span::styled(
@@ -90,7 +92,7 @@ pub fn render_provider_detail(form: &AddForm, core: &Core, f: &mut Frame, area: 
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
-fn field<'a>(theme: &crate::tui::theme::Theme, label: &str, value: &str) -> Line<'a> {
+fn field<'a>(theme: &Theme, label: &str, value: &str) -> Line<'a> {
     Line::from(vec![
         Span::styled(format!("{} ", pad(label, 12)), theme.dim()),
         Span::raw(value.to_string()),
@@ -131,8 +133,8 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
         };
         let label = match field {
             Field::Name => i18n::F_NAME.to_string(),
-            Field::Key => i18n::F_API_KEY.into(),
-            Field::BaseUrl => i18n::F_BASE_URL.into(),
+            Field::Key => i18n::ROW_API_KEY.into(),
+            Field::BaseUrl => i18n::ROW_BASE_URL.into(),
             Field::Model(slot) => i18n::fill(i18n::ROW_MODEL, &[slot.label()]),
             Field::MaxContext => format!("  {}", i18n::ROW_MAX_CONTEXT),
             Field::Effort => i18n::F_EFFORT.into(),
@@ -153,7 +155,7 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
             Field::Effort => {
                 let text = match form.effort.env_value() {
                     Some(level) => level.to_string(),
-                    None => match form.provider().env.get(donn_core::keys::EFFORT) {
+                    None => match form.provider().env.get(keys::EFFORT) {
                         // Auto = 无 intent 覆盖；展示渠道默认，避免误读成 “follow global”
                         Some(level) => format!("{level} {}", i18n::FROM_DEFAULT),
                         None => i18n::EFFORT_AUTO.to_string(),
@@ -256,7 +258,7 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
 
     // 底部生效预览：这次创建实际会得到什么
     lines.push(Line::from(Span::styled(i18n::PV_TITLE, theme.accent())));
-    let entry = |label: &str, value: String, style: ratatui::style::Style| {
+    let entry = |label: &str, value: String, style: Style| {
         Line::from(vec![
             Span::raw("  "),
             Span::styled(pad(label, 10), theme.dim()),
@@ -270,7 +272,7 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
     };
     let value_width = (inner.width as usize).saturating_sub(14);
     lines.push(entry(
-        i18n::PV_COMMAND,
+        i18n::SB_COMMAND,
         fit_left(
             &core
                 .donn
@@ -290,18 +292,18 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
         config_line = format!("{config_line}  {}", i18n::ISO_SHARED_TAG);
     }
     lines.push(entry(
-        i18n::PV_CONFIG_DIR,
+        i18n::SB_CONFIG,
         config_line,
         if form.isolation == Isolation::Shared {
             theme.warn()
         } else {
-            ratatui::style::Style::default()
+            Style::default()
         },
     ));
     lines.push(entry(
         i18n::PV_ENDPOINT,
         form.effective_base_url(),
-        ratatui::style::Style::default(),
+        Style::default(),
     ));
     let auth_env = match form.provider().auth_mode {
         AuthMode::ApiKey => "ANTHROPIC_API_KEY",
@@ -332,7 +334,7 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
         && let Some(choice) = form.provider().choice_for_model(&id)
     {
         let pkg = choice.package_env();
-        if let Some(max) = pkg.get(donn_core::keys::MAX_CONTEXT) {
+        if let Some(max) = pkg.get(keys::MAX_CONTEXT) {
             lines.push(entry(i18n::PV_CONTEXT, max.clone(), theme.dim()));
         }
     }

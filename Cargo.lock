@@ -500,7 +500,6 @@ name = "donn-core"
 version = "0.3.0"
 dependencies = [
  "dirs",
- "regex",
  "secrecy",
  "serde",
  "serde_json",

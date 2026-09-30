@@ -42,11 +42,13 @@ cargo build --release --locked
   - `config.rs`：`GlobalConfig` 的读写与 `config.toml` 模板
   - `ops/`：UI/CLI 所有写操作走的 `Donn` facade
   - `preset/mod.rs` + `preset/presets/*.toml`：内置渠道数据与模型套餐
+  - `home.rs` / `claude.rs`：`~/.donn` 磁盘布局；Claude 配置 JSON 的读写与 `settings.json` 只读视图
   - `fsx.rs`：原子写、0600、跨进程锁
   - `launch.rs` / `wrapper.rs` / `session.rs` / `doctor.rs` / `proc.rs`：启动、别名、会话探测、体检、带超时的子进程
   - `secret.rs`：类型级 secret 防泄露
 - `crates/donn-cli/`：Clap 命令与 Ratatui dashboard
   - `commands/`：`run`、`list`、`doctor`
+  - `tui/app.rs` / `tui/keymap.rs`：dashboard 状态与动作分发；按键 → `Action` 的映射
   - `tui/components/`：输入框、单选/确认/提示模态、状态栏、列表
   - `tui/panes/`：profiles、detail、add、settings、doctor
   - `tui/modals/`：渠道与模型的搜索选择器（`nucleo-matcher`）、帮助页

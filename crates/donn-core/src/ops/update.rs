@@ -3,9 +3,11 @@
 
 use serde_json::Value;
 
-use crate::claude::{self, view::SettingsView};
-use crate::error::Result;
-use crate::keys::ModelSlot;
+use crate::claude::{self, SettingsView};
+use crate::config::Defaults;
+use crate::error::{Error, Result, io_ctx};
+use crate::keys::{self, Effort, ModelSlot};
+use crate::preset::Preset;
 use crate::reconcile;
 use crate::render::{self, Rendered};
 use crate::secret::Secret;
@@ -116,8 +118,7 @@ impl Donn {
         let catalog = self.presets();
         let preset = catalog.get(&spec.preset)?;
         let settings = claude::read_json(&self.home.settings_file(name))?;
-        let config = crate::config::GlobalConfig::load(&self.home)?;
-        drift_for(&spec, preset, &settings, &config.defaults)
+        drift_for(&spec, preset, &settings, &self.config()?.defaults)
     }
 
     /// 写路径的公共主干。`old_spec` = 变更前意图，用于区分
@@ -140,14 +141,13 @@ impl Donn {
         // 旧渲染：现有文件里 donn 上次写的应然值（secret 用文件里现有的）。
         // 旧 preset 在本版 donn 里已不存在时按「无旧渲染」处理（手改判定退化为
         // 全部提示，footprint 驱动的清理不受影响）——硬报错会让 sync 永久卡死。
-        let config = crate::config::GlobalConfig::load(&self.home)?;
-        let defaults = &config.defaults;
+        let defaults = &self.config()?.defaults;
         let old_rendered = match old_spec {
             Some(old) => catalog
                 .get(&old.preset)
                 .map(|old_preset| render::render(old, old_preset, recovered.as_ref(), defaults))
                 .unwrap_or_default(),
-            None => render::Rendered::default(),
+            None => Rendered::default(),
         };
         let secret = match secret {
             SecretSource::Explicit(s) => s,
@@ -181,7 +181,7 @@ impl Donn {
         };
         if overlay.is_empty() {
             if overlay_path.exists() {
-                std::fs::remove_file(&overlay_path).map_err(crate::error::io_ctx(format!(
+                std::fs::remove_file(&overlay_path).map_err(io_ctx(format!(
                     "failed to remove {}",
                     overlay_path.display()
                 )))?;
@@ -233,12 +233,12 @@ fn apply_change(spec: &mut ProfileSpec, change: SpecChange) -> Result<()> {
         SpecChange::SetEnv(key, value) => {
             // donn 认识档位表的键在写入时校验：typo 会被 Claude Code 静默忽略，
             // 与其落盘后 UI 显示与实际行为脱节，不如当场报错
-            if key == crate::keys::EFFORT && crate::keys::Effort::from_env(Some(&value)).is_none() {
-                return Err(crate::error::Error::InvalidInput(format!(
+            if key == keys::EFFORT && Effort::from_env(Some(&value)).is_none() {
+                return Err(Error::InvalidInput(format!(
                     "invalid effort level `{value}` (expected one of low/medium/high/xhigh/max)"
                 )));
             }
-            crate::keys::validate_env_entry(&key, &value)?;
+            keys::validate_env_entry(&key, &value)?;
             spec.intent.env.insert(key, value);
         }
         SpecChange::RemoveEnv(key) => {
@@ -253,16 +253,16 @@ fn apply_change(spec: &mut ProfileSpec, change: SpecChange) -> Result<()> {
 
 pub(super) fn validate_rendered_env(rendered: &Rendered) -> Result<()> {
     for (key, value) in &rendered.env {
-        crate::keys::validate_env_entry(key, value)?;
+        keys::validate_env_entry(key, value)?;
     }
     Ok(())
 }
 
 pub(super) fn drift_for(
     spec: &ProfileSpec,
-    preset: &crate::preset::Preset,
+    preset: &Preset,
     settings: &Value,
-    defaults: &crate::config::Defaults,
+    defaults: &Defaults,
 ) -> Result<Vec<Drift>> {
     let secret = SettingsView::new(settings).secret();
     let rendered = render::render(spec, preset, secret.as_ref(), defaults);
@@ -284,7 +284,7 @@ pub(super) fn diff_drift(settings: &Value, rendered: &Rendered) -> Vec<Drift> {
     let mode_drift = rendered.permissions_default_mode.iter().filter_map(|mode| {
         let actual = settings
             .get("permissions")
-            .and_then(|p| p.get(crate::keys::PERMISSIONS_DEFAULT_MODE))
+            .and_then(|p| p.get(keys::PERMISSIONS_DEFAULT_MODE))
             .and_then(Value::as_str);
         diff_one("permissions.defaultMode", actual, &mode.as_str())
     });

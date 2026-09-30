@@ -27,10 +27,10 @@ render、合并、校验、TUI 行与测试按表生效。表驱动旋钮什么�
 
 需要两遍优先级、只在有 `base_url` 时注入、或配对写多个键的旋钮：
 
-- `knobs.rs`：`Knobs` 加 `Option<T>` 字段与生效值方法（派生反序列化，不做旧字段名迁移：改名的旧键会落到 `extra` 并由 doctor 报为 unknown）；`Knobs::validate` 加取值校验。
+- `knobs.rs`：`Knobs` 加 `Option<T>` 字段与生效值方法（派生反序列化，不做旧字段名迁移：改名的旧键会落到 `extra` 并由 doctor 报为 unknown）；键名登记进 `TYPED_KNOB_FIELDS`（模板、对照表、行名的测试都从它取字段）；`Knobs::validate` 加取值校验。
 - `config.rs`：`CONFIG_DOC` 加行。
 - `render.rs`：env 类显式值在 `preset.env` 之后再压一次；依赖 `base_url` 的两遍都守条件；settings 自由默认可覆盖 settings 类旋钮，donn 常量最后写。
-- `ops/config_ops.rs`：`apply_knob_changes` 只合并与 `base` 不同的字段；值变化时才校验。
+- `ops/config.rs`：`apply_knob_changes` 只合并与 `base` 不同的字段；值变化时才校验。
 - `tui/panes/settings.rs`：加 `Row`、分组位置、编辑与渲染；拨回默认存 `None`；有限枚举用 `Select`，数字用 `Prompt`；显式值与 `(default)` 区分显示。
 - `i18n.rs`：`knob_label` 加行名。
 - `docs/GLOBAL-SETTINGS.md`：加一行。

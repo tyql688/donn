@@ -29,17 +29,12 @@ pub(crate) fn lock_writes(path: &Path) -> Result<WriteLock> {
         .map_err(io_ctx(format!("failed to open {}", path.display())))?;
     // 锁竞争最多等约 5 秒，之后给调用方一个可操作错误，
     // 不能让启动前 sync 或 TUI 写操作无限挂住。
-    let mut locked = false;
-    for attempt in 0..100 {
+    for _ in 0..100 {
         match file.try_lock() {
-            Ok(()) => {
-                locked = true;
-                break;
-            }
-            Err(std::fs::TryLockError::WouldBlock) if attempt < 99 => {
+            Ok(()) => return Ok(WriteLock { _file: file }),
+            Err(std::fs::TryLockError::WouldBlock) => {
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
-            Err(std::fs::TryLockError::WouldBlock) => break,
             Err(std::fs::TryLockError::Error(source)) => {
                 return Err(Error::Io {
                     context: format!("failed to lock {}", path.display()),
@@ -48,16 +43,13 @@ pub(crate) fn lock_writes(path: &Path) -> Result<WriteLock> {
             }
         }
     }
-    if !locked {
-        return Err(Error::Io {
-            context: format!("failed to lock {} after 5 seconds", path.display()),
-            source: std::io::Error::new(
-                std::io::ErrorKind::WouldBlock,
-                "another donn process is still writing",
-            ),
-        });
-    }
-    Ok(WriteLock { _file: file })
+    Err(Error::Io {
+        context: format!("failed to lock {} after 5 seconds", path.display()),
+        source: std::io::Error::new(
+            std::io::ErrorKind::WouldBlock,
+            "another donn process is still writing",
+        ),
+    })
 }
 
 /// 原子写。tmp 文件与目标同目录（同文件系统才有原子 rename）。
@@ -76,7 +68,9 @@ pub fn write_atomic_mode(path: &Path, bytes: &[u8], new_file_mode: Option<u32>) 
         parent.display()
     )))?;
 
-    let file_name = file_name_of(path)?;
+    let file_name = path.file_name().and_then(|n| n.to_str()).ok_or_else(|| {
+        Error::Internal(format!("path has no valid file name: {}", path.display()))
+    })?;
     let mut tmp = tempfile::Builder::new()
         .prefix(&format!(".{file_name}.donn-tmp-"))
         .tempfile_in(parent)
@@ -177,13 +171,6 @@ pub fn merge_toml_owned(
     Ok(doc.to_string())
 }
 
-fn file_name_of(path: &Path) -> Result<String> {
-    path.file_name()
-        .and_then(|n| n.to_str())
-        .map(str::to_string)
-        .ok_or_else(|| Error::Internal(format!("path has no valid file name: {}", path.display())))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -227,17 +214,6 @@ mod tests {
             mode, 0o600,
             "rewrite must not reset user-tightened permissions"
         );
-    }
-
-    #[test]
-    fn windows_style_paths_in_names() {
-        // 表驱动：文件名提取对各种路径成立
-        let dir = TempDir::new().unwrap();
-        for name in [".claude.json", "settings.json", "profile.toml"] {
-            let path = dir.path().join(name);
-            write_atomic(&path, b"x").unwrap();
-            assert!(path.exists(), "{name}");
-        }
     }
 
     #[test]

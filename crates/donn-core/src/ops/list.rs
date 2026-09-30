@@ -1,10 +1,10 @@
 //! 读路径：dashboard 所需的全部视图，从 spec + preset 推导。
 
-use crate::claude::{self, view::SettingsView};
-use crate::config::GlobalConfig;
+use crate::claude::{self, SettingsView};
+use crate::config::Defaults;
 use crate::error::Result;
 use crate::keys::SlotMap;
-use crate::preset::Preset;
+use crate::preset::{Preset, PresetCatalog};
 use crate::render::{effective_base_url, effective_models, global_models};
 use crate::secret::{KeyState, Secret};
 use crate::spec::ProfileSpec;
@@ -52,7 +52,7 @@ impl Donn {
 
     pub fn cards(&self) -> Result<Vec<ProfileCard>> {
         let catalog = self.presets();
-        let defaults = GlobalConfig::load(&self.home)?.defaults;
+        let defaults = self.config()?.defaults;
         let mut out = Vec::new();
         for name in self.profile_names()? {
             out.push(match self.card(&catalog, &defaults, &name) {
@@ -74,8 +74,8 @@ impl Donn {
 
     fn card(
         &self,
-        catalog: &crate::preset::PresetCatalog,
-        defaults: &crate::config::Defaults,
+        catalog: &PresetCatalog,
+        defaults: &Defaults,
         name: &str,
     ) -> Result<ProfileCard> {
         let spec = self.spec(name)?;
@@ -100,7 +100,7 @@ impl Donn {
         let preset = catalog.get(&spec.preset)?.clone();
         let settings = claude::read_json(&self.home.settings_file(name))?;
         claude::read_json(&self.home.claude_json_file(name))?;
-        let defaults = GlobalConfig::load(&self.home)?.defaults;
+        let defaults = self.config()?.defaults;
         let drift = drift_for(&spec, &preset, &settings, &defaults)?;
         Ok(ProfileView {
             key: SettingsView::new(&settings).key_state(preset.auth_mode.needs_key()),

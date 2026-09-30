@@ -186,7 +186,7 @@ fn expand_tilde(raw: &str, home: &DonnHome) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::knobs::{BOOL_KNOBS, VALUE_KNOBS};
+    use crate::knobs::{BOOL_KNOBS, VALUE_KNOBS, knob_fields};
     use tempfile::TempDir;
 
     #[test]
@@ -238,51 +238,13 @@ mod tests {
         for knob in VALUE_KNOBS {
             assert!(f.value(knob).is_none(), "{}", knob.field);
         }
-        let fields: std::collections::BTreeSet<&str> = BOOL_KNOBS
-            .iter()
-            .map(|k| k.field)
-            .chain(VALUE_KNOBS.iter().map(|k| k.field))
-            .collect();
-        assert_eq!(
-            fields.len(),
-            BOOL_KNOBS.len() + VALUE_KNOBS.len(),
-            "duplicate knob field"
-        );
     }
 
     #[test]
-    fn config_document_mentions_every_knob() {
-        for field in [
-            "agent_teams",
-            "tool_search",
-            "permission_mode",
-            "hide_attribution",
-            "api_timeout_ms",
-            "disable_nonessential_traffic",
-        ]
-        .into_iter()
-        .chain(BOOL_KNOBS.iter().map(|k| k.field))
-        .chain(VALUE_KNOBS.iter().map(|k| k.field))
-        {
-            assert!(CONFIG_DOC.contains(&format!("# {field} =")), "{field}");
-        }
-    }
-
-    #[test]
-    fn global_settings_doc_lists_every_knob() {
+    fn config_template_and_global_settings_doc_list_every_knob() {
         let doc = include_str!("../../../docs/GLOBAL-SETTINGS.md");
-        for field in [
-            "agent_teams",
-            "tool_search",
-            "permission_mode",
-            "hide_attribution",
-            "api_timeout_ms",
-            "disable_nonessential_traffic",
-        ]
-        .into_iter()
-        .chain(BOOL_KNOBS.iter().map(|k| k.field))
-        .chain(VALUE_KNOBS.iter().map(|k| k.field))
-        {
+        for field in knob_fields() {
+            assert!(CONFIG_DOC.contains(&format!("# {field} =")), "{field}");
             assert!(
                 doc.contains(&format!("| `{field}` |")),
                 "docs/GLOBAL-SETTINGS.md lacks {field}"

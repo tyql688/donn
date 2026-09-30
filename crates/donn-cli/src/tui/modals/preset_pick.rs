@@ -9,7 +9,7 @@ use ratatui::text::{Line, Span};
 
 use crate::tui::app::Core;
 use crate::tui::components::fuzzy_rank;
-use crate::tui::components::modal::{Modal, ModalOutcome, render_box};
+use crate::tui::components::modal::{Modal, ModalOutcome, box_width, render_box};
 use crate::tui::components::text_input::TextInput;
 use crate::tui::i18n;
 
@@ -107,7 +107,7 @@ impl Modal for PresetPick {
         let theme = &core.theme;
         let matches = self.matches();
         let visible = 12usize;
-        let width = 62.min(area.width.saturating_sub(4)).max(30).min(area.width);
+        let width = box_width(area, 62, 30);
         let height = (matches.len().min(visible) as u16 + 4).min(area.height);
 
         let mut lines = vec![

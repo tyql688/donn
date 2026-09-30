@@ -65,20 +65,9 @@ impl Theme {
             .padding(Padding::horizontal(1))
     }
 
-    /// 弹窗外框。
+    /// 弹窗外框：与焦点面板同款。
     pub fn modal_block<'a>(&self, title: impl Into<Line<'a>>) -> Block<'a> {
-        Block::default()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(self.accent))
-            .title(
-                title.into().style(
-                    Style::default()
-                        .fg(self.accent)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            )
-            .padding(Padding::horizontal(1))
+        self.pane_block(title, true)
     }
 
     pub fn selected(&self) -> Style {

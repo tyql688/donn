@@ -13,11 +13,16 @@ use donn_core::preset::Preset;
 use donn_core::{Defaults, Isolation, ProfileDraft, Secret, SlotMap};
 use std::collections::BTreeSet;
 
-use crate::tui::app::Core;
-use crate::tui::components::list::SelectList;
+use crate::tui::app::{Core, PaneId};
+use crate::tui::components::effort_options;
+use crate::tui::components::list::{Nav, SelectList};
+use crate::tui::components::modal::{Modal, Select};
 use crate::tui::components::text_input::TextInput;
 use crate::tui::i18n::{self, fill};
+use crate::tui::modals::help::HelpModal;
+use crate::tui::modals::model_pick;
 use crate::tui::modals::preset_pick::PresetPick;
+use crate::tui::panes::detail::{DEFAULT_CUSTOM_WINDOW, parse_tokens};
 
 /// Add 的两个阶段：先选渠道，再填表。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,7 +52,7 @@ pub enum FormOutcome {
     /// 退出 Add 模式（取消或创建成功）。
     Close,
     /// 叠加弹窗（渠道过滤选择器 / 思考强度单选）。
-    OpenPicker(Box<dyn crate::tui::components::modal::Modal>),
+    OpenPicker(Box<dyn Modal>),
 }
 
 pub struct AddForm {
@@ -141,10 +146,13 @@ impl AddForm {
 
     /// 鼠标滚轮：选渠道阶段滚动列表。
     pub fn scroll_providers(&mut self, delta: i32) {
-        if self.stage != Stage::PickProvider {
-            return;
+        if self.stage == Stage::PickProvider {
+            self.nav_providers(Nav::By(delta));
         }
-        self.providers.move_by(delta);
+    }
+
+    fn nav_providers(&mut self, nav: Nav) {
+        self.providers.nav(nav);
         self.prefill_from_provider();
     }
 
@@ -245,22 +253,13 @@ impl AddForm {
         }
     }
 
-    /// 生效的 sonnet id（填了用填的，否则 preset 默认）。
+    /// 生效的 sonnet id；窗口是它的属性。
     fn sonnet(&self) -> String {
-        let typed = self.slots[ModelSlot::Sonnet.index()].value().trim();
-        if typed.is_empty() {
-            self.provider()
-                .models
-                .get(ModelSlot::Sonnet)
-                .unwrap_or_default()
-                .to_string()
-        } else {
-            typed.to_string()
-        }
+        self.effective_model(ModelSlot::Sonnet).unwrap_or_default()
     }
 
     fn needs_window(&self) -> bool {
-        crate::tui::modals::model_pick::needs_window(self.provider(), &self.sonnet())
+        model_pick::needs_window(self.provider(), &self.sonnet())
     }
 
     fn window_visible(&self) -> bool {
@@ -274,13 +273,12 @@ impl AddForm {
             self.max_context.set("");
             self.window_touched = false;
         } else if !self.window_touched {
-            self.max_context
-                .set(crate::tui::panes::detail::DEFAULT_CUSTOM_WINDOW);
+            self.max_context.set(DEFAULT_CUSTOM_WINDOW);
         }
     }
 
     fn window(&self) -> Result<Option<u64>, String> {
-        crate::tui::panes::detail::parse_tokens(self.max_context.value())
+        parse_tokens(self.max_context.value())
     }
 
     fn alias_list(&self) -> Vec<String> {
@@ -350,9 +348,7 @@ impl AddForm {
                 }
                 None
             }
-            Field::MaxContext => {
-                crate::tui::panes::detail::parse_tokens(self.max_context.value()).err()
-            }
+            Field::MaxContext => self.window().err(),
             Field::Aliases => {
                 let bin_dir = match core.donn.bin_dir() {
                     Ok(bin_dir) => bin_dir,
@@ -377,6 +373,17 @@ impl AddForm {
         self.fields()
             .into_iter()
             .find_map(|f| self.validate(core, f))
+    }
+
+    /// 提交并映射成表单结果：失败留在表单里显示原因。
+    fn try_submit(&mut self, core: &mut Core) -> FormOutcome {
+        match self.submit(core) {
+            Ok(()) => FormOutcome::Close,
+            Err(error) => {
+                self.error = Some(error);
+                FormOutcome::Keep
+            }
+        }
     }
 
     fn submit(&mut self, core: &mut Core) -> Result<(), String> {
@@ -459,13 +466,13 @@ impl AddForm {
         }
         match key.code {
             KeyCode::Char('?') => {
-                return FormOutcome::OpenPicker(Box::new(crate::tui::modals::help::HelpModal));
+                return FormOutcome::OpenPicker(Box::new(HelpModal));
             }
             // Esc：返回渠道选择（不丢已填内容）
             KeyCode::Esc => {
                 self.stage = Stage::PickProvider;
                 self.error = None;
-                core.focus = crate::tui::app::PaneId::Left;
+                core.focus = PaneId::Left;
                 return FormOutcome::Keep;
             }
             // ^t：api key 明文/掩码切换（小眼睛）
@@ -474,13 +481,7 @@ impl AddForm {
                 return FormOutcome::Keep;
             }
             KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                return match self.submit(core) {
-                    Ok(()) => FormOutcome::Close,
-                    Err(error) => {
-                        self.error = Some(error);
-                        FormOutcome::Keep
-                    }
-                };
+                return self.try_submit(core);
             }
             KeyCode::Up | KeyCode::BackTab => {
                 self.field_idx = self.field_idx.saturating_sub(1);
@@ -492,49 +493,38 @@ impl AddForm {
             }
             KeyCode::Enter => {
                 if field == Field::Create {
-                    return match self.submit(core) {
-                        Ok(()) => FormOutcome::Close,
-                        Err(error) => {
-                            self.error = Some(error);
-                            FormOutcome::Keep
-                        }
-                    };
+                    return self.try_submit(core);
                 }
                 // 思考强度：Enter 打开单选弹窗（与详情页一致），选中回写表单
                 if field == Field::Effort {
-                    let (options, selected) =
-                        crate::tui::components::effort_options(i18n::EFFORT_AUTO, self.effort);
-                    return FormOutcome::OpenPicker(Box::new(
-                        crate::tui::components::modal::Select::new(
-                            i18n::F_EFFORT,
-                            options,
-                            selected,
-                            |core, picked| {
-                                if let Some(form) = core.add.as_mut() {
-                                    form.effort = Effort::ALL[picked];
-                                }
-                            },
-                        ),
-                    ));
+                    let (options, selected) = effort_options(i18n::EFFORT_AUTO, self.effort);
+                    return FormOutcome::OpenPicker(Box::new(Select::new(
+                        i18n::F_EFFORT,
+                        options,
+                        selected,
+                        |core, picked| {
+                            if let Some(form) = core.add.as_mut() {
+                                form.effort = Effort::ALL[picked];
+                            }
+                        },
+                    )));
                 }
                 if field == Field::Isolation {
                     let selected = usize::from(self.isolation == Isolation::Shared);
-                    return FormOutcome::OpenPicker(Box::new(
-                        crate::tui::components::modal::Select::new(
-                            i18n::F_ISOLATION,
-                            vec![i18n::ISO_FULL.to_string(), i18n::ISO_SHARED.to_string()],
-                            selected,
-                            |core, picked| {
-                                if let Some(form) = core.add.as_mut() {
-                                    form.isolation = if picked == 1 {
-                                        Isolation::Shared
-                                    } else {
-                                        Isolation::Full
-                                    };
-                                }
-                            },
-                        ),
-                    ));
+                    return FormOutcome::OpenPicker(Box::new(Select::new(
+                        i18n::F_ISOLATION,
+                        vec![i18n::ISO_FULL.to_string(), i18n::ISO_SHARED.to_string()],
+                        selected,
+                        |core, picked| {
+                            if let Some(form) = core.add.as_mut() {
+                                form.isolation = if picked == 1 {
+                                    Isolation::Shared
+                                } else {
+                                    Isolation::Full
+                                };
+                            }
+                        },
+                    )));
                 }
                 // 模型槽：可搜索可填入
                 if let Field::Model(slot) = field {
@@ -546,20 +536,15 @@ impl AddForm {
                             self.name.value(),
                         ],
                     );
-                    return FormOutcome::OpenPicker(crate::tui::modals::model_pick::open(
+                    return FormOutcome::OpenPicker(model_pick::open(
                         title,
                         self.provider(),
                         slot,
                         &current,
                         move |core, pick| {
                             if let Some(form) = core.add.as_mut() {
-                                let preset = form.provider().clone();
-                                crate::tui::modals::model_pick::apply_to_slots(
-                                    &preset,
-                                    &mut form.slots,
-                                    slot,
-                                    pick,
-                                );
+                                let id = model_pick::slot_override(form.provider(), slot, pick);
+                                form.slots[slot.index()].set(id.unwrap_or_default());
                                 form.sync_window();
                             }
                             None
@@ -593,7 +578,7 @@ impl AddForm {
         }
         match key.code {
             KeyCode::Char('?') => {
-                return FormOutcome::OpenPicker(Box::new(crate::tui::modals::help::HelpModal));
+                return FormOutcome::OpenPicker(Box::new(HelpModal));
             }
             KeyCode::Esc | KeyCode::Char('q') => {
                 if !self.dirty() || self.pending_cancel {
@@ -602,23 +587,10 @@ impl AddForm {
                 self.pending_cancel = true;
                 self.error = Some(i18n::ESC_AGAIN_DISCARD.into());
             }
-            KeyCode::Up | KeyCode::Char('k') => {
-                self.providers.move_by(-1);
-                self.prefill_from_provider();
-            }
-            KeyCode::Down | KeyCode::Char('j') => {
-                self.providers.move_by(1);
-                self.prefill_from_provider();
-            }
-            KeyCode::Char('g') | KeyCode::Home => {
-                self.providers.select(0);
-                self.prefill_from_provider();
-            }
-            KeyCode::Char('G') | KeyCode::End => {
-                self.providers
-                    .select(self.providers.items.len().saturating_sub(1));
-                self.prefill_from_provider();
-            }
+            KeyCode::Up | KeyCode::Char('k') => self.nav_providers(Nav::By(-1)),
+            KeyCode::Down | KeyCode::Char('j') => self.nav_providers(Nav::By(1)),
+            KeyCode::Char('g') | KeyCode::Home => self.nav_providers(Nav::Top),
+            KeyCode::Char('G') | KeyCode::End => self.nav_providers(Nav::Bottom),
             KeyCode::Tab | KeyCode::Char('/') => {
                 return FormOutcome::OpenPicker(Box::new(PresetPick::new(
                     self.providers.items.clone(),
@@ -631,7 +603,7 @@ impl AddForm {
             },
             KeyCode::Enter => {
                 self.enter_edit();
-                core.focus = crate::tui::app::PaneId::Detail;
+                core.focus = PaneId::Detail;
             }
             _ => {}
         }
@@ -757,6 +729,22 @@ mod tests {
         type_str(&mut form, &mut core, "kimi-k3");
         assert!(!form.fields().contains(&Field::MaxContext));
         assert_eq!(form.window(), Ok(None));
+    }
+
+    #[test]
+    fn window_field_follows_a_sonnet_set_in_global_defaults() {
+        let dir = TempDir::new().unwrap();
+        let mut core = core(&dir);
+        core.donn
+            .edit_config(donn_core::ConfigChange::SetDefaultEnv(
+                ModelSlot::Sonnet.env_key().into(),
+                "gw/global-sonnet".into(),
+            ))
+            .unwrap();
+        let mut form = AddForm::new(&core, Some("kimi-cn".into()));
+        press(&mut form, &mut core, KeyCode::Enter);
+        assert_eq!(form.sonnet(), "gw/global-sonnet");
+        assert!(form.fields().contains(&Field::MaxContext));
     }
 
     #[test]

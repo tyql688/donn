@@ -2,6 +2,8 @@
 //! full 模式可选保留会话（只删身份，claude/ 会话数据原地不动）。
 //! 运行中会话检出则拒绝（force 跳过）。
 
+use std::path::Path;
+
 use crate::error::{Error, Result, io_ctx};
 use crate::session::LiveCheck;
 use crate::spec::Isolation;
@@ -60,7 +62,7 @@ impl Donn {
 }
 
 /// spec 不可读时，以 bin 目录里 wrapper 的实际启动目标为准回收别名。
-fn wrappers_targeting(bin_dir: &std::path::Path, name: &str) -> Vec<String> {
+fn wrappers_targeting(bin_dir: &Path, name: &str) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(bin_dir) else {
         return Vec::new();
     };

@@ -1,9 +1,43 @@
 //! Keymap：(焦点上下文, 按键) → Action 的唯一映射处；状态栏键提示与帮助页同源于此。
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::tui::action::Action;
 use crate::tui::i18n;
+
+/// keymap 解析出的语义动作；dispatch 在 app.rs。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    Quit,
+    /// Esc：逐级返回（详情→左栏、doctor→收起），并清状态栏。
+    Back,
+    /// Tab：焦点在可见面板间轮转。
+    FocusNext,
+    FocusLeft,
+    FocusRight,
+    /// 直达详情（profiles 列表按 `e`）。
+    FocusDetail,
+    MoveUp,
+    MoveDown,
+    JumpTop,
+    JumpBottom,
+    ToggleDoctor,
+    /// Enter：按焦点面板语义（启动 profile / 编辑详情行）。
+    Activate,
+    OpenAdd,
+    RemoveProfile,
+    SyncProfile,
+    OpenEditor,
+    RerunDoctor,
+    /// ^t：详情页 api key 明文/掩码切换。
+    ToggleKeyReveal,
+    /// o：浏览器打开当前渠道的取 key 控制台地址。
+    OpenKeyUrl,
+    /// y：打开复制选择器（启动命令、路径、profile env）。
+    OpenCopy,
+    /// S：全局设置面板（右栏行编辑 config.toml，改动即同步全部 profile）。
+    OpenSettings,
+    Help,
+}
 
 /// 焦点上下文。弹窗内部按键由弹窗自行处理，不走 keymap。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,7 +55,6 @@ pub enum Context {
 
 /// 解析按键。
 pub fn lookup(context: Context, key: &KeyEvent) -> Option<Action> {
-    use crossterm::event::KeyModifiers;
     // ^t key 明文切换需要 CONTROL，先于修饰键守卫处理
     if context == Context::Detail
         && key.code == KeyCode::Char('t')
@@ -74,7 +107,7 @@ pub fn hints(context: Context) -> Vec<(&'static str, &'static str)> {
             ("?", i18n::HINT_HELP),
             ("q", i18n::HINT_QUIT),
         ],
-        Context::Detail => vec![
+        Context::Detail | Context::Settings => vec![
             ("↑↓", i18n::KS_MOVE),
             ("enter", i18n::HINT_EDIT_ROW),
             ("esc", i18n::HINT_BACK),
@@ -97,12 +130,6 @@ pub fn hints(context: Context) -> Vec<(&'static str, &'static str)> {
             ("enter", i18n::ADD_FOOTER_NEXT),
             ("^s", i18n::ADD_FOOTER_CREATE),
             ("esc", i18n::ADD_FOOTER_BACK),
-            ("?", i18n::HINT_HELP),
-        ],
-        Context::Settings => vec![
-            ("↑↓", i18n::KS_MOVE),
-            ("enter", i18n::HINT_EDIT_ROW),
-            ("esc", i18n::HINT_BACK),
             ("?", i18n::HINT_HELP),
         ],
     }
@@ -157,7 +184,7 @@ pub fn cheatsheet() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::{KeyEventKind, KeyEventState, KeyModifiers};
+    use crossterm::event::{KeyEventKind, KeyEventState};
 
     fn key(code: KeyCode) -> KeyEvent {
         KeyEvent {
@@ -248,7 +275,7 @@ mod tests {
     }
 
     #[test]
-    fn every_context_has_hints() {
+    fn every_context_shows_one_to_five_primary_hints() {
         for ctx in [
             Context::Profiles,
             Context::Detail,
@@ -257,22 +284,8 @@ mod tests {
             Context::AddForm,
             Context::Settings,
         ] {
-            assert!(!hints(ctx).is_empty(), "{ctx:?}");
+            assert!((1..=5).contains(&hints(ctx).len()), "{ctx:?}");
         }
         assert!(!cheatsheet().is_empty());
-    }
-
-    #[test]
-    fn status_bar_keeps_only_primary_actions() {
-        for ctx in [
-            Context::Profiles,
-            Context::Detail,
-            Context::Doctor,
-            Context::AddPick,
-            Context::AddForm,
-            Context::Settings,
-        ] {
-            assert!(hints(ctx).len() <= 5, "{ctx:?}");
-        }
     }
 }

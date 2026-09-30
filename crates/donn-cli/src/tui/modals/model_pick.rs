@@ -6,16 +6,16 @@
 use std::collections::BTreeSet;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use donn_core::SpecChange;
 use donn_core::keys::ModelSlot;
 use donn_core::preset::{ModelChoice, Preset};
 use ratatui::Frame;
 use ratatui::layout::Rect;
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
 use crate::tui::app::Core;
-use crate::tui::components::modal::{Modal, ModalOutcome, render_box};
+use crate::tui::components::modal::{Modal, ModalOutcome, box_width, render_box};
 use crate::tui::components::text_input::TextInput;
 use crate::tui::components::{fit_right, fuzzy_rank, pad};
 use crate::tui::i18n;
@@ -81,39 +81,22 @@ pub fn needs_window(preset: &Preset, id: &str) -> bool {
             .is_none()
 }
 
-fn model_change(preset: &Preset, slot: ModelSlot, id: &str) -> SpecChange {
-    if preset.models.get(slot) == Some(id) {
-        SpecChange::Model(slot, None)
-    } else {
-        SpecChange::Model(slot, Some(id.to_string()))
+/// 这次选择给槽位留下的覆盖值。`None` = 跟随 preset：选了 Follow、输入为空，或选中的正是
+/// preset 默认。命中候选时用候选里的大小写。只算目标槽位，不碰 env。
+pub fn slot_override(preset: &Preset, slot: ModelSlot, pick: Pick) -> Option<String> {
+    let Pick::Id(raw) = pick else {
+        return None;
+    };
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
     }
-}
-
-/// 匹配 catalog 则用官方 id 大小写；空 → Follow。
-pub fn resolve_id(preset: &Preset, raw: &str) -> Pick {
-    let v = raw.trim();
-    if v.is_empty() {
-        return Pick::Follow;
-    }
-    if let Some(c) = collect_choices(preset)
+    let id = collect_choices(preset)
         .into_iter()
-        .find(|c| c.id == v || c.id.eq_ignore_ascii_case(v))
-    {
-        Pick::Id(c.id)
-    } else {
-        Pick::Id(v.to_string())
-    }
-}
-
-/// Pick → SpecChange（详情写盘）。只写目标槽位，不碰 env。
-pub fn to_change(preset: &Preset, slot: ModelSlot, pick: Pick) -> SpecChange {
-    match pick {
-        Pick::Follow => SpecChange::Model(slot, None),
-        Pick::Id(id) => match resolve_id(preset, &id) {
-            Pick::Follow => SpecChange::Model(slot, None),
-            Pick::Id(id) => model_change(preset, slot, &id),
-        },
-    }
+        .map(|choice| choice.id)
+        .find(|id| id.eq_ignore_ascii_case(raw))
+        .unwrap_or_else(|| raw.to_string());
+    (preset.models.get(slot) != Some(id.as_str())).then_some(id)
 }
 
 // ── 弹窗 ──────────────────────────────────────────────────────────
@@ -278,7 +261,7 @@ impl Modal for Picker {
         let theme = &core.theme;
         let rows = self.rows();
         let vis = 12usize;
-        let width = 56.min(area.width.saturating_sub(4)).max(36).min(area.width);
+        let width = box_width(area, 56, 36);
         let height = (rows.len().min(vis) as u16 + 5).min(area.height);
         let content_width = width.saturating_sub(4) as usize;
         let row_width = content_width.saturating_sub(2);
@@ -298,7 +281,7 @@ impl Modal for Picker {
             let style = if sel {
                 theme.selected()
             } else {
-                ratatui::style::Style::default()
+                Style::default()
             };
             let label = match row {
                 Row::Follow => aligned_row(
@@ -381,31 +364,6 @@ pub fn open(
     })
 }
 
-/// 表单侧只写当前槽；每槽独立编辑，即使 preset 各槽默认相同也不联动。
-pub fn apply_to_slots(
-    preset: &Preset,
-    slots_ui: &mut [TextInput; ModelSlot::ALL.len()],
-    slot: ModelSlot,
-    pick: Pick,
-) {
-    let pick = match pick {
-        Pick::Id(id) => resolve_id(preset, &id),
-        other => other,
-    };
-    match pick {
-        Pick::Follow => {
-            slots_ui[slot.index()].set(String::new());
-        }
-        Pick::Id(id) => {
-            slots_ui[slot.index()].set(if preset.models.get(slot) == Some(id.as_str()) {
-                String::new()
-            } else {
-                id
-            });
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -467,36 +425,22 @@ mod tests {
     }
 
     #[test]
-    fn picking_a_model_touches_only_that_slot() {
+    fn slot_override_follows_the_preset_default_and_keeps_catalog_case() {
         let p = kimi();
-        assert!(matches!(
-            to_change(&p, ModelSlot::Sonnet, Pick::Id("k3".into())),
-            SpecChange::Model(ModelSlot::Sonnet, Some(id)) if id == "k3"
-        ));
+        let pick =
+            |preset: &Preset, slot, id: &str| slot_override(preset, slot, Pick::Id(id.into()));
+        assert_eq!(pick(&p, ModelSlot::Sonnet, "k3").as_deref(), Some("k3"));
         // 选中 preset 默认值 = 清除覆盖，跟随 preset
-        assert!(matches!(
-            to_change(&p, ModelSlot::Sonnet, Pick::Id("k3[1m]".into())),
-            SpecChange::Model(ModelSlot::Sonnet, None)
-        ));
-        assert!(matches!(
-            to_change(&p, ModelSlot::Haiku, Pick::Follow),
-            SpecChange::Model(ModelSlot::Haiku, None)
-        ));
-        let mm = minimax_like();
-        assert!(matches!(
-            to_change(&mm, ModelSlot::Haiku, Pick::Id("M2".into())),
-            SpecChange::Model(ModelSlot::Haiku, None)
-        ));
-    }
-
-    #[test]
-    fn freeform_case_and_custom() {
-        let p = kimi();
-        assert!(matches!(resolve_id(&p, "K3"), Pick::Id(id) if id == "k3"));
-        assert!(matches!(
-            to_change(&p, ModelSlot::Sonnet, Pick::Id("custom".into())),
-            SpecChange::Model(ModelSlot::Sonnet, Some(id)) if id == "custom"
-        ));
+        assert_eq!(pick(&p, ModelSlot::Sonnet, "k3[1m]"), None);
+        assert_eq!(slot_override(&p, ModelSlot::Haiku, Pick::Follow), None);
+        assert_eq!(pick(&p, ModelSlot::Sonnet, "  "), None);
+        assert_eq!(pick(&minimax_like(), ModelSlot::Haiku, "M2"), None);
+        // 手填：命中候选用候选的大小写，没命中原样保留
+        assert_eq!(pick(&p, ModelSlot::Sonnet, "K3").as_deref(), Some("k3"));
+        assert_eq!(
+            pick(&p, ModelSlot::Sonnet, "custom").as_deref(),
+            Some("custom")
+        );
     }
 
     #[test]

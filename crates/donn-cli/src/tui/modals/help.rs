@@ -1,6 +1,5 @@
 //! `?` 帮助速查表：内容与 keymap 同源。
 
-use crate::tui::i18n;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -8,6 +7,7 @@ use ratatui::text::{Line, Span};
 
 use crate::tui::app::Core;
 use crate::tui::components::modal::{Modal, ModalOutcome, render_box};
+use crate::tui::i18n;
 use crate::tui::keymap;
 
 pub struct HelpModal;

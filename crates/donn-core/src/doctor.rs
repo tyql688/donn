@@ -1,7 +1,7 @@
 //! 健康检查。输出：✓/✗ + 一行原因 + 修复建议。
 //! 逐项检查永不因单项失败中断；漂移检查与 `Donn::audit_settings` 共用同一实现。
 
-use crate::claude::{self, view::SettingsView};
+use crate::claude::{self, SettingsView};
 use crate::launch;
 use crate::ops::{Donn, DriftKind};
 use crate::preset::AuthMode;
@@ -74,17 +74,14 @@ fn check_claude_bin(donn: &Donn) -> Check {
         }
     };
     match launch::resolve_claude_bin(&config, donn.home()) {
-        Ok(path) => {
-            let version = claude_version(&path, std::time::Duration::from_secs(10));
-            match version {
-                Some(v) => Check::pass("claude binary", format!("{} ({v})", path.display())),
-                None => Check::fail(
-                    "claude binary",
-                    format!("{} found but `--version` failed", path.display()),
-                    "reinstall Claude Code or fix claude_bin in ~/.donn/config.toml",
-                ),
-            }
-        }
+        Ok(path) => match claude_version(&path) {
+            Some(v) => Check::pass("claude binary", format!("{} ({v})", path.display())),
+            None => Check::fail(
+                "claude binary",
+                format!("{} found but `--version` failed", path.display()),
+                "reinstall Claude Code or fix claude_bin in ~/.donn/config.toml",
+            ),
+        },
         Err(e) => Check::fail(
             "claude binary",
             e.to_string(),
@@ -93,11 +90,11 @@ fn check_claude_bin(donn: &Donn) -> Check {
     }
 }
 
-fn claude_version(path: &std::path::Path, timeout: std::time::Duration) -> Option<String> {
+fn claude_version(path: &std::path::Path) -> Option<String> {
     let (status, stdout) = crate::proc::run_with_timeout(
         path.as_os_str(),
         &[std::ffi::OsStr::new("--version")],
-        timeout,
+        std::time::Duration::from_secs(10),
     )?;
     status.success().then(|| stdout.trim().to_string())
 }
@@ -127,7 +124,6 @@ fn check_bin_dir_on_path(donn: &Donn) -> Check {
 /// `[defaults.knobs]` 里 donn 不认识的键：原样保留但不生效，必须让用户看见
 /// （旧版本字段名、拼写错误都落在这里）。
 fn check_unknown_knobs(donn: &Donn) -> Vec<Check> {
-    use crate::knobs::{BOOL_KNOBS, VALUE_KNOBS};
     let Ok(config) = donn.config() else {
         return Vec::new(); // 配置本身坏了由 claude binary 那项报告
     };
@@ -137,10 +133,7 @@ fn check_unknown_knobs(donn: &Donn) -> Vec<Check> {
         .extra
         .keys()
         .map(String::as_str)
-        .filter(|key| {
-            !BOOL_KNOBS.iter().any(|k| k.field == *key)
-                && !VALUE_KNOBS.iter().any(|k| k.field == *key)
-        })
+        .filter(|key| !crate::knobs::knob_fields().any(|field| field == *key))
         .collect();
     if unknown.is_empty() {
         return Vec::new();

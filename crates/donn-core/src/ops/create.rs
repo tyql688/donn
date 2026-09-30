@@ -1,10 +1,13 @@
 //! 创建 profile：校验 → render/reconcile 落盘 → wrapper。中途失败整体回滚。
 
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result, io_ctx};
+use crate::fsx;
 use crate::home::validate_name;
-use crate::keys::SlotMap;
+use crate::keys::{self, SlotMap};
+use crate::preset::AuthMode;
 use crate::secret::Secret;
 use crate::spec::{AuthSpec, Intent, Isolation, ProfileSpec, WrapperSpec};
 use crate::timefmt;
@@ -24,7 +27,7 @@ pub struct ProfileDraft {
     /// 模型槽位覆盖。
     pub models: SlotMap,
     /// 自定义模型的上下文窗口：模型 id → token。
-    pub model_windows: std::collections::BTreeMap<String, u64>,
+    pub model_windows: BTreeMap<String, u64>,
     /// 附加 env（覆盖 preset.env 同名键）。
     pub env: Vec<(String, String)>,
     pub isolation: Isolation,
@@ -50,7 +53,7 @@ impl Donn {
         let preset = catalog.get(&draft.preset)?;
         let bin_dir = self.bin_dir()?;
         for (key, value) in &draft.env {
-            crate::keys::validate_env_entry(key, value)?;
+            keys::validate_env_entry(key, value)?;
         }
 
         let aliases: Vec<String> = if draft.aliases.is_empty() {
@@ -81,7 +84,7 @@ impl Donn {
             if dir_preexisted {
                 for (original, file) in before {
                     match original {
-                        Some(bytes) => drop(crate::fsx::write_atomic(&file, &bytes)),
+                        Some(bytes) => drop(fsx::write_atomic(&file, &bytes)),
                         None => drop(std::fs::remove_file(&file)),
                     }
                 }
@@ -98,9 +101,9 @@ impl Donn {
     fn create_inner(
         &self,
         draft: &ProfileDraft,
-        auth_mode: crate::preset::AuthMode,
+        auth_mode: AuthMode,
         aliases: &[String],
-        bin_dir: &std::path::Path,
+        bin_dir: &Path,
     ) -> Result<CreateReceipt> {
         let claude_dir = self.home.claude_config_dir(&draft.name);
         std::fs::create_dir_all(&claude_dir)

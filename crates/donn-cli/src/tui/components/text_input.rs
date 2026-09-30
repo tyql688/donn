@@ -1,10 +1,11 @@
 //! 单行文本输入：编辑逻辑委托 `tui-input`，这里只做掩码显示与光标渲染。
 
-use crossterm::event::{Event, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
+use unicode_width::UnicodeWidthChar;
 
 /// 单行文本输入，带光标；`mask` 时渲染为 `•`。
 #[derive(Debug, Clone, Default)]
@@ -52,10 +53,7 @@ impl TextInput {
             .is_some_and(|state| state.value)
             || matches!(
                 key.code,
-                crossterm::event::KeyCode::Left
-                    | crossterm::event::KeyCode::Right
-                    | crossterm::event::KeyCode::Home
-                    | crossterm::event::KeyCode::End
+                KeyCode::Left | KeyCode::Right | KeyCode::Home | KeyCode::End
             )
     }
 
@@ -63,7 +61,6 @@ impl TextInput {
     /// `width` = 可用显示宽度（0 视为不限制）。窗口按**显示宽度**计量（CJK 占 2 列），
     /// 光标字符恒可见；行宽不超过 width（滚动提示 `…` 占用的 1 列在预算内）。
     pub fn render_line(&self, focused: bool, width: usize) -> Line<'static> {
-        use unicode_width::UnicodeWidthChar;
         let char_w = |c: char| c.width().unwrap_or(0);
         let chars: Vec<char> = if self.mask {
             self.inner.value().chars().map(|_| '•').collect()
@@ -117,7 +114,7 @@ impl TextInput {
 
         let mut spans = Vec::with_capacity(4);
         if scroll > 0 {
-            spans.push(Span::styled("…".to_string(), Style::default()));
+            spans.push(Span::raw("…"));
         }
         let before: String = chars[scroll..cursor].iter().collect();
         let at: String = chars
@@ -130,21 +127,20 @@ impl TextInput {
             String::new()
         };
         spans.push(Span::raw(before));
-        spans.push(Span::styled(at, cursor_style()));
+        // 光标：反色
+        spans.push(Span::styled(
+            at,
+            Style::default().add_modifier(Modifier::REVERSED),
+        ));
         spans.push(Span::raw(after));
         Line::from(spans)
     }
 }
 
-/// 光标反色样式。
-fn cursor_style() -> ratatui::style::Style {
-    Style::default().add_modifier(Modifier::REVERSED)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::{KeyCode, KeyEventKind, KeyEventState, KeyModifiers};
+    use crossterm::event::{KeyEventKind, KeyEventState, KeyModifiers};
 
     fn key(code: KeyCode) -> KeyEvent {
         KeyEvent {

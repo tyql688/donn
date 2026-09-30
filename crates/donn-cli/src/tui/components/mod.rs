@@ -5,9 +5,13 @@ pub mod modal;
 pub mod status_bar;
 pub mod text_input;
 
+use donn_core::Effort;
+use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config, Matcher, Utf32Str};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
+use ratatui::text::Span;
 use ratatui::widgets::{Block, List, ListItem, ListState};
 use unicode_truncate::{Alignment, UnicodeTruncateStr};
 use unicode_width::UnicodeWidthStr;
@@ -38,8 +42,7 @@ pub fn pad(s: &str, width: usize) -> String {
 }
 
 /// Effort 选择弹窗的选项表与当前档下标（detail 行与 add 表单共用）。
-pub fn effort_options(effort_auto: &str, current: donn_core::Effort) -> (Vec<String>, usize) {
-    use donn_core::Effort;
+pub fn effort_options(effort_auto: &str, current: Effort) -> (Vec<String>, usize) {
     let options = Effort::ALL
         .iter()
         .map(|e| e.env_value().unwrap_or(effort_auto).to_string())
@@ -49,8 +52,6 @@ pub fn effort_options(effort_auto: &str, current: donn_core::Effort) -> (Vec<Str
 
 /// nucleo 模糊打分：返回命中项 `(score, index)`，按分数降序。空 needle 由调用方处理。
 pub fn fuzzy_rank(needle: &str, haystacks: impl Iterator<Item = String>) -> Vec<(u32, usize)> {
-    use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
-    use nucleo_matcher::{Config, Matcher, Utf32Str};
     let mut matcher = Matcher::new(Config::DEFAULT);
     let pattern = Pattern::parse(needle, CaseMatching::Ignore, Normalization::Smart);
     let mut buf = Vec::new();
@@ -68,7 +69,7 @@ pub fn fuzzy_rank(needle: &str, haystacks: impl Iterator<Item = String>) -> Vec<
 
 /// 带边框面板内列表的鼠标命中区：去掉上下边框各一行。
 /// 各面板渲染时记录进 `HitAreas`，鼠标点击/滚轮据此换算条目下标。
-pub fn list_hit_area(area: ratatui::layout::Rect) -> ratatui::layout::Rect {
+pub fn list_hit_area(area: Rect) -> Rect {
     let mut inner = area;
     inner.y += 1;
     inner.height = inner.height.saturating_sub(2);
@@ -89,10 +90,7 @@ pub fn fit_right(value: &str, width: usize) -> String {
 
 /// 把「值 + 后缀」这组 span 收进给定宽度：省略第一个 span（值），后缀（如 `(default)`）保持完整；
 /// 窄到后缀要占一半以上时丢掉后缀。
-pub fn fit_spans(
-    mut spans: Vec<ratatui::text::Span<'static>>,
-    width: usize,
-) -> Vec<ratatui::text::Span<'static>> {
+pub fn fit_spans(mut spans: Vec<Span<'static>>, width: usize) -> Vec<Span<'static>> {
     let total: usize = spans.iter().map(|s| s.content.width()).sum();
     if total <= width {
         return spans;

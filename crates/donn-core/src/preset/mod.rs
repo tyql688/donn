@@ -2,6 +2,7 @@
 //! 加载顺序：内嵌 → `~/.donn/presets.d/` 覆盖（同 key 覆盖）。
 
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -107,20 +108,6 @@ impl ModelChoice {
     }
 }
 
-impl Preset {
-    /// 按模型 id 查找套餐（精确匹配优先，再 ASCII 大小写不敏感）。
-    pub fn choice_for_model(&self, id: &str) -> Option<&ModelChoice> {
-        if id.is_empty() {
-            return None;
-        }
-        self.model_choices.iter().find(|c| c.id == id).or_else(|| {
-            self.model_choices
-                .iter()
-                .find(|c| c.id.eq_ignore_ascii_case(id))
-        })
-    }
-}
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Preset {
@@ -140,6 +127,20 @@ pub struct Preset {
     /// 加载来源：`builtin` 或 `user`（presets.d）。运行时填充，不入 TOML。
     #[serde(skip)]
     pub source: PresetSource,
+}
+
+impl Preset {
+    /// 按模型 id 查找套餐（精确匹配优先，再 ASCII 大小写不敏感）。
+    pub fn choice_for_model(&self, id: &str) -> Option<&ModelChoice> {
+        if id.is_empty() {
+            return None;
+        }
+        self.model_choices.iter().find(|c| c.id == id).or_else(|| {
+            self.model_choices
+                .iter()
+                .find(|c| c.id.eq_ignore_ascii_case(id))
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -166,7 +167,7 @@ struct PresetFile {
 /// presets.d 中解析失败的文件（跳过并在 doctor 报告）。
 #[derive(Debug, Clone)]
 pub struct PresetLoadError {
-    pub file: std::path::PathBuf,
+    pub file: PathBuf,
     pub message: String,
 }
 
@@ -176,31 +177,37 @@ pub struct PresetCatalog {
     pub load_errors: Vec<PresetLoadError>,
 }
 
-/// 内置 preset 清单（加载后统一按 key 排序，此处顺序不影响展示）。
-const BUILTIN_PRESETS: &[(&str, &str)] = &[
-    ("ant-ling.toml", include_str!("presets/ant-ling.toml")),
-    ("official.toml", include_str!("presets/official.toml")),
-    ("zai.toml", include_str!("presets/zai.toml")),
-    ("kimi-plan.toml", include_str!("presets/kimi-plan.toml")),
-    ("minimax.toml", include_str!("presets/minimax.toml")),
-    ("deepseek.toml", include_str!("presets/deepseek.toml")),
-    ("zai-cn.toml", include_str!("presets/zai-cn.toml")),
-    ("kimi-cn.toml", include_str!("presets/kimi-cn.toml")),
-    ("minimax-cn.toml", include_str!("presets/minimax-cn.toml")),
-    ("mimo.toml", include_str!("presets/mimo.toml")),
-    ("mimo-plan.toml", include_str!("presets/mimo-plan.toml")),
-    ("lmstudio.toml", include_str!("presets/lmstudio.toml")),
-    ("openrouter.toml", include_str!("presets/openrouter.toml")),
-    ("siliconflow.toml", include_str!("presets/siliconflow.toml")),
-    ("fireworks.toml", include_str!("presets/fireworks.toml")),
-    ("huggingface.toml", include_str!("presets/huggingface.toml")),
-    ("vercel.toml", include_str!("presets/vercel.toml")),
-    ("opencode.toml", include_str!("presets/opencode.toml")),
-    ("opencode-go.toml", include_str!("presets/opencode-go.toml")),
-    ("qwen-plan.toml", include_str!("presets/qwen-plan.toml")),
-    ("xai.toml", include_str!("presets/xai.toml")),
-    ("ollama.toml", include_str!("presets/ollama.toml")),
-    ("custom.toml", include_str!("presets/custom.toml")),
+/// 内置 preset：`presets/<key>.toml`，文件名即 key。新渠道在这里加一个名字。
+macro_rules! builtin_presets {
+    ($($key:literal),* $(,)?) => {
+        &[$(($key, include_str!(concat!("presets/", $key, ".toml")))),*]
+    };
+}
+
+const BUILTIN_PRESETS: &[(&str, &str)] = builtin_presets![
+    "ant-ling",
+    "custom",
+    "deepseek",
+    "fireworks",
+    "huggingface",
+    "kimi-cn",
+    "kimi-plan",
+    "lmstudio",
+    "mimo",
+    "mimo-plan",
+    "minimax",
+    "minimax-cn",
+    "official",
+    "ollama",
+    "opencode",
+    "opencode-go",
+    "openrouter",
+    "qwen-plan",
+    "siliconflow",
+    "vercel",
+    "xai",
+    "zai",
+    "zai-cn",
 ];
 
 impl PresetCatalog {
@@ -209,8 +216,8 @@ impl PresetCatalog {
         #[allow(clippy::expect_used)] // 打包不变量：内嵌 TOML 由测试保证可解析
         let mut presets: Vec<Preset> = BUILTIN_PRESETS
             .iter()
-            .map(|(file, text)| {
-                parse_preset(text, std::path::Path::new(file)).expect("builtin preset must parse")
+            .map(|(key, text)| {
+                parse_preset(text, Path::new(key)).expect("builtin preset must parse")
             })
             .collect();
         let mut load_errors = Vec::new();
@@ -272,7 +279,7 @@ impl PresetCatalog {
     }
 }
 
-fn parse_preset(text: &str, path: &std::path::Path) -> Result<Preset> {
+fn parse_preset(text: &str, path: &Path) -> Result<Preset> {
     let file: PresetFile = toml_edit::de::from_str(text).map_err(|e| Error::InvalidToml {
         path: path.to_path_buf(),
         message: e.to_string(),
@@ -302,38 +309,27 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn builtin_presets_parse_and_cover_launch_list() {
+    fn builtin_presets_parse_and_match_their_files() {
+        // 文件名即 key；presets/ 下每个 TOML 都登记在 BUILTIN_PRESETS
+        for (stem, text) in BUILTIN_PRESETS {
+            assert_eq!(parse_preset(text, Path::new(stem)).unwrap().key, *stem);
+        }
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/preset/presets");
+        let mut on_disk: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "toml"))
+            .map(|path| path.file_stem().unwrap().to_str().unwrap().to_string())
+            .collect();
+        on_disk.sort();
+        let registered: Vec<&str> = BUILTIN_PRESETS.iter().map(|(key, _)| *key).collect();
+        assert_eq!(
+            on_disk, registered,
+            "BUILTIN_PRESETS 按字典序列全 presets/*.toml"
+        );
+
         let dir = TempDir::new().unwrap();
         let catalog = PresetCatalog::load(&DonnHome::for_test(dir.path()));
-        let keys: Vec<&str> = catalog.all().iter().map(|p| p.key.as_str()).collect();
-        assert_eq!(
-            keys,
-            [
-                "ant-ling",
-                "custom",
-                "deepseek",
-                "fireworks",
-                "huggingface",
-                "kimi-cn",
-                "kimi-plan",
-                "lmstudio",
-                "mimo",
-                "mimo-plan",
-                "minimax",
-                "minimax-cn",
-                "official",
-                "ollama",
-                "opencode",
-                "opencode-go",
-                "openrouter",
-                "qwen-plan",
-                "siliconflow",
-                "vercel",
-                "xai",
-                "zai",
-                "zai-cn"
-            ]
-        );
         assert!(catalog.load_errors.is_empty());
         for preset in catalog.all() {
             assert!(!preset.key.is_empty());

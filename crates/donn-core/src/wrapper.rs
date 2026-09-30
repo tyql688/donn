@@ -149,16 +149,25 @@ pub fn is_donn_wrapper(path: &Path) -> Result<bool> {
 /// wrapper 指向的 profile 名。只认 [`generate`] 产出的完整启动行，路径里的
 /// ` run ` 等文本不得被误当成 profile。
 pub fn wrapper_target(path: &Path) -> Result<Option<String>> {
-    let pattern =
-        regex::Regex::new(r#"^(?:exec "\$DONN"|"[^"]+") run ([a-z][a-z0-9-]*) -- (?:"\$@"|%\*)$"#)
-            .map_err(|e| Error::Internal(format!("invalid wrapper launch-line regex: {e}")))?;
-    let text = read_lossy(path)?;
-    for line in text.lines() {
-        if let Some(captures) = pattern.captures(line.trim_end()) {
-            return Ok(Some(captures[1].to_string()));
-        }
-    }
-    Ok(None)
+    Ok(read_lossy(path)?
+        .lines()
+        .find_map(|line| launch_line_target(line.trim_end()))
+        .map(str::to_string))
+}
+
+/// 启动行 `exec "$DONN" run <profile> -- "$@"`（Windows：`"<donn 路径>" run <profile> -- %*`）
+/// 里的 profile 名；其它形状的行返回 `None`。
+fn launch_line_target(line: &str) -> Option<&str> {
+    let head = line
+        .strip_suffix(r#" -- "$@""#)
+        .or_else(|| line.strip_suffix(" -- %*"))?;
+    let (launcher, profile) = head.rsplit_once(" run ")?;
+    let quoted_path = launcher
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .is_some_and(|inner| !inner.is_empty() && !inner.contains('"'));
+    (validate_name(profile).is_ok() && (launcher == r#"exec "$DONN""# || quoted_path))
+        .then_some(profile)
 }
 
 /// 按文本读取（lossy）：IO 错误传播，二进制内容不报错——归属判断只看文本标记。
@@ -240,6 +249,24 @@ mod tests {
         )
         .unwrap();
         assert_eq!(wrapper_target(&wrapper).unwrap(), None);
+    }
+
+    #[test]
+    fn launch_line_target_accepts_only_generated_shapes() {
+        for (line, expect) in [
+            (r#"exec "$DONN" run zai -- "$@""#, Some("zai")),
+            (
+                r#""C:\a run b\donn.exe" run kimi-cn -- %*"#,
+                Some("kimi-cn"),
+            ),
+            (r#"exec "$DONN" run Bad_Name -- "$@""#, None),
+            (r#"echo run zai -- "$@""#, None),
+            (r#""" run zai -- %*"#, None),
+            (r#""a"b" run zai -- %*"#, None),
+            (r#"exec "$DONN" run zai"#, None),
+        ] {
+            assert_eq!(launch_line_target(line), expect, "{line}");
+        }
     }
 
     #[test]

@@ -174,6 +174,24 @@ pub struct Knobs {
     pub extra: BTreeMap<String, serde_json::Value>,
 }
 
+/// [`Knobs`] 类型化字段的 config.toml 键名，顺序同结构体定义。
+pub const TYPED_KNOB_FIELDS: [&str; 6] = [
+    "agent_teams",
+    "tool_search",
+    "permission_mode",
+    "hide_attribution",
+    "api_timeout_ms",
+    "disable_nonessential_traffic",
+];
+
+/// donn 认识的全部旋钮键名：类型化字段 + 两张表。
+pub fn knob_fields() -> impl Iterator<Item = &'static str> {
+    TYPED_KNOB_FIELDS
+        .into_iter()
+        .chain(BOOL_KNOBS.iter().map(|k| k.field))
+        .chain(VALUE_KNOBS.iter().map(|k| k.field))
+}
+
 impl Knobs {
     pub fn agent_teams_on(&self) -> bool {
         self.agent_teams.unwrap_or(true)
@@ -181,7 +199,7 @@ impl Knobs {
     pub fn permission_mode(&self) -> &str {
         self.permission_mode
             .as_deref()
-            .unwrap_or(crate::keys::BYPASS_PERMISSIONS)
+            .unwrap_or(keys::BYPASS_PERMISSIONS)
     }
     pub fn hide_attribution_on(&self) -> bool {
         self.hide_attribution.unwrap_or(false)
@@ -275,5 +293,34 @@ impl Knobs {
                 self.extra.remove(field);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_knob_fields_match_the_struct_and_no_field_name_repeats() {
+        let all_set = Knobs {
+            agent_teams: Some(true),
+            tool_search: Some(true),
+            permission_mode: Some("plan".into()),
+            hide_attribution: Some(true),
+            api_timeout_ms: Some(1),
+            disable_nonessential_traffic: Some(true),
+            extra: BTreeMap::new(),
+        };
+        let serialized = serde_json::to_value(&all_set).unwrap();
+        let fields: Vec<&str> = serialized
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(fields, TYPED_KNOB_FIELDS);
+
+        let unique: std::collections::BTreeSet<&str> = knob_fields().collect();
+        assert_eq!(unique.len(), knob_fields().count(), "duplicate knob field");
     }
 }

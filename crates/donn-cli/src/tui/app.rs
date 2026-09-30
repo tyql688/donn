@@ -1,20 +1,23 @@
 //! App：dashboard 单一状态 + Action 分发。
 //! Core = 数据与面板状态；App = Core + modal 栈（分离以便弹窗回调可变借用 Core）。
 
-use donn_core::{Donn, ProfileCard, SyncReport};
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use donn_core::{Donn, Isolation, LiveCheck, ProfileCard, SyncReport};
+use ratatui::layout::{Position, Rect};
 
-use crate::tui::action::Action;
+use crate::tui::clipboard::Clipboard;
 use crate::tui::components::list::{Nav, SelectList};
 use crate::tui::components::modal::{Confirm, Modal, Select};
 use crate::tui::components::status_bar::Status;
 use crate::tui::i18n;
-use crate::tui::keymap::Context;
+use crate::tui::keymap::{Action, Context};
+use crate::tui::links::{self, Link};
+use crate::tui::modals::help::HelpModal;
 use crate::tui::panes::add_form::{AddForm, Stage};
-use crate::tui::panes::detail::DetailPane;
+use crate::tui::panes::detail::{self, DetailPane};
 use crate::tui::panes::doctor::DoctorPane;
-use crate::tui::panes::settings::SettingsPane;
+use crate::tui::panes::settings::{self, SettingsPane};
 use crate::tui::theme::Theme;
-use ratatui::layout::{Position, Rect};
 
 /// 焦点面板。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,7 +45,7 @@ pub struct HitAreas {
 pub struct Core {
     pub donn: Donn,
     pub theme: Theme,
-    clipboard: crate::tui::clipboard::Clipboard,
+    clipboard: Clipboard,
     pub status: Status,
     pub focus: PaneId,
     pub profiles: SelectList<ProfileCard>,
@@ -55,7 +58,7 @@ pub struct Core {
     pub settings: Option<SettingsPane>,
     pub hit: HitAreas,
     /// 上一帧屏幕上的可点链接（见 [`crate::tui::links`]）。
-    pub links: Vec<crate::tui::links::Link>,
+    pub links: Vec<Link>,
 }
 
 pub struct App {
@@ -68,7 +71,7 @@ impl Core {
         let mut core = Self {
             donn,
             theme: Theme::default(),
-            clipboard: crate::tui::clipboard::Clipboard::default(),
+            clipboard: Clipboard::default(),
             status: Status::default(),
             focus: PaneId::Left,
             profiles: SelectList::default(),
@@ -151,10 +154,8 @@ impl Core {
     /// 焦点面板的列表导航（键盘与滚轮共用）。
     /// 设置面板独占右栏时，导航只作用于设置行，doctor 焦点不参与。
     pub fn nav_focused(&mut self, nav: Nav) {
-        if self.settings.is_some() {
-            if let Some(pane) = &mut self.settings {
-                pane.nav(nav);
-            }
+        if let Some(pane) = &mut self.settings {
+            pane.nav(nav);
             return;
         }
         match self.focus {
@@ -272,8 +273,7 @@ impl App {
             Action::JumpTop => core.nav_focused(Nav::Top),
             Action::JumpBottom => core.nav_focused(Nav::Bottom),
             Action::Help => {
-                self.modals
-                    .push(Box::new(crate::tui::modals::help::HelpModal));
+                self.modals.push(Box::new(HelpModal));
             }
             Action::ToggleDoctor => {
                 if core.doctor.take().is_some() {
@@ -311,44 +311,18 @@ impl App {
             }
             Action::Activate => return self.activate(),
             Action::RemoveProfile => {
-                if let Some(card) = core.profiles.current() {
-                    let name = card.name.clone();
-                    match core.donn.spec(&name) {
-                        Ok(spec) => {
-                            // 运行中会话：确认框确认了也删不掉，提前拦截并提示
-                            match core.donn.live_check(&name) {
-                                donn_core::LiveCheck::Running => {
-                                    let msg = i18n::fill(i18n::ST_PROFILE_IN_USE, &[&name]);
-                                    core.status.error(msg);
-                                }
-                                live => {
-                                    // full 模式用 Select（无 body）：探测失败写状态栏；
-                                    // shared 模式 Confirm 的 body 会附上同一提示
-                                    if live == donn_core::LiveCheck::Unavailable
-                                        && spec.isolation == donn_core::Isolation::Full
-                                    {
-                                        core.status.warn(i18n::REMOVE_LIVE_UNKNOWN);
-                                    }
-                                    self.modals.push(confirm_remove(name, spec.isolation, live));
-                                }
-                            }
+                if let Some(name) = core.selected_profile().map(str::to_string) {
+                    // 坏 spec 也必须能从 UI 删除：读不出来时隔离模式未知（None）
+                    let isolation = core.donn.spec(&name).ok().map(|spec| spec.isolation);
+                    match core.donn.live_check(&name) {
+                        // 运行中会话：确认框确认了也删不掉，提前拦截并提示
+                        LiveCheck::Running => {
+                            let msg = i18n::fill(i18n::ST_PROFILE_IN_USE, &[&name]);
+                            core.status.error(msg);
                         }
-                        Err(_) => {
-                            // 坏 spec 也必须能从 UI 删除。隔离模式未知时提供“保留会话 / 全删”
-                            // 两个明确选项；core 的 keep 路径按 full 保守处理。
-                            match core.donn.live_check(&name) {
-                                donn_core::LiveCheck::Running => {
-                                    let msg = i18n::fill(i18n::ST_PROFILE_IN_USE, &[&name]);
-                                    core.status.error(msg);
-                                }
-                                live => {
-                                    if live == donn_core::LiveCheck::Unavailable {
-                                        core.status.warn(i18n::REMOVE_LIVE_UNKNOWN);
-                                    }
-                                    self.modals.push(confirm_remove_broken(name));
-                                }
-                            }
-                        }
+                        live => self
+                            .modals
+                            .push(confirm_remove(core, name, isolation, live)),
                     }
                 }
             }
@@ -398,7 +372,7 @@ impl App {
                 }
             }
             Action::OpenCopy => {
-                if let Some(modal) = crate::tui::panes::detail::copy_modal(core) {
+                if let Some(modal) = detail::copy_modal(core) {
                     self.modals.push(modal);
                 } else {
                     core.status.warn(i18n::ST_NOTHING_TO_COPY);
@@ -423,13 +397,12 @@ impl App {
             Action::JumpTop => core.nav_focused(Nav::Top),
             Action::JumpBottom => core.nav_focused(Nav::Bottom),
             Action::Activate => {
-                if let Some(modal) = crate::tui::panes::settings::activate_row(core) {
+                if let Some(modal) = settings::activate_row(core) {
                     self.modals.push(modal);
                 }
             }
             Action::Help => {
-                self.modals
-                    .push(Box::new(crate::tui::modals::help::HelpModal));
+                self.modals.push(Box::new(HelpModal));
             }
             Action::OpenAdd => {
                 core.enter_add(None);
@@ -450,7 +423,7 @@ impl App {
                     .map(|name| LoopCmd::Launch(name.to_string()));
             }
             PaneId::Detail => {
-                if let Some(modal) = crate::tui::panes::detail::activate_row(core) {
+                if let Some(modal) = detail::activate_row(core) {
                     self.modals.push(modal);
                 }
             }
@@ -469,12 +442,11 @@ enum Gesture {
 impl App {
     /// 鼠标。右键点链接 = 复制。左键先按普通点击处理（选中行、切焦点）；点的是链接、
     /// 且这一下什么都没选中改变，才打开它——想选中 `base_url` 那行不会顺手弹出浏览器。
-    pub fn on_mouse(&mut self, event: crossterm::event::MouseEvent) {
-        use crossterm::event::{MouseButton, MouseEventKind};
+    pub fn on_mouse(&mut self, event: MouseEvent) {
         let pos = Position::new(event.column, event.row);
         let link = match event.kind {
             MouseEventKind::Down(button) => {
-                crate::tui::links::at(&self.core.links, pos).map(|url| (button, url.to_string()))
+                links::at(&self.core.links, pos).map(|url| (button, url.to_string()))
             }
             _ => None,
         };
@@ -492,8 +464,7 @@ impl App {
     }
 
     /// 点击选中并切焦点，滚轮滚动列表。弹窗打开时忽略（弹窗键盘优先）。
-    fn on_pointer(&mut self, event: crossterm::event::MouseEvent, pos: Position) {
-        use crossterm::event::{MouseButton, MouseEventKind};
+    fn on_pointer(&mut self, event: MouseEvent, pos: Position) {
         let core = &mut self.core;
         if !self.modals.is_empty() {
             return;
@@ -518,33 +489,14 @@ impl App {
                 }
                 return;
             }
-            // 设置独占右栏：点/滚左栏 = 退出设置并导航 profile
-            if core.settings.is_some() {
-                core.close_settings();
-                match gesture {
-                    Gesture::Click => {
-                        core.profiles.click(core.hit.left_list, pos);
-                        core.reload_detail();
-                    }
-                    Gesture::Scroll(d) => {
-                        core.profiles.move_by(d);
-                        core.reload_detail();
-                    }
-                }
-                return;
-            }
+            // 设置独占右栏时，点/滚左栏 = 退出设置并导航 profile
+            core.close_settings();
+            core.focus = PaneId::Left;
             match gesture {
-                Gesture::Click => {
-                    core.focus = PaneId::Left;
-                    core.profiles.click(core.hit.left_list, pos);
-                    core.reload_detail();
-                }
-                Gesture::Scroll(d) => {
-                    core.focus = PaneId::Left;
-                    core.profiles.move_by(d);
-                    core.reload_detail();
-                }
+                Gesture::Click => core.profiles.click(core.hit.left_list, pos),
+                Gesture::Scroll(d) => core.profiles.move_by(d),
             }
+            core.reload_detail();
             return;
         }
 
@@ -557,18 +509,10 @@ impl App {
                 }
                 return;
             }
-            if !core.detail_reachable() {
-                return;
-            }
+            core.focus = PaneId::Detail;
             match gesture {
-                Gesture::Click => {
-                    core.focus = PaneId::Detail;
-                    core.detail.rows.click(core.hit.detail_list, pos);
-                }
-                Gesture::Scroll(d) => {
-                    core.focus = PaneId::Detail;
-                    core.detail.rows.move_by(d);
-                }
+                Gesture::Click => core.detail.rows.click(core.hit.detail_list, pos),
+                Gesture::Scroll(d) => core.detail.rows.move_by(d),
             }
             return;
         }
@@ -579,66 +523,47 @@ impl App {
             && core.hit.doctor_list.contains(pos)
             && let Some(doctor) = &mut core.doctor
         {
+            core.focus = PaneId::Doctor;
             match gesture {
-                Gesture::Click => {
-                    core.focus = PaneId::Doctor;
-                    doctor.checks.click(core.hit.doctor_list, pos);
-                }
-                Gesture::Scroll(d) => {
-                    core.focus = PaneId::Doctor;
-                    doctor.checks.move_by(d);
-                }
+                Gesture::Click => doctor.checks.click(core.hit.doctor_list, pos),
+                Gesture::Scroll(d) => doctor.checks.move_by(d),
             }
         }
     }
 }
 
-/// 删除确认弹窗。
-/// full 模式会话在 profile 目录里 → 选择保留或一并删除；
+/// 删除确认弹窗。调用前已拦截 Running；`live` 为调用方探测结果，避免重复 lsof。
 /// shared 模式会话本就在 ~/.claude 不受影响 → 普通二次确认。
-/// 调用前已拦截 Running；`live` 为调用方探测结果，避免重复 lsof。
+/// full 模式会话在 profile 目录里 → 选择保留或一并删除；profile.toml 读不出来时隔离模式
+/// 未知（`None`），给同样两个选项，core 的保留路径按 full 保守处理。
 fn confirm_remove(
+    core: &mut Core,
     name: String,
-    isolation: donn_core::Isolation,
-    live: donn_core::LiveCheck,
+    isolation: Option<Isolation>,
+    live: LiveCheck,
 ) -> Box<dyn Modal> {
-    let probe_note =
-        (live == donn_core::LiveCheck::Unavailable).then(|| i18n::REMOVE_LIVE_UNKNOWN.to_string());
-    if isolation == donn_core::Isolation::Full {
-        let title = i18n::fill(i18n::REMOVE_Q, &[&name]);
-        let options = vec![
-            i18n::REMOVE_KEEP_SESSIONS.to_string(),
-            i18n::REMOVE_PURGE.to_string(),
-        ];
-        return Box::new(Select::new(title, options, 0, move |core, picked| {
-            do_remove(core, &name, picked == 0);
+    let question = i18n::fill(i18n::REMOVE_Q, &[&name]);
+    let probe_failed = live == LiveCheck::Unavailable;
+    if isolation == Some(Isolation::Shared) {
+        let mut body = vec![i18n::REMOVE_DETAIL.to_string()];
+        if probe_failed {
+            body.push(i18n::REMOVE_LIVE_UNKNOWN.to_string());
+        }
+        return Box::new(Confirm::new(question, body, move |core| {
+            do_remove(core, &name, false);
         }));
     }
-    let mut body = vec![
-        i18n::fill(i18n::REMOVE_Q, &[&name]),
-        i18n::REMOVE_DETAIL.to_string(),
-    ];
-    if let Some(note) = probe_note {
-        body.push(note);
+    // Select 没有正文：探测失败的提示写状态栏
+    if probe_failed {
+        core.status.warn(i18n::REMOVE_LIVE_UNKNOWN);
     }
-    Box::new(Confirm::new(i18n::REMOVE_TITLE, body, move |core| {
-        do_remove(core, &name, false);
+    let options = vec![
+        i18n::REMOVE_KEEP_SESSIONS.to_string(),
+        i18n::REMOVE_PURGE.to_string(),
+    ];
+    Box::new(Select::new(question, options, 0, move |core, picked| {
+        do_remove(core, &name, picked == 0);
     }))
-}
-
-/// profile.toml 不可读时 isolation 未知：让用户显式选保留会话还是整目录删除。
-fn confirm_remove_broken(name: String) -> Box<dyn Modal> {
-    Box::new(Select::new(
-        i18n::fill(i18n::REMOVE_Q, &[&name]),
-        vec![
-            i18n::REMOVE_KEEP_SESSIONS.to_string(),
-            i18n::REMOVE_PURGE.to_string(),
-        ],
-        0,
-        move |core, picked| {
-            do_remove(core, &name, picked == 0);
-        },
-    ))
 }
 
 fn do_remove(core: &mut Core, name: &str, keep_sessions: bool) {

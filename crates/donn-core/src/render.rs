@@ -7,7 +7,7 @@
 use crate::config::Defaults;
 use crate::keys::{self, ModelSlot, SlotMap};
 use crate::knobs::{BOOL_KNOBS, KnobTarget, Knobs, VALUE_KNOBS};
-use crate::preset::{AuthMode, Preset};
+use crate::preset::{AuthMode, ModelChoice, Preset};
 use crate::secret::Secret;
 use crate::spec::{Footprint, Isolation, ProfileSpec};
 
@@ -36,7 +36,7 @@ impl Rendered {
             permissions_top: self
                 .permissions_default_mode
                 .iter()
-                .map(|_| crate::keys::PERMISSIONS_DEFAULT_MODE.to_string())
+                .map(|_| keys::PERMISSIONS_DEFAULT_MODE.to_string())
                 .collect(),
         }
     }
@@ -182,7 +182,7 @@ pub fn render(
     if let Some(sonnet) = effective_models(spec, preset, defaults).get(ModelSlot::Sonnet)
         && let Some(max_context) = spec.intent.model_windows.get(sonnet)
     {
-        let custom = crate::preset::ModelChoice {
+        let custom = ModelChoice {
             id: sonnet.to_string(),
             max_context: Some(*max_context),
             ..Default::default()
@@ -314,13 +314,10 @@ pub fn managed_env_keys() -> Vec<&'static str> {
     .chain(ModelSlot::ALL.iter().map(|slot| slot.env_key()))
     .chain(keys::SHELL_OVERRIDE_KEYS)
     .collect();
-    for knob in BOOL_KNOBS {
-        if let KnobTarget::Env(key) = knob.target {
-            out.insert(key);
-        }
-    }
-    for knob in VALUE_KNOBS {
-        if let KnobTarget::Env(key) = knob.target {
+    let knob_targets =
+        (BOOL_KNOBS.iter().map(|k| k.target)).chain(VALUE_KNOBS.iter().map(|k| k.target));
+    for target in knob_targets {
+        if let KnobTarget::Env(key) = target {
             out.insert(key);
         }
     }
@@ -885,12 +882,12 @@ mod tests {
         let mut p = preset(AuthMode::AuthToken);
         p.models.sonnet = Some("k3[1m]".into());
         p.model_choices = vec![
-            crate::preset::ModelChoice {
+            ModelChoice {
                 id: "k3[1m]".into(),
                 max_context: Some(1_048_576),
                 ..Default::default()
             },
-            crate::preset::ModelChoice {
+            ModelChoice {
                 id: "k3".into(),
                 max_context: Some(262_144),
                 ..Default::default()
@@ -957,10 +954,8 @@ mod tests {
     }
 
     #[test]
-    fn managed_env_keys_are_unique_and_cover_slots_and_knobs() {
-        let managed = managed_env_keys();
-        let unique: std::collections::HashSet<_> = managed.iter().copied().collect();
-        assert_eq!(managed.len(), unique.len(), "duplicate managed key");
+    fn managed_env_keys_cover_slots_and_knobs() {
+        let unique: std::collections::HashSet<_> = managed_env_keys().into_iter().collect();
         for slot in ModelSlot::ALL {
             assert!(unique.contains(slot.env_key()), "{slot:?}");
         }

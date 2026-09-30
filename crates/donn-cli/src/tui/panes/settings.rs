@@ -5,7 +5,7 @@ use donn_core::keys::PERMISSION_MODES;
 use donn_core::knobs::{BOOL_KNOBS, KnobGroup, VALUE_KNOBS, ValueKind};
 use donn_core::{ConfigChange, Knobs};
 use ratatui::Frame;
-use ratatui::layout::{Position, Rect};
+use ratatui::layout::{Constraint, Layout, Position, Rect};
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{ListItem, Paragraph, Wrap};
@@ -167,11 +167,19 @@ fn apply(core: &mut Core, change: ConfigChange) -> Result<(), String> {
     Ok(())
 }
 
+/// 选择/翻转类行的提交：在 `base`（打开时的快照）上改出新值，失败写状态栏。
+fn commit_knobs(core: &mut Core, base: Knobs, change: impl FnOnce(&mut Knobs)) {
+    let mut value = base.clone();
+    change(&mut value);
+    if let Err(e) = apply(core, ConfigChange::Knobs { base, value }) {
+        core.status.error(e);
+    }
+}
+
 /// 开关翻转：新生效值若与默认一致则回到 None（跟随默认）。
 fn toggle(field: &mut Option<bool>, default_on: bool) {
-    let effective = field.unwrap_or(default_on);
-    let next = !effective;
-    *field = if next == default_on { None } else { Some(next) };
+    let next = !field.unwrap_or(default_on);
+    *field = (next != default_on).then_some(next);
 }
 
 fn label(field: &str) -> String {
@@ -190,37 +198,44 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
         }
     };
     let knobs = cfg.defaults.knobs.clone();
+    // 默认值取自 Knobs::default() 的取值方法——唯一定义处在 core，不在这里重复
+    let defaults = Knobs::default();
     match row {
         Row::Section(_) => None,
-        // 开关旋钮：Enter 直接翻转，无需弹窗。
-        // 默认值取自 Knobs::default() 的取值方法——唯一定义处在 core，不在这里重复
-        Row::AgentTeams | Row::HideAttribution | Row::Nonessential => {
-            let defaults = Knobs::default();
-            let base = knobs;
-            let mut value = base.clone();
-            match row {
-                Row::AgentTeams => toggle(&mut value.agent_teams, defaults.agent_teams_on()),
-                Row::HideAttribution => {
-                    toggle(&mut value.hide_attribution, defaults.hide_attribution_on());
-                }
-                Row::Nonessential => {
-                    toggle(
-                        &mut value.disable_nonessential_traffic,
-                        defaults.disable_nonessential_traffic_on(),
-                    );
-                }
-                _ => {}
-            }
-            if let Err(e) = apply(core, ConfigChange::Knobs { base, value }) {
-                core.status.error(e);
-            }
+        // 开关旋钮：Enter 直接翻转，无需弹窗
+        Row::AgentTeams => {
+            commit_knobs(core, knobs, |k| {
+                toggle(&mut k.agent_teams, defaults.agent_teams_on());
+            });
+            None
+        }
+        Row::HideAttribution => {
+            commit_knobs(core, knobs, |k| {
+                toggle(&mut k.hide_attribution, defaults.hide_attribution_on());
+            });
+            None
+        }
+        Row::Nonessential => {
+            commit_knobs(core, knobs, |k| {
+                toggle(
+                    &mut k.disable_nonessential_traffic,
+                    defaults.disable_nonessential_traffic_on(),
+                );
+            });
+            None
+        }
+        Row::Flag(i) => {
+            let knob = &BOOL_KNOBS[i];
+            let next = !knobs.flag(knob);
+            let explicit = (next != knob.claude_default).then(|| serde_json::json!(next));
+            commit_knobs(core, knobs, |k| k.set_extra(knob.field, explicit));
             None
         }
         // 三态：不写键（上游按端点主机判定）/ 强制开 / 关
         Row::ToolSearch => {
             let states = [None, Some(true), Some(false)];
             let options = vec![
-                i18n::EFFORT_FOLLOW.to_string(),
+                i18n::V_FOLLOW.to_string(),
                 i18n::V_ON.to_string(),
                 i18n::V_OFF.to_string(),
             ];
@@ -233,63 +248,37 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
                 options,
                 current,
                 move |core, picked| {
-                    let base = knobs;
-                    let mut value = base.clone();
-                    value.tool_search = states[picked];
-                    if let Err(e) = apply(core, ConfigChange::Knobs { base, value }) {
-                        core.status.error(e);
-                    }
+                    commit_knobs(core, knobs, |k| k.tool_search = states[picked]);
                 },
             )))
         }
         Row::PermissionMode => {
+            // 存量非法值原样列为第一项，用户能看见并就地切走
             let effective = knobs.permission_mode().to_string();
             let mut options: Vec<String> =
                 PERMISSION_MODES.iter().map(|m| (*m).to_string()).collect();
-            if !PERMISSION_MODES.contains(&effective.as_str()) {
+            if !options.contains(&effective) {
                 options.insert(0, effective.clone());
             }
             let current = options.iter().position(|m| m == &effective).unwrap_or(0);
+            let modes = options.clone();
             Some(Box::new(Select::new(
                 label("permission_mode"),
                 options,
                 current,
                 move |core, picked| {
-                    let base = knobs;
-                    let mut value = base.clone();
-                    let picked = if !PERMISSION_MODES.contains(&effective.as_str()) && picked == 0 {
-                        effective
-                    } else {
-                        let offset = usize::from(!PERMISSION_MODES.contains(&effective.as_str()));
-                        PERMISSION_MODES[picked - offset].to_string()
-                    };
-                    value.permission_mode =
-                        (picked != Knobs::default().permission_mode()).then_some(picked);
-                    if let Err(e) = apply(core, ConfigChange::Knobs { base, value }) {
-                        core.status.error(e);
-                    }
+                    let mode = modes[picked].clone();
+                    commit_knobs(core, knobs, |k| {
+                        k.permission_mode = (mode != defaults.permission_mode()).then_some(mode);
+                    });
                 },
             )))
-        }
-        Row::Flag(i) => {
-            let knob = &BOOL_KNOBS[i];
-            let base = knobs;
-            let mut value = base.clone();
-            let next = !base.flag(knob);
-            value.set_extra(
-                knob.field,
-                (next != knob.claude_default).then(|| serde_json::json!(next)),
-            );
-            if let Err(e) = apply(core, ConfigChange::Knobs { base, value }) {
-                core.status.error(e);
-            }
-            None
         }
         Row::Value(i) => {
             let knob = &VALUE_KNOBS[i];
             if let ValueKind::Enum(levels) = knob.kind {
                 // 有限取值走选择框；第 0 项 = 跟随 Claude Code（删键）
-                let mut options = vec![i18n::EFFORT_FOLLOW.to_string()];
+                let mut options = vec![i18n::V_FOLLOW.to_string()];
                 options.extend(levels.iter().map(|l| (*l).to_string()));
                 let current = knobs
                     .value(knob)
@@ -301,18 +290,10 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
                     options,
                     current,
                     move |core, picked| {
-                        let base = knobs;
-                        let mut value = base.clone();
-                        value.set_extra(
-                            knob.field,
-                            picked
-                                .checked_sub(1)
-                                .and_then(|i| levels.get(i))
-                                .map(|l| serde_json::json!(l)),
-                        );
-                        if let Err(e) = apply(core, ConfigChange::Knobs { base, value }) {
-                            core.status.error(e);
-                        }
+                        let level = picked.checked_sub(1).and_then(|i| levels.get(i));
+                        commit_knobs(core, knobs, |k| {
+                            k.set_extra(knob.field, level.map(|l| serde_json::json!(l)));
+                        });
                     },
                 )));
             }
@@ -323,8 +304,6 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
             Some(Box::new(
                 Prompt::new(label(knob.field), current, false, move |core, raw| {
                     let raw = raw.trim();
-                    let base = knobs.clone();
-                    let mut value = base.clone();
                     let parsed = if raw.is_empty() {
                         None
                     } else if knob.kind == ValueKind::Number {
@@ -333,38 +312,44 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
                     } else {
                         Some(serde_json::json!(raw))
                     };
+                    let mut value = knobs.clone();
                     value.set_extra(knob.field, parsed);
+                    let base = knobs.clone();
                     apply(core, ConfigChange::Knobs { base, value })
                 })
                 .with_hint(i18n::CFG_VALUE_HINT),
             ))
         }
-        Row::Timeout => Some(Box::new(
-            Prompt::new(
-                label("api_timeout_ms"),
-                knobs.api_timeout().to_string(),
-                false,
-                move |core, value| {
-                    let base = knobs.clone();
-                    let mut next = base.clone();
-                    let value = value.trim();
-                    next.api_timeout_ms = if value.is_empty() {
-                        None
-                    } else {
-                        let ms: u64 = value.parse().map_err(|_| i18n::V_NUMBER_ERR.to_string())?;
-                        Some(ms).filter(|ms| *ms != Knobs::default().api_timeout())
-                    };
-                    apply(core, ConfigChange::Knobs { base, value: next })
-                },
-            )
-            .with_hint(i18n::fill(
-                i18n::CFG_BUILTIN_HINT,
-                &[&Knobs::default().api_timeout().to_string()],
-            )),
-        )),
+        Row::Timeout => {
+            let default_ms = defaults.api_timeout();
+            Some(Box::new(
+                Prompt::new(
+                    label("api_timeout_ms"),
+                    knobs.api_timeout().to_string(),
+                    false,
+                    move |core, raw| {
+                        let raw = raw.trim();
+                        let mut value = knobs.clone();
+                        value.api_timeout_ms = if raw.is_empty() {
+                            None
+                        } else {
+                            let ms: u64 =
+                                raw.parse().map_err(|_| i18n::V_NUMBER_ERR.to_string())?;
+                            Some(ms).filter(|ms| *ms != default_ms)
+                        };
+                        let base = knobs.clone();
+                        apply(core, ConfigChange::Knobs { base, value })
+                    },
+                )
+                .with_hint(i18n::fill(
+                    i18n::CFG_BUILTIN_HINT,
+                    &[&default_ms.to_string()],
+                )),
+            ))
+        }
         Row::Env(key) => {
             let current = cfg.defaults.env.get(&key).cloned().unwrap_or_default();
-            let title = i18n::fill(i18n::CFG_ROW_ENV, &[&key]);
+            let title = i18n::fill(i18n::ROW_ENV, &[&key]);
             Some(Box::new(
                 Prompt::new(title, current, false, move |core, value| {
                     let value = value.trim();
@@ -430,7 +415,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
                     )
                 },
             )
-            .with_hint(i18n::CFG_SETTING_HINT),
+            .with_hint(i18n::CFG_SETTING_FORMAT_ERR),
         )),
     }
 }
@@ -465,13 +450,11 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
     )))
     .wrap(Wrap { trim: false });
     let header_height = header.line_count(inner.width) as u16 + 1;
-    let [header_area, list_area] = ratatui::layout::Layout::vertical([
-        ratatui::layout::Constraint::Length(header_height),
-        ratatui::layout::Constraint::Min(1),
-    ])
-    .areas(inner);
+    let [header_area, list_area] =
+        Layout::vertical([Constraint::Length(header_height), Constraint::Min(1)]).areas(inner);
     f.render_widget(header, header_area);
 
+    let default_tag = || Span::styled(format!("  {}", i18n::FROM_DEFAULT), theme.dim());
     // 开关值渲染：开/关
     let on_off = |value: bool, inherited: bool| -> Vec<Span<'static>> {
         let mut spans = vec![if value {
@@ -480,14 +463,10 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
             Span::styled(i18n::V_OFF.to_string(), theme.dim())
         }];
         if inherited {
-            spans.push(Span::styled(
-                format!("  {}", i18n::FROM_DEFAULT),
-                theme.dim(),
-            ));
+            spans.push(default_tag());
         }
         spans
     };
-    let default_tag = || Span::styled(format!("  {}", i18n::FROM_DEFAULT), theme.dim());
     let value_width = (list_area.width as usize).saturating_sub(2 + LABEL_WIDTH);
     let section_style = theme.accent().add_modifier(Modifier::BOLD);
 
@@ -511,7 +490,7 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
                     label("tool_search"),
                     match knobs.tool_search {
                         Some(value) => on_off(value, false),
-                        None => vec![Span::styled(i18n::EFFORT_FOLLOW.to_string(), theme.dim())],
+                        None => vec![Span::styled(i18n::V_FOLLOW.to_string(), theme.dim())],
                     },
                 ),
                 Row::HideAttribution => (
@@ -565,13 +544,10 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
                 }
                 Row::Env(key) => {
                     let value = cfg.defaults.env.get(key).cloned().unwrap_or_default();
-                    (
-                        i18n::fill(i18n::CFG_ROW_ENV, &[key]),
-                        vec![Span::raw(value)],
-                    )
+                    (i18n::fill(i18n::ROW_ENV, &[key]), vec![Span::raw(value)])
                 }
                 Row::AddEnv => (
-                    i18n::CFG_ENV_ADD.into(),
+                    i18n::ROW_ENV_ADD.into(),
                     vec![Span::styled(i18n::ADD_ELLIPSIS.to_string(), theme.dim())],
                 ),
                 Row::Setting(key) => {

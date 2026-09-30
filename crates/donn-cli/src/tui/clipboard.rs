@@ -7,15 +7,14 @@ pub struct Clipboard {
 
 impl Clipboard {
     pub fn set_text(&mut self, text: String) -> Result<(), String> {
-        if self.inner.is_none() {
-            self.inner = Some(
+        let clipboard = match &mut self.inner {
+            Some(clipboard) => clipboard,
+            None => self.inner.insert(
                 arboard::Clipboard::new()
                     .map_err(|error| format!("failed to open the system clipboard: {error}"))?,
-            );
-        }
-        self.inner
-            .as_mut()
-            .ok_or_else(|| "failed to open the system clipboard".to_string())?
+            ),
+        };
+        clipboard
             .set_text(text)
             .map_err(|error| format!("failed to copy text: {error}"))
     }

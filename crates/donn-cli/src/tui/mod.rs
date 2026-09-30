@@ -3,7 +3,6 @@
 //! 布局：左 profiles ｜右 detail ｜底部 doctor 抽屉｜状态栏。
 //! 弹窗栈叠加在面板之上，栈顶独占键盘。
 
-mod action;
 mod app;
 mod clipboard;
 mod components;
@@ -54,7 +53,8 @@ pub fn run() -> i32 {
     let _ = restore_terminal(&mut terminal);
 
     match result {
-        Ok(LoopCmd::Launch(name)) => launch(&app.core, &name),
+        // enter 启动：恢复终端后 exec——TUI 进程被替换，不做进程托管
+        Ok(LoopCmd::Launch(name)) => crate::commands::run::launch(&app.core.donn, &name, &[]),
         Ok(_) => 0,
         Err(e) => {
             eprintln!("error: {e}");
@@ -65,20 +65,13 @@ pub fn run() -> i32 {
 
 fn setup_terminal() -> io::Result<Term> {
     enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    if let Err(error) = execute!(stdout, EnterAlternateScreen, EnableMouseCapture) {
+    let terminal = execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)
+        .and_then(|()| Terminal::new(CrosstermBackend::new(io::stdout())));
+    if terminal.is_err() {
         let _ = disable_raw_mode();
-        let _ = execute!(stdout, DisableMouseCapture, LeaveAlternateScreen);
-        return Err(error);
+        let _ = execute!(io::stdout(), DisableMouseCapture, LeaveAlternateScreen);
     }
-    match Terminal::new(CrosstermBackend::new(stdout)) {
-        Ok(terminal) => Ok(terminal),
-        Err(error) => {
-            let _ = disable_raw_mode();
-            let _ = execute!(io::stdout(), DisableMouseCapture, LeaveAlternateScreen);
-            Err(error)
-        }
-    }
+    terminal
 }
 
 fn restore_terminal(terminal: &mut Term) -> io::Result<()> {
@@ -215,34 +208,6 @@ fn render(app: &mut App, f: &mut ratatui::Frame) {
         modal.render(f, area, &app.core);
     }
     app.modals = modals;
-}
-
-/// enter 启动的进程语义：恢复终端后 exec —— TUI 进程被替换，不做进程托管。
-fn launch(core: &Core, name: &str) -> i32 {
-    match core.donn.sync(name) {
-        Ok(report) if !report.overwritten.is_empty() => eprintln!(
-            "note: restored donn-managed settings: {}",
-            report.overwritten.join(", ")
-        ),
-        Ok(_) => {}
-        Err(e) => {
-            eprintln!("warn: config refresh failed, launching with existing files: {e}");
-        }
-    }
-    let plan = match core.donn.launch_plan(name) {
-        Ok(plan) => plan,
-        Err(e) => {
-            eprintln!("error: {e}");
-            return 1;
-        }
-    };
-    match donn_core::launch::exec(&plan, &[]) {
-        Ok(code) => code,
-        Err(e) => {
-            eprintln!("error: {e}");
-            1
-        }
-    }
 }
 
 /// TUI 挂起 → $EDITOR 编辑 settings.json → 返回后校验 JSON + 漂移检出。

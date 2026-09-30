@@ -17,17 +17,16 @@ donn-core = { path = "../donn-core" }
 clap.workspace = true
 ratatui.workspace = true
 unicode-width.workspace = true
-unicode-truncate = "2"
+unicode-truncate.workspace = true
 crossterm.workspace = true
-tui-input = "0.15.3"
-comfy-table = { version = "7.2.2", default-features = false }
+tui-input.workspace = true
+comfy-table.workspace = true
 shlex.workspace = true
-nucleo-matcher = "0.3"
+nucleo-matcher.workspace = true
 serde_json.workspace = true
-# system default app for URLs (key console) — cross-platform, no shell forks
-open = "5"
+open.workspace = true
 arboard.workspace = true
-linkify = "0.11"
+linkify.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

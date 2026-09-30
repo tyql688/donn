@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::timefmt;
 use crate::wrapper;
 
@@ -31,13 +31,8 @@ impl Donn {
     pub fn remove_alias(&self, name: &str, alias: &str) -> Result<()> {
         let _lock = self.write_lock()?;
         let mut spec = self.spec(name)?;
-        if !spec
-            .wrapper
-            .aliases
-            .iter()
-            .any(|registered| registered == alias)
-        {
-            return Err(crate::error::Error::InvalidInput(format!(
+        if !spec.wrapper.aliases.iter().any(|a| a == alias) {
+            return Err(Error::InvalidInput(format!(
                 "alias '{alias}' is not registered for profile '{name}'"
             )));
         }

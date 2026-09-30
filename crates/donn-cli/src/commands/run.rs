@@ -1,12 +1,18 @@
 //! `donn run <name> [-- args]`：退出码透传 claude；错误必须含下一步动作提示。
 
+use donn_core::Donn;
+
 use super::open_donn;
 
 pub fn execute(name: &str, args: &[String]) -> i32 {
-    let donn = match open_donn() {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
+    match open_donn() {
+        Ok(donn) => launch(&donn, name, args),
+        Err(code) => code,
+    }
+}
+
+/// sync → 启动计划 → exec claude。TUI 的 Enter 启动也走这里。
+pub fn launch(donn: &Donn, name: &str, args: &[String]) -> i32 {
     // 启动前自愈手改漂移和版本升级后的渲染变化。失败不阻塞启动：
     // 已有落盘配置仍可能完全可用。
     match donn.sync(name) {
@@ -15,6 +21,8 @@ pub fn execute(name: &str, args: &[String]) -> i32 {
             report.overwritten.join(", ")
         ),
         Ok(_) => {}
+        // 没有这个 profile：下面取启动计划时会报同一个错，这里不重复
+        Err(donn_core::Error::ProfileNotFound { .. }) => {}
         Err(e) => {
             eprintln!("warn: config refresh failed, launching with existing files: {e}");
         }
@@ -26,9 +34,9 @@ pub fn execute(name: &str, args: &[String]) -> i32 {
             return 1;
         }
     };
-    for flag in plan.overridden_flags(args) {
+    if plan.overlay_overridden(args) {
         eprintln!(
-            "note: your {flag} replaces donn's shared-mode overlay; the profile's model, permission mode and global settings are not applied this session"
+            "note: your --settings replaces donn's; this session skips the profile's model, permission mode and global settings"
         );
     }
     match donn_core::launch::exec(&plan, args) {

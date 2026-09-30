@@ -28,7 +28,7 @@ pub mod wrapper;
 pub use config::{Defaults, GlobalConfig};
 pub use error::{Error, Result};
 pub use home::DonnHome;
-pub use keys::{EFFORT_SETTING_LEVELS, Effort, ModelSlot, SlotMap};
+pub use keys::{Effort, ModelSlot, SlotMap};
 pub use knobs::Knobs;
 pub use ops::{
     ConfigChange, ConfigReport, CreateReceipt, Donn, Drift, DriftKind, ProfileCard, ProfileDraft,

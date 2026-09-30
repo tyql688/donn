@@ -4,18 +4,18 @@
 //! 读操作从 spec + preset 推导，意图从不反向从 settings.json 解析。
 
 mod alias;
-mod config_ops;
+mod config;
 mod create;
 mod list;
 mod remove;
 mod update;
 
-pub use config_ops::{ConfigChange, ConfigReport};
+pub use config::{ConfigChange, ConfigReport};
 pub use create::{CreateReceipt, ProfileDraft};
 pub use list::{ProfileCard, ProfileView};
 pub use update::{Drift, DriftKind, SpecChange, SyncReport};
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::config::GlobalConfig;
 use crate::error::{Error, Result, io_ctx};
@@ -32,28 +32,14 @@ pub struct Donn {
 
 impl Donn {
     pub fn open() -> Result<Self> {
-        let home = DonnHome::discover()?;
-        let cli_path =
-            std::env::current_exe().map_err(io_ctx("failed to resolve donn executable path"))?;
-        Self::with_home_and_cli(home, &cli_path)
+        Self::with_home(DonnHome::discover()?)
     }
 
-    /// 测试/自定义根目录构造。
+    /// 测试/自定义根目录构造。wrapper 里记的 donn 路径取当前可执行文件。
     pub fn with_home(home: DonnHome) -> Result<Self> {
-        let cli_path =
-            std::env::current_exe().map_err(io_ctx("failed to resolve test executable path"))?;
-        Self::with_home_and_cli(home, &cli_path)
-    }
-
-    fn with_home_and_cli(home: DonnHome, cli_path: &std::path::Path) -> Result<Self> {
-        let cli_path = std::path::absolute(cli_path)
+        let cli_path = std::env::current_exe()
+            .and_then(std::path::absolute)
             .map_err(io_ctx("failed to resolve the donn executable path"))?;
-        if !cli_path.is_file() {
-            return Err(Error::InvalidInput(format!(
-                "donn CLI is not a file: {}",
-                cli_path.display()
-            )));
-        }
         Ok(Self { home, cli_path })
     }
 
@@ -66,12 +52,12 @@ impl Donn {
         GlobalConfig::load(&self.home)
     }
 
-    pub fn cli_path(&self) -> &std::path::Path {
+    pub fn cli_path(&self) -> &Path {
         &self.cli_path
     }
 
     pub fn bin_dir(&self) -> Result<PathBuf> {
-        Ok(GlobalConfig::load(&self.home)?.resolve_bin_dir(&self.home))
+        Ok(self.config()?.resolve_bin_dir(&self.home))
     }
 
     /// 首次运行尽力生成带注释的 config.toml 模板；失败不阻塞只读操作。
@@ -117,8 +103,7 @@ impl Donn {
         if !self.exists(name) {
             return Err(self.not_found(name)?);
         }
-        let config = GlobalConfig::load(&self.home)?;
-        launch::prepare(&self.home, &config, name)
+        launch::prepare(&self.home, &self.config()?, name)
     }
 
     /// 构造 ProfileNotFound；枚举 profile 目录失败时传播 IO 错误，

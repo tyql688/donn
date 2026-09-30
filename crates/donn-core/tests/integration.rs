@@ -669,10 +669,7 @@ fn shared_isolation_launches_without_config_dir_override() {
         }),
         "overlay = full 写盘内容 + 权限模式 + sonnet 槽（压 ~/.claude 持久化选择）"
     );
-    assert_eq!(
-        plan.extra_args,
-        vec![("--settings".to_string(), overlay.display().to_string())]
-    );
+    assert_eq!(plan.settings_overlay.as_deref(), Some(overlay.as_path()));
     assert!(
         !plan.env.iter().any(|(k, _)| k == "CLAUDE_CONFIG_DIR"),
         "shared mode must not override CLAUDE_CONFIG_DIR: {:?}",
@@ -695,7 +692,7 @@ fn shared_isolation_launches_without_config_dir_override() {
             .iter()
             .any(|(k, _)| k == "ENABLE_CLAUDEAI_MCP_SERVERS")
     );
-    assert!(plan.extra_args.is_empty(), "独立模式不追加参数");
+    assert!(plan.settings_overlay.is_none(), "独立模式不追加参数");
     assert!(!overlay.exists(), "full 模式不得残留 shared overlay");
 }
 

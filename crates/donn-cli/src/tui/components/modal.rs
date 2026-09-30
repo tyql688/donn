@@ -1,14 +1,16 @@
-//! Modal 栈的统一接口 + 通用弹窗（confirm / prompt）。
+//! Modal 栈的统一接口 + 通用弹窗（confirm / prompt / select）。
 
-use crate::tui::i18n;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Flex, Layout, Rect};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph, Wrap};
+use unicode_width::UnicodeWidthStr;
 
 use crate::tui::app::Core;
 use crate::tui::components::text_input::TextInput;
+use crate::tui::i18n;
 use crate::tui::theme::Theme;
 
 /// 确认回调。
@@ -31,7 +33,6 @@ pub trait Modal {
 
 /// 居中矩形（ratatui Flex 布局，自动不超出屏幕）。
 pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
-    use ratatui::layout::{Constraint, Flex, Layout};
     let [horizontal] = Layout::horizontal([Constraint::Length(width)])
         .flex(Flex::Center)
         .areas(area);
@@ -39,6 +40,15 @@ pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
         .flex(Flex::Center)
         .areas(horizontal);
     rect
+}
+
+/// 弹窗盒宽：想要 `preferred` 列，两侧各留 2 列；屏幕再窄也不小于 `floor`，但绝不超出屏宽——
+/// 输入框的光标窗口按这个最终宽度算，撑出屏外会和盒子错位。
+pub(crate) fn box_width(area: Rect, preferred: u16, floor: u16) -> u16 {
+    preferred
+        .min(area.width.saturating_sub(4))
+        .max(floor)
+        .min(area.width)
 }
 
 /// 通用弹窗盒：居中 + 清底 + 边框标题（不换行；需 wrap 的调用方自行渲染）。
@@ -73,7 +83,7 @@ fn render_wrapped_box(
     f.render_widget(paragraph.block(theme.modal_block(title)), rect);
 }
 
-/// 通用二次确认。
+/// 通用二次确认：标题就是问题本身，`body` 只放需要补充的后果说明（可为空）。
 pub struct Confirm {
     pub title: String,
     pub body: Vec<String>,
@@ -112,9 +122,11 @@ impl Modal for Confirm {
 
     fn render(&mut self, f: &mut Frame, area: Rect, core: &Core) {
         let theme = &core.theme;
-        let width = 56.min(area.width.saturating_sub(4)).max(20).min(area.width);
+        let width = box_width(area, 56, 20);
         let mut lines: Vec<Line> = self.body.iter().map(|s| Line::from(s.clone())).collect();
-        lines.push(Line::default());
+        if !lines.is_empty() {
+            lines.push(Line::default());
+        }
         lines.push(Line::from(vec![
             Span::styled("y", theme.accent()),
             Span::styled(format!(" {}  ·  ", i18n::CONFIRM_YES), theme.dim()),
@@ -178,10 +190,7 @@ impl Modal for Prompt {
         match key.code {
             KeyCode::Esc => ModalOutcome::Close,
             KeyCode::Char('t')
-                if key
-                    .modifiers
-                    .contains(crossterm::event::KeyModifiers::CONTROL)
-                    && self.maskable =>
+                if key.modifiers.contains(KeyModifiers::CONTROL) && self.maskable =>
             {
                 self.input.toggle_mask();
                 ModalOutcome::Keep
@@ -204,10 +213,9 @@ impl Modal for Prompt {
                 if std::mem::take(&mut self.selected) {
                     match key.code {
                         KeyCode::Char(_)
-                            if !key.modifiers.intersects(
-                                crossterm::event::KeyModifiers::CONTROL
-                                    | crossterm::event::KeyModifiers::ALT,
-                            ) =>
+                            if !key
+                                .modifiers
+                                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
                         {
                             self.input.set("");
                         }
@@ -229,9 +237,7 @@ impl Modal for Prompt {
 
     fn render(&mut self, f: &mut Frame, area: Rect, core: &Core) {
         let theme = &core.theme;
-        // width 夹到实际屏宽：render_line 拿到的必须是最终盒宽，
-        // 否则窄屏下 .max(20) 会撑出屏外，光标窗口与盒子错位
-        let width = 56.min(area.width.saturating_sub(4)).max(20).min(area.width);
+        let width = box_width(area, 56, 20);
         let mut lines = vec![if self.selected {
             Line::from(Span::styled(
                 self.input.value().to_string(),
@@ -249,7 +255,9 @@ impl Modal for Prompt {
                 spans.push(Span::styled(hint.clone(), theme.dim()));
             }
             if self.maskable {
-                spans.push(Span::styled("  ·  ", theme.dim()));
+                if !spans.is_empty() {
+                    spans.push(Span::styled("  ·  ", theme.dim()));
+                }
                 spans.push(Span::styled("^t", theme.accent()));
                 spans.push(Span::styled(
                     format!(" {}", i18n::HINT_TOGGLE_MASK),
@@ -318,18 +326,10 @@ impl Modal for Select {
     fn render(&mut self, f: &mut Frame, area: Rect, core: &Core) {
         let theme = &core.theme;
         // 模型 id / 带 label 的候选项往往较长，给足宽度
-        let longest = self
-            .options
-            .iter()
-            .map(|o| unicode_width::UnicodeWidthStr::width(o.as_str()))
-            .max()
-            .unwrap_or(20)
-            .saturating_add(6);
-        let width = (longest as u16)
-            .max(36)
-            .min(area.width.saturating_sub(4))
-            .max(20)
-            .min(area.width);
+        // 内容宽 = 最长选项（含 2 列选中标记）与底部按键提示里较宽的那个，外加边框与 padding
+        let options = self.options.iter().map(|o| o.width() + 2).max();
+        let content = options.unwrap_or(0).max(i18n::SELECT_HINT.width());
+        let width = box_width(area, (content as u16).saturating_add(4), 20);
         let height = (self.options.len() as u16 + 4).min(area.height);
         let mut lines: Vec<Line> = self
             .options
@@ -341,7 +341,7 @@ impl Modal for Select {
                 let style = if is_sel {
                     theme.selected()
                 } else {
-                    ratatui::style::Style::default()
+                    Style::default()
                 };
                 Line::from(vec![
                     Span::styled(marker.to_string(), theme.accent()),
@@ -372,7 +372,6 @@ mod tests {
 
     #[test]
     fn selected_prefill_is_replaced_by_typing_and_cleared_by_backspace() {
-        use crossterm::event::KeyModifiers;
         let dir = tempfile::tempdir().unwrap();
         let mut core = Core::new(
             donn_core::Donn::with_home(donn_core::DonnHome::for_test(dir.path())).unwrap(),
@@ -419,10 +418,9 @@ mod tests {
             donn_core::Donn::with_home(donn_core::DonnHome::for_test(dir.path())).unwrap(),
         );
         let mut confirm = Confirm::new(
-            "remove profile",
+            "remove profile 'moacode'?",
             vec![
-                "delete profile 'moacode'?".into(),
-                "settings and launch commands will be removed; sessions live in ~/.claude, untouched"
+                "settings and launch commands will be removed; sessions live in ~/.claude and stay where they are, untouched"
                     .into(),
             ],
             |_| {},

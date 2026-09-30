@@ -2,6 +2,8 @@
 //! TUI 全局设置面板的唯一入口（UI 不直接碰文件）。
 
 use crate::error::{Error, Result};
+use crate::keys;
+use crate::knobs::Knobs;
 
 use super::Donn;
 
@@ -11,8 +13,8 @@ pub enum ConfigChange {
     /// UI 基于 `base` 改成 `value`；进锁后只应用两者有差异的字段，避免陈旧
     /// TUI 快照覆盖其它进程刚修改的不同旋钮。
     Knobs {
-        base: crate::knobs::Knobs,
-        value: crate::knobs::Knobs,
+        base: Knobs,
+        value: Knobs,
     },
     /// `[defaults.env]` 键值。
     SetDefaultEnv(String, String),
@@ -38,7 +40,7 @@ impl Donn {
     pub fn edit_config(&self, change: ConfigChange) -> Result<ConfigReport> {
         let _lock = self.write_lock()?;
         // 进锁后重读，避免长期运行的 TUI 覆盖其它进程刚写入的配置。
-        let mut config = crate::config::GlobalConfig::load(&self.home)?;
+        let mut config = self.config()?;
         match change {
             ConfigChange::Knobs { base, value } => {
                 value.validate()?;
@@ -46,7 +48,7 @@ impl Donn {
             }
             ConfigChange::SetDefaultEnv(key, value) => {
                 let key = valid_key(&key)?;
-                crate::keys::validate_env_entry(&key, &value)?;
+                keys::validate_env_entry(&key, &value)?;
                 config.defaults.env.insert(key, value);
             }
             ConfigChange::RemoveDefaultEnv(key) => {
@@ -54,7 +56,7 @@ impl Donn {
             }
             ConfigChange::SetDefaultSetting(key, value) => {
                 let key = valid_key(&key)?;
-                if crate::keys::RESERVED_TOP_KEYS.contains(&key.as_str()) {
+                if keys::RESERVED_TOP_KEYS.contains(&key.as_str()) {
                     return Err(Error::InvalidInput(format!(
                         "`{key}` is managed by donn and cannot be a default"
                     )));
@@ -84,11 +86,7 @@ impl Donn {
     }
 }
 
-fn apply_knob_changes(
-    current: &mut crate::knobs::Knobs,
-    base: &crate::knobs::Knobs,
-    value: crate::knobs::Knobs,
-) {
+fn apply_knob_changes(current: &mut Knobs, base: &Knobs, value: Knobs) {
     if value.agent_teams != base.agent_teams {
         current.agent_teams = value.agent_teams;
     }

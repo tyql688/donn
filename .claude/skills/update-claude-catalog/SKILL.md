@@ -68,7 +68,7 @@ rg -o 'claude-(fable|mythos|opus|sonnet|haiku)-[0-9a-z.-]*' /tmp/donn-claude-str
 
 ## 3. 第三方渠道 preset
 
-只动 `crates/donn-core/src/preset/presets/<key>.toml`，一渠道一文件；新渠道 = 一个新 TOML，零行代码。用户可在 `~/.donn/presets.d/` 放同 key 文件覆盖内置。
+只动 `crates/donn-core/src/preset/presets/<key>.toml`，一渠道一文件，文件名即 key；新渠道 = 一个新 TOML，加上 `preset/mod.rs` 的 `BUILTIN_PRESETS` 里一个名字。用户可在 `~/.donn/presets.d/` 放同 key 文件覆盖内置。
 
 模型 id 和窗口数字不手抄。来源是 pi 的模型目录：pi 自己刷新模型用的接口 `https://pi.dev/api/models`，加上刚进 npm 包、接口里还没有的 provider。脚本直接联网取，不依赖本机装没装 pi。
 
@@ -105,7 +105,7 @@ Claude Code 只说 Anthropic Messages 协议。按序判定，查到即止：
 3. 能接但缺厂商接入文档（认证头、`key_url` 不确定）：登记 `pending`，不凭猜测建 preset。
 4. 原生没有就走网关：把它的主力模型加进 `vercel` / `openrouter` 候选。Cloudflare AI Gateway 和本地翻译代理用 `custom` preset，donn 不管理代理进程。
 
-新建 preset 后：`preset/mod.rs` 的 `builtin_presets_parse_and_cover_launch_list` 加 key，`pi-providers.json` 登记映射，台账加一行。
+新建 preset 后：`preset/mod.rs` 的 `BUILTIN_PRESETS` 按字典序加 key（漏了或文件名与 key 对不上，测试会报），`pi-providers.json` 登记映射，台账加一行。
 
 ## 验收
 

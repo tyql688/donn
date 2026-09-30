@@ -19,22 +19,18 @@ pub struct LaunchPlan {
     pub program: PathBuf,
     /// 注入的 env（独立模式含最后强制的 CLAUDE_CONFIG_DIR）。
     pub env: Vec<(String, String)>,
-    /// donn 追加的 CLI 参数，至多一个：shared 模式指向 sync 生成的 `--settings` overlay。
-    pub extra_args: Vec<(String, String)>,
+    /// shared 模式：sync 生成的 overlay 文件，经 `--settings` 带进会话。
+    pub settings_overlay: Option<PathBuf>,
 }
 
 impl LaunchPlan {
-    /// donn 想追加、但用户已显式传了同名 flag（`--flag v` 或 `--flag=v`）的那些：以用户为准。
-    /// Claude 的 `--settings` 只认一个值，所以用户自带时 donn 的整份 overlay 本次不生效。
-    pub fn overridden_flags(&self, args: &[String]) -> Vec<&str> {
-        self.extra_args
-            .iter()
-            .map(|(flag, _)| flag.as_str())
-            .filter(|flag| {
-                args.iter()
-                    .any(|a| a == flag || a.starts_with(&format!("{flag}=")))
-            })
-            .collect()
+    /// 用户自己传了 `--settings`（`--settings v` 或 `--settings=v`）。Claude 的 `--settings`
+    /// 只认一个值，以用户的为准：donn 的整份 overlay 本次不生效。
+    pub fn overlay_overridden(&self, args: &[String]) -> bool {
+        self.settings_overlay.is_some()
+            && args
+                .iter()
+                .any(|a| a == "--settings" || a.starts_with("--settings="))
     }
 }
 
@@ -57,8 +53,7 @@ pub fn prepare(home: &DonnHome, config: &GlobalConfig, name: &str) -> Result<Lau
     let spec = ProfileSpec::load(&home.spec_file(name))?;
     let settings = claude::read_json(&home.settings_file(name))?;
 
-    let view = claude::view::SettingsView::new(&settings);
-    let mut env: Vec<(String, String)> = view.env_entries();
+    let mut env = claude::SettingsView::new(&settings).env_entries();
     env.retain(|(k, _)| k != "CLAUDE_CONFIG_DIR");
     for (key, value) in &env {
         crate::keys::validate_env_entry(key, value)?;
@@ -66,17 +61,9 @@ pub fn prepare(home: &DonnHome, config: &GlobalConfig, name: &str) -> Result<Lau
 
     // shared 模式：模型选择、settings 类旋钮、权限模式全部经 --settings overlay 文件
     // 压过 ~/.claude 的持久化配置（文件由 sync 生成），命令行只指向文件本身。
-    let extra_args = match spec.isolation {
-        Isolation::Shared => {
-            let overlay = home.shared_settings_file(name);
-            if overlay.is_file() {
-                vec![("--settings".to_string(), overlay.display().to_string())]
-            } else {
-                Vec::new()
-            }
-        }
-        Isolation::Full => Vec::new(),
-    };
+    let settings_overlay = (spec.isolation == Isolation::Shared)
+        .then(|| home.shared_settings_file(name))
+        .filter(|overlay| overlay.is_file());
 
     // 独立：CLAUDE_CONFIG_DIR 最后强制设置，即使 settings env 出现同名键也以 donn 为准。
     // 共享：不动 CLAUDE_CONFIG_DIR，session/全局配置走 ~/.claude，渠道身份只由注入的 env 决定。
@@ -86,11 +73,10 @@ pub fn prepare(home: &DonnHome, config: &GlobalConfig, name: &str) -> Result<Lau
         env.push(("CLAUDE_CONFIG_DIR".into(), dir.display().to_string()));
     }
 
-    let program = resolve_claude_bin(config, home)?;
     Ok(LaunchPlan {
-        program,
+        program: resolve_claude_bin(config, home)?,
         env,
-        extra_args,
+        settings_overlay,
     })
 }
 
@@ -98,11 +84,10 @@ pub fn prepare(home: &DonnHome, config: &GlobalConfig, name: &str) -> Result<Lau
 /// CLAUDE_CONFIG_DIR。
 fn build_command(plan: &LaunchPlan, args: &[String]) -> Command {
     let mut cmd = Command::new(&plan.program);
-    let overridden = plan.overridden_flags(args);
-    for (flag, value) in &plan.extra_args {
-        if !overridden.contains(&flag.as_str()) {
-            cmd.arg(flag).arg(value);
-        }
+    if let Some(overlay) = &plan.settings_overlay
+        && !plan.overlay_overridden(args)
+    {
+        cmd.arg("--settings").arg(overlay);
     }
     cmd.args(args);
     let provided: std::collections::HashSet<&str> =
@@ -282,16 +267,18 @@ mod tests {
         std::fs::write(&overlay, "{}\n").unwrap();
 
         let plan = prepare(&home, &config, "zai").unwrap();
+        assert_eq!(plan.settings_overlay.as_deref(), Some(overlay.as_path()));
+        let args: Vec<_> = build_command(&plan, &["--model".into()])
+            .get_args()
+            .map(|a| a.to_os_string())
+            .collect();
         assert_eq!(
-            plan.extra_args,
-            vec![("--settings".to_string(), overlay.display().to_string())]
+            args[..2],
+            ["--settings".into(), overlay.clone().into_os_string()]
         );
         // 用户显式 --settings 时以用户的为准，并能报告出来
-        assert_eq!(
-            plan.overridden_flags(&["--settings=/mine.json".into()]),
-            vec!["--settings"]
-        );
-        assert!(plan.overridden_flags(&["--model".into()]).is_empty());
+        assert!(plan.overlay_overridden(&["--settings=/mine.json".into()]));
+        assert!(!plan.overlay_overridden(&["--model".into()]));
         let cmd = build_command(&plan, &["--settings".into(), "/mine.json".into()]);
         let args: Vec<_> = cmd.get_args().map(|a| a.to_os_string()).collect();
         assert_eq!(
@@ -305,6 +292,6 @@ mod tests {
         // overlay 不存在 → 不追加任何参数
         std::fs::remove_file(&overlay).unwrap();
         let plan = prepare(&home, &config, "zai").unwrap();
-        assert!(plan.extra_args.is_empty());
+        assert!(plan.settings_overlay.is_none());
     }
 }
