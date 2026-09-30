@@ -10,7 +10,7 @@ key_url = "https://openrouter.ai/settings/keys"
 # openrouter.ai/api/v1/models live 目录逐条核对。目录变动频繁，
 # 这里只保留当前主力编码模型；其余模型自由输入即可。
 [preset.models]
-sonnet = "anthropic/claude-sonnet-5"
+sonnet = "anthropic/claude-sonnet-5.5"
 opus = "anthropic/claude-opus-5.5"
 fable = "anthropic/claude-fable-5.1"
 haiku = "anthropic/claude-haiku-4.5"
@@ -23,6 +23,10 @@ label = "Claude Fable 5.1"
 [[preset.model_choices]]
 id = "anthropic/claude-fable-5"
 label = "Claude Fable 5"
+
+[[preset.model_choices]]
+id = "anthropic/claude-sonnet-5.5"
+label = "Claude Sonnet 5.5"
 
 [[preset.model_choices]]
 id = "anthropic/claude-sonnet-5"
@@ -57,13 +61,13 @@ max_context = 262144
 
 [[preset.model_choices]]
 id = "z-ai/glm-5.3"
-label = "GLM-5.3 · 1.25M"
-max_context = 1310720
+label = "GLM-5.3 · 1M"
+max_context = 1048576
 
 [[preset.model_choices]]
 id = "z-ai/glm-5.3-flash"
-label = "GLM-5.3-Flash · 1.25M"
-max_context = 1310720
+label = "GLM-5.3-Flash · 1M"
+max_context = 1048576
 
 [[preset.model_choices]]
 id = "deepseek/deepseek-v4-pro"
@@ -88,7 +92,7 @@ max_context = 204800
 [[preset.model_choices]]
 id = "xiaomi/mimo-v2.6-pro"
 label = "MiMo V2.6-Pro · 1M"
-max_context = 1048576
+max_context = 1050000
 
 [[preset.model_choices]]
 id = "xiaomi/mimo-v2.6-flash"

@@ -11,11 +11,6 @@ key_url = "https://app.fireworks.ai/settings/users/api-keys"
 # routers/*-latest 稳定别名，具体版本只列主力，其余自由输入。
 
 [[preset.model_choices]]
-id = "accounts/fireworks/routers/deepseek-pro-latest"
-label = "DeepSeek Pro (latest) · 1M"
-max_context = 1000000
-
-[[preset.model_choices]]
 id = "accounts/fireworks/routers/deepseek-flash-latest"
 label = "DeepSeek Flash (latest) · 1M"
 max_context = 1000000
@@ -41,19 +36,14 @@ label = "Qwen Max (latest) · 256K"
 max_context = 262144
 
 [[preset.model_choices]]
-id = "accounts/fireworks/models/deepseek-v4-pro"
-label = "DeepSeek V4 Pro · 1M"
-max_context = 1000000
+id = "accounts/fireworks/models/ember-1"
+label = "Ember-1 · 1M"
+max_context = 1048576
 
 [[preset.model_choices]]
 id = "accounts/fireworks/models/deepseek-v4p1-flash"
 label = "DeepSeek V4.1 Flash · 1M"
 max_context = 1000000
-
-[[preset.model_choices]]
-id = "accounts/fireworks/models/kimi-k2p7-code"
-label = "Kimi K2.7 Code · 262K"
-max_context = 262000
 
 [[preset.model_choices]]
 id = "accounts/fireworks/models/minimax-m3"

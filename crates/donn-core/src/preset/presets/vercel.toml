@@ -23,6 +23,10 @@ id = "anthropic/claude-opus-5"
 label = "Claude Opus 5"
 
 [[preset.model_choices]]
+id = "anthropic/claude-sonnet-5.5"
+label = "Claude Sonnet 5.5"
+
+[[preset.model_choices]]
 id = "anthropic/claude-sonnet-5"
 label = "Claude Sonnet 5"
 

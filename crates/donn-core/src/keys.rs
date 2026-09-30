@@ -1,19 +1,21 @@
 //! 键注册表：donn 认识的全部 env / settings 键名，唯一定义处。
 //! render / doctor / 读取视图都从这里取键名——新增托管键只改这一个文件。
 //!
-//! # 键的三类来源（每个键的注释里标注）
+//! # 键的来源（每个键的注释里标注）
 //! - **[官方]**：Claude Code 官方文档在册
 //!   （<https://code.claude.com/docs/zh-CN/env-vars> 与 settings 文档）。
+//! - **[官方·二进制 schema]**：settings.json / `.claude.json` 里的键，取值形状按 claude
+//!   二进制里的 schema 核对。
 //! - **[官方·未在册]**：官方 env 文档未列，但在 claude 二进制里逆向验证过的真实键。
-//!   上游行为变化风险高于在册键，doctor/升级时优先复查这批。
+//!   后两类上游行为变化风险高于在册键，升级时优先复查。
 //! - **自定义**：用户在 TUI `env +` 里添加的任意键——donn 只做操作系统要求的
 //!   名称/NUL 校验，其余原样注入，不在本注册表中。
 //!
 //! donn 自有的配置概念（preset、isolation、aliases、knobs…）不是键——
 //! 它们存 profile.toml / config.toml，最终**渲染成**下列键。
 //!
-//! 未在册的只有 `CLAUDE_CODE_NO_MODEL_FALLBACK` 与 `.claude.json` 两个内部状态键
-//! （hasCompletedOnboarding / customApiKeyResponses）。
+//! 未在册的只有 `CLAUDE_CODE_NO_MODEL_FALLBACK`、[`SHELL_OVERRIDE_KEYS`] 里的两个 provider 开关，
+//! 与 `.claude.json` 两个内部状态键（hasCompletedOnboarding / customApiKeyResponses）。
 
 use serde::{Deserialize, Serialize};
 
@@ -41,7 +43,8 @@ pub const TOOL_SEARCH: &str = "ENABLE_TOOL_SEARCH";
 
 /// [官方·二进制 schema] settings.json 顶层键：commit/PR 署名（空串 = 不加）。
 pub const ATTRIBUTION: &str = "attribution";
-/// 「隐藏署名」旋钮写入的完整值。
+/// 「隐藏署名」旋钮写入的完整值。逐项形式对所有 Claude Code 版本有效；整体 `false`
+/// 只有 v2.1.281+ 认识，更早的版本遇到它会跳过整份 settings 文件。
 pub fn attribution_hidden() -> serde_json::Value {
     serde_json::json!({"commit": "", "pr": "", "sessionUrl": false})
 }
@@ -55,7 +58,8 @@ pub const EFFORT_SETTING: &str = "effortLevel";
 /// （与 env 的 [`Effort`] 不同：无 max，auto = 不设）。
 pub const EFFORT_SETTING_LEVELS: [&str; 4] = ["low", "medium", "high", "xhigh"];
 /// [官方] settings.json 顶层键：`false` 为所有会话关闭 extended thinking
-/// （thinking 默认开，`true` 无效果；Opus 5.5、Fable 等恒思考模型忽略此键）。
+/// （thinking 默认开，`true` 无效果；Opus 5.5、Sonnet 5.5、Fable 等恒思考模型忽略此键）。
+/// 第三方端点上 Claude Code 是省略 `thinking` 参数而不是关闭，自适应推理的模型仍可能思考。
 pub const ALWAYS_THINKING: &str = "alwaysThinkingEnabled";
 /// [官方] settings.json 顶层键：思考强度上限（v2.1.267+），任何更高档位按上限运行；
 /// 合法档位见 [`MAX_EFFORT_LEVELS`]，`max` = 不设上限。
@@ -117,16 +121,20 @@ pub const LANGUAGE: &str = "language";
 /// [官方] settings.json 顶层键：上下文接近上限时自动压缩（默认 true）。
 pub const AUTO_COMPACT_ENABLED: &str = "autoCompactEnabled";
 
-/// [官方] donn 从不写、但启动时从继承的 shell 环境剥掉的键：留着会把会话改道到别的云厂商，
+/// donn 从不写、但启动时从继承的 shell 环境剥掉的键：留着会把会话改道到别的云厂商，
 /// 或盖掉 profile 的模型映射。用户写进 `[defaults.env]` / `[intent.env]` 的照常注入。
-pub const SHELL_OVERRIDE_KEYS: [&str; 7] = [
+/// 末两个是 [官方·未在册]（取自二进制里的 provider 开关名单），其余 [官方]。
+pub const SHELL_OVERRIDE_KEYS: [&str; 10] = [
     "ANTHROPIC_MODEL",
+    "ANTHROPIC_DEFAULT_MODEL",
     "ANTHROPIC_SMALL_FAST_MODEL",
     "CLAUDE_CODE_USE_BEDROCK",
     "CLAUDE_CODE_USE_VERTEX",
     "CLAUDE_CODE_USE_FOUNDRY",
     "CLAUDE_CODE_USE_MANTLE",
     "CLAUDE_CODE_USE_ANTHROPIC_AWS",
+    "CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD",
+    "CLAUDE_CODE_USE_GATEWAY",
 ];
 
 /// 校验一条将交给操作系统的环境变量。名称只拒绝所有平台都无法可靠表示的

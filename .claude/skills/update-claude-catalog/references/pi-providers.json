@@ -26,18 +26,10 @@
       }
     },
     "minimax": {
-      "preset": "minimax",
-      "vendor_windows": {
-        "MiniMax-M3": "MiniMax 文档写 1,000,000",
-        "MiniMax-M3[1m]": "MiniMax 文档写 1,000,000"
-      }
+      "preset": "minimax"
     },
     "minimax-cn": {
-      "preset": "minimax-cn",
-      "vendor_windows": {
-        "MiniMax-M3": "MiniMax 文档写 1,000,000",
-        "MiniMax-M3[1m]": "MiniMax 文档写 1,000,000"
-      }
+      "preset": "minimax-cn"
     },
     "moonshotai-cn": {
       "preset": "kimi-cn"
@@ -57,7 +49,9 @@
         "z-ai/glm-5.3": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
         "z-ai/glm-5.3-flash": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
         "minimax/minimax-m3": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
-        "deepseek/deepseek-v4-pro": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准"
+        "deepseek/deepseek-v4-pro": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
+        "minimax/minimax-m2.7": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准",
+        "xiaomi/mimo-v2.6-pro": "OpenRouter live 目录（openrouter.ai/api/v1/models）的 context_length，本渠道以它为准"
       }
     },
     "qwen-token-plan-cn": {
@@ -151,6 +145,9 @@
     },
     "meta": {
       "pending": "pi 只记 OpenAI 协议；api.meta.ai/v1/messages 实测回 Anthropic 错误信封，缺厂商接入文档确认认证头和 key_url。Muse Spark 目前经 vercel 候选可用"
+    },
+    "typesafe": {
+      "pending": "pi 目录里只有 provider 名，没有模型、协议和端点数据；出现模型后再判断能否接"
     }
   },
   "presets_not_in_pi": [
