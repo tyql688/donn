@@ -249,6 +249,11 @@ mod tests {
             Some(None),
             "会改道的 shell 变量同样剥除"
         );
+        assert_eq!(
+            env_of("CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST"),
+            Some(None),
+            "宿主路由锁不得从 shell 继承"
+        );
         // 非托管键完全不出现在命令环境里（继承原状，由操作系统决定）
         assert_eq!(env_of("SOME_UNMANAGED_SHELL_VAR"), None);
     }

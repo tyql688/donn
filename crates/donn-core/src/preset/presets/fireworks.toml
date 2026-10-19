@@ -59,3 +59,8 @@ max_context = 262144
 id = "accounts/fireworks/models/gpt-oss-120b"
 label = "GPT-OSS 120B · 131K"
 max_context = 131072
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/muse-spark-open"
+label = "Muse Spark Open · 1M · preview"
+max_context = 1048576

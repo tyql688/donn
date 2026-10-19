@@ -1,13 +1,12 @@
 [preset]
 key = "opencode"
-label = "OpenCode Zen"
-description = "Official opencode gateway; Claude and open models"
-base_url = "https://opencode.ai/zen"
+label = "OpenCode Console"
+description = "Pay-as-you-go gateway; Claude and Anthropic-compatible open models"
+base_url = "https://opencode.ai/inference/anthropic"
 auth_mode = "auth_token"
 key_url = "https://opencode.ai/auth"
 
-# 端点实测：opencode.ai/zen/v1/messages 回 Anthropic 错误信封。
-# 候选只列 pi 远程模型目录里走 anthropic-messages 协议的模型；Zen 上其余模型走 OpenAI 协议，Claude Code 接不了。
+# 此端点使用 Anthropic Messages 协议；候选仅包含支持该协议的模型。
 
 [[preset.model_choices]]
 id = "claude-fable-5-1"
@@ -28,6 +27,10 @@ label = "Claude Sonnet 5.5"
 [[preset.model_choices]]
 id = "claude-sonnet-5"
 label = "Claude Sonnet 5"
+
+[[preset.model_choices]]
+id = "claude-haiku-5-5"
+label = "Claude Haiku 5.5"
 
 [[preset.model_choices]]
 id = "claude-haiku-4-5"

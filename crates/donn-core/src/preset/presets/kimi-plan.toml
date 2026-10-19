@@ -2,7 +2,7 @@
 key = "kimi-plan"
 label = "Kimi Code plan"
 description = "Kimi For Coding subscription; default k3 1M (Allegretto+). Tier: Andante=kimi-for-coding (K2.8 Preview, 1M); Moderato=k3/k3-256k@256K; Allegretto+=k3@1M + highspeed"
-base_url = "https://api.kimi.com/coding/"
+base_url = "https://api.kimi.ai/coding/"
 auth_mode = "auth_token"
 key_url = "https://www.kimi.com/code/console"
 

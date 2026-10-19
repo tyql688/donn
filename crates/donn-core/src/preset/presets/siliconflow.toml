@@ -6,14 +6,12 @@ base_url = "https://api.siliconflow.cn"
 auth_mode = "auth_token"
 key_url = "https://cloud.siliconflow.cn/account/ak"
 
-# 全部条目经 siliconflow.cn/models 目录核对（注意 org/Name 大小写）。
-# GLM-5.3 已上架（1024K）；Qwen3.5-397B-A17B 已下架，换 Qwen3.8-27B。
-# 目录变动频繁——其余模型自由输入即可。
+# 模型 id 区分 org/Name 大小写；候选包含支持工具调用的编码模型，其余模型可自由输入。
 [preset.models]
 sonnet = "zai-org/GLM-5.3"
 opus = "zai-org/GLM-5.3"
 fable = "zai-org/GLM-5.3"
-haiku = "deepseek-ai/DeepSeek-V4-Flash"
+haiku = "deepseek-ai/DeepSeek-V4.1-Flash"
 
 [[preset.model_choices]]
 id = "zai-org/GLM-5.3"
@@ -31,11 +29,6 @@ label = "Kimi K2.7 Code · 256K"
 max_context = 262144
 
 [[preset.model_choices]]
-id = "MiniMaxAI/MiniMax-M2.5"
-label = "MiniMax M2.5 · 192K"
-max_context = 196608
-
-[[preset.model_choices]]
 id = "Qwen/Qwen3.8-27B"
 label = "Qwen3.8 27B · 256K"
 max_context = 262144
@@ -48,4 +41,24 @@ max_context = 1048576
 [[preset.model_choices]]
 id = "deepseek-ai/DeepSeek-V4-Flash"
 label = "DeepSeek V4 Flash · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "deepseek-ai/DeepSeek-V4.1-Flash"
+label = "DeepSeek-V4.1-Flash · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "zai-org/GLM-5.3-Flash"
+label = "GLM-5.3-Flash · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "tencent/Hy4-preview"
+label = "Hy4 preview · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
+id = "meituan-longcat/LongCat-2.0"
+label = "LongCat-2.0 · 1M"
 max_context = 1048576

@@ -1,7 +1,7 @@
 [preset]
 key = "mimo"
 label = "Xiaomi MiMo"
-description = "Pay-as-you-go — V2.6-Pro / Flash / UltraSpeed (V2.5 series offline 2026-10-21)"
+description = "Pay-as-you-go — V2.6-Pro / Flash / UltraSpeed"
 base_url = "https://api.xiaomimimo.com/anthropic"
 auth_mode = "auth_token"
 key_url = "https://platform.xiaomimimo.com/#/console/api-keys"
@@ -10,7 +10,7 @@ key_url = "https://platform.xiaomimimo.com/#/console/api-keys"
 #   https://mimo.mi.com/docs/en-US/tokenplan/integration/claudecode
 #   模型 mimo-v2.6-pro；长上下文加 [1m] → mimo-v2.6-pro[1m]
 # 全部 id 见 mimo.mi.com/docs/en-US/quick-start/summary/model：mimo-v2.6-pro / mimo-v2.6-flash /
-# mimo-v2.6-pro-ultraspeed 均 1M 上下文、128K 输出；mimo-v2.5-pro 与 mimo-v2.5 于 2026-10-21 10:00（北京）下线。
+# mimo-v2.6-pro-ultraspeed 均 1M 上下文、128K 输出。
 [preset.models]
 sonnet = "mimo-v2.6-pro"
 opus = "mimo-v2.6-pro"
@@ -45,14 +45,4 @@ max_context = 1048576
 [[preset.model_choices]]
 id = "mimo-v2.6-pro-ultraspeed"
 label = "V2.6-Pro UltraSpeed"
-max_context = 1048576
-
-[[preset.model_choices]]
-id = "mimo-v2.5-pro"
-label = "V2.5-Pro · offline 2026-10-21"
-max_context = 1048576
-
-[[preset.model_choices]]
-id = "mimo-v2.5"
-label = "V2.5 · offline 2026-10-21"
 max_context = 1048576

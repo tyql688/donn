@@ -13,7 +13,7 @@ key_url = "https://openrouter.ai/settings/keys"
 sonnet = "anthropic/claude-sonnet-5.5"
 opus = "anthropic/claude-opus-5.5"
 fable = "anthropic/claude-fable-5.1"
-haiku = "anthropic/claude-haiku-4.5"
+haiku = "anthropic/claude-haiku-5.5"
 
 # ── Anthropic（openrouter.ai/anthropic）───────────────────────────
 [[preset.model_choices]]
@@ -43,6 +43,10 @@ label = "Claude Opus 5"
 [[preset.model_choices]]
 id = "anthropic/claude-sonnet-4.6"
 label = "Claude Sonnet 4.6"
+
+[[preset.model_choices]]
+id = "anthropic/claude-haiku-5.5"
+label = "Claude Haiku 5.5"
 
 [[preset.model_choices]]
 id = "anthropic/claude-haiku-4.5"
@@ -97,7 +101,7 @@ max_context = 1050000
 [[preset.model_choices]]
 id = "xiaomi/mimo-v2.6-flash"
 label = "MiMo V2.6-Flash · 1M"
-max_context = 1048576
+max_context = 1050000
 
 [[preset.model_choices]]
 id = "x-ai/grok-4.20"

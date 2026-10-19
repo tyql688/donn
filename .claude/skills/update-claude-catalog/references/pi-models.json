@@ -28,6 +28,10 @@
    "bedrock-converse-stream",
    200000
   ],
+  "anthropic.claude-haiku-5-5": [
+   "bedrock-converse-stream",
+   1000000
+  ],
   "anthropic.claude-opus-4-1-20250805-v1:0": [
    "bedrock-converse-stream",
    200000
@@ -64,6 +68,10 @@
    "bedrock-converse-stream",
    1000000
   ],
+  "anthropic.claude-sonnet-5-5": [
+   "bedrock-converse-stream",
+   1000000
+  ],
   "apac.amazon.nova-lite-v1:0": [
    "bedrock-converse-stream",
    300000
@@ -83,6 +91,10 @@
   "au.anthropic.claude-haiku-4-5-20251001-v1:0": [
    "bedrock-converse-stream",
    200000
+  ],
+  "au.anthropic.claude-haiku-5-5": [
+   "bedrock-converse-stream",
+   1000000
   ],
   "au.anthropic.claude-opus-4-6-v1": [
    "bedrock-converse-stream",
@@ -152,6 +164,10 @@
    "bedrock-converse-stream",
    200000
   ],
+  "eu.anthropic.claude-haiku-5-5": [
+   "bedrock-converse-stream",
+   1000000
+  ],
   "eu.anthropic.claude-opus-4-5-20251101-v1:0": [
    "bedrock-converse-stream",
    200000
@@ -192,6 +208,10 @@
    "bedrock-converse-stream",
    1000000
   ],
+  "eu.anthropic.claude-sonnet-5-5": [
+   "bedrock-converse-stream",
+   1000000
+  ],
   "eu.mistral.pixtral-large-2502-v1:0": [
    "bedrock-converse-stream",
    128000
@@ -211,6 +231,10 @@
   "global.anthropic.claude-haiku-4-5-20251001-v1:0": [
    "bedrock-converse-stream",
    200000
+  ],
+  "global.anthropic.claude-haiku-5-5": [
+   "bedrock-converse-stream",
+   1000000
   ],
   "global.anthropic.claude-opus-4-5-20251101-v1:0": [
    "bedrock-converse-stream",
@@ -284,6 +308,10 @@
    "bedrock-converse-stream",
    1050000
   ],
+  "global.openai.gpt-6.1-sol": [
+   "bedrock-converse-stream",
+   1050000
+  ],
   "global.xai.grok-4.6": [
    "bedrock-converse-stream",
    500000
@@ -291,6 +319,10 @@
   "global.xai.grok-4.7": [
    "bedrock-converse-stream",
    500000
+  ],
+  "global.zai.glm-5.3": [
+   "bedrock-converse-stream",
+   1000000
   ],
   "google.gemma-4-26b-a4b": [
    "bedrock-converse-stream",
@@ -303,6 +335,18 @@
   "google.gemma-4-e2b": [
    "bedrock-converse-stream",
    131072
+  ],
+  "in.anthropic.claude-haiku-4-5-20251001-v1:0": [
+   "bedrock-converse-stream",
+   200000
+  ],
+  "in.anthropic.claude-opus-5": [
+   "bedrock-converse-stream",
+   1000000
+  ],
+  "in.anthropic.claude-sonnet-5": [
+   "bedrock-converse-stream",
+   1000000
   ],
   "in.openai.gpt-5.6-luna": [
    "bedrock-converse-stream",
@@ -319,6 +363,10 @@
   "jp.anthropic.claude-haiku-4-5-20251001-v1:0": [
    "bedrock-converse-stream",
    200000
+  ],
+  "jp.anthropic.claude-haiku-5-5": [
+   "bedrock-converse-stream",
+   1000000
   ],
   "jp.anthropic.claude-opus-4-7": [
    "bedrock-converse-stream",
@@ -472,6 +520,10 @@
    "bedrock-converse-stream",
    1050000
   ],
+  "openai.gpt-6.1-sol": [
+   "bedrock-converse-stream",
+   1050000
+  ],
   "openai.gpt-oss-120b": [
    "bedrock-converse-stream",
    131072
@@ -564,6 +616,10 @@
    "bedrock-converse-stream",
    200000
   ],
+  "us.anthropic.claude-haiku-5-5": [
+   "bedrock-converse-stream",
+   1000000
+  ],
   "us.anthropic.claude-opus-4-1-20250805-v1:0": [
    "bedrock-converse-stream",
    200000
@@ -605,6 +661,10 @@
    1000000
   ],
   "us.anthropic.claude-sonnet-5": [
+   "bedrock-converse-stream",
+   1000000
+  ],
+  "us.anthropic.claude-sonnet-5-5": [
    "bedrock-converse-stream",
    1000000
   ],
@@ -660,6 +720,10 @@
    "bedrock-converse-stream",
    1050000
   ],
+  "us.openai.gpt-6.1-sol": [
+   "bedrock-converse-stream",
+   1050000
+  ],
   "us.writer.palmyra-x4-v1:0": [
    "bedrock-converse-stream",
    122880
@@ -675,6 +739,10 @@
   "us.xai.grok-4.7": [
    "bedrock-converse-stream",
    500000
+  ],
+  "us.zai.glm-5.3": [
+   "bedrock-converse-stream",
+   1000000
   ],
   "writer.palmyra-x4-v1:0": [
    "bedrock-converse-stream",
@@ -736,6 +804,10 @@
    "anthropic-messages",
    200000
   ],
+  "claude-haiku-5-5": [
+   "anthropic-messages",
+   1000000
+  ],
   "claude-opus-4-5": [
    "anthropic-messages",
    200000
@@ -766,11 +838,11 @@
   ],
   "claude-sonnet-4-5": [
    "anthropic-messages",
-   1000000
+   200000
   ],
   "claude-sonnet-4-5-20250929": [
    "anthropic-messages",
-   1000000
+   200000
   ],
   "claude-sonnet-4-6": [
    "anthropic-messages",
@@ -785,7 +857,11 @@
    1000000
   ]
  },
- "azure-openai-responses": {
+ "azure": {
+  "deepseek-v4-pro": [
+   "openai-completions",
+   1000000
+  ],
   "gpt-4": [
    "azure-openai-responses",
    8192
@@ -980,6 +1056,10 @@
    "openai-completions",
    1048576
   ],
+  "deepseek-ai/DeepSeek-V4.1-Flash-Fast": [
+   "openai-completions",
+   1048576
+  ],
   "moonshotai/Kimi-K2.5": [
    "openai-completions",
    262000
@@ -1064,27 +1144,31 @@
    "anthropic-messages",
    1000000
   ],
-  "claude-fable-5.1": [
+  "claude-fable-5-1": [
    "anthropic-messages",
    1000000
   ],
-  "claude-haiku-4.5": [
+  "claude-haiku-4-5": [
    "anthropic-messages",
    200000
   ],
-  "claude-opus-4.5": [
+  "claude-haiku-5-5": [
+   "anthropic-messages",
+   1000000
+  ],
+  "claude-opus-4-5": [
    "anthropic-messages",
    200000
   ],
-  "claude-opus-4.6": [
+  "claude-opus-4-6": [
    "anthropic-messages",
    1000000
   ],
-  "claude-opus-4.7": [
+  "claude-opus-4-7": [
    "anthropic-messages",
    1000000
   ],
-  "claude-opus-4.8": [
+  "claude-opus-4-8": [
    "anthropic-messages",
    1000000
   ],
@@ -1092,19 +1176,23 @@
    "anthropic-messages",
    1000000
   ],
-  "claude-opus-5.5": [
+  "claude-opus-5-5": [
    "anthropic-messages",
    1000000
   ],
-  "claude-sonnet-4.5": [
+  "claude-sonnet-4-5": [
    "anthropic-messages",
    200000
   ],
-  "claude-sonnet-4.6": [
+  "claude-sonnet-4-6": [
    "anthropic-messages",
    1000000
   ],
   "claude-sonnet-5": [
+   "anthropic-messages",
+   1000000
+  ],
+  "claude-sonnet-5-5": [
    "anthropic-messages",
    1000000
   ],
@@ -1189,6 +1277,10 @@
    1050000
   ],
   "gpt-6-sol": [
+   "openai-responses",
+   1050000
+  ],
+  "gpt-6.1-sol": [
    "openai-responses",
    1050000
   ],
@@ -1394,6 +1486,10 @@
    "anthropic-messages",
    512000
   ],
+  "accounts/fireworks/models/muse-spark-open": [
+   "anthropic-messages",
+   1048576
+  ],
   "accounts/fireworks/models/nemotron-3-ultra-nvfp4": [
    "anthropic-messages",
    262144
@@ -1464,6 +1560,10 @@
    "anthropic-messages",
    200000
   ],
+  "claude-haiku-5.5": [
+   "anthropic-messages",
+   1000000
+  ],
   "claude-opus-4.7": [
    "anthropic-messages",
    1000000
@@ -1507,6 +1607,10 @@
   "gemini-3.8-flash": [
    "openai-completions",
    1000000
+  ],
+  "gemini-4-argon": [
+   "openai-completions",
+   1048576
   ],
   "gpt-5-mini": [
    "openai-responses",
@@ -1662,6 +1766,10 @@
    "google-generative-ai",
    1048576
   ],
+  "gemini-4-argon": [
+   "google-generative-ai",
+   1048576
+  ],
   "gemini-flash-latest": [
    "google-generative-ai",
    1048576
@@ -1700,6 +1808,10 @@
    "google-vertex",
    1048576
   ],
+  "gemini-3.1-flash-lite-image": [
+   "google-vertex",
+   65536
+  ],
   "gemini-3.1-pro-preview": [
    "google-vertex",
    1048576
@@ -1728,11 +1840,7 @@
    "google-vertex",
    1048576
   ],
-  "gemini-flash-latest": [
-   "google-vertex",
-   1048576
-  ],
-  "gemini-flash-lite-latest": [
+  "gemini-4-argon": [
    "google-vertex",
    1048576
   ]
@@ -1768,6 +1876,10 @@
   ]
  },
  "huggingface": {
+  "MiniMaxAI/MiniMax-M1-80k": [
+   "openai-completions",
+   1000000
+  ],
   "MiniMaxAI/MiniMax-M2": [
    "openai-completions",
    204800
@@ -1837,6 +1949,10 @@
    131072
   ],
   "Qwen/Qwen3-VL-235B-A22B-Thinking": [
+   "openai-completions",
+   131072
+  ],
+  "Qwen/Qwen3-VL-30B-A3B-Instruct": [
    "openai-completions",
    131072
   ],
@@ -2075,19 +2191,19 @@
  },
  "kimi-coding": {
   "k3": [
-   "anthropic-messages",
+   "openai-completions",
    1048576
   ],
   "k3-256k": [
-   "anthropic-messages",
+   "openai-completions",
    262144
   ],
   "kimi-for-coding": [
-   "anthropic-messages",
+   "openai-completions",
    1048576
   ],
   "kimi-for-coding-highspeed": [
-   "anthropic-messages",
+   "openai-completions",
    262144
   ]
  },
@@ -2109,6 +2225,10 @@
    1048576
   ],
   "muse-spark-1.3-contributor": [
+   "openai-responses",
+   1048576
+  ],
+  "muse-wonder-1.0": [
    "openai-responses",
    1048576
   ]
@@ -2142,6 +2262,10 @@
   ]
  },
  "mistral": {
+  "codestral-2508": [
+   "mistral-conversations",
+   256000
+  ],
   "codestral-latest": [
    "mistral-conversations",
    256000
@@ -2170,21 +2294,41 @@
    "mistral-conversations",
    128000
   ],
+  "glm-5-2": [
+   "mistral-conversations",
+   1048576
+  ],
   "labs-devstral-small-2512": [
    "mistral-conversations",
    256000
   ],
+  "labs-leanstral-1-5-1": [
+   "mistral-conversations",
+   262144
+  ],
   "magistral-medium-latest": [
    "mistral-conversations",
-   128000
+   262144
+  ],
+  "ministral-14b-2512": [
+   "mistral-conversations",
+   262144
+  ],
+  "ministral-3b-2512": [
+   "mistral-conversations",
+   131072
   ],
   "ministral-3b-latest": [
    "mistral-conversations",
-   128000
+   131072
+  ],
+  "ministral-8b-2512": [
+   "mistral-conversations",
+   262144
   ],
   "ministral-8b-latest": [
    "mistral-conversations",
-   128000
+   262144
   ],
   "mistral-large-2411": [
    "mistral-conversations",
@@ -2193,6 +2337,10 @@
   "mistral-large-2512": [
    "mistral-conversations",
    262144
+  ],
+  "mistral-large-4": [
+   "mistral-conversations",
+   1048576
   ],
   "mistral-large-latest": [
    "mistral-conversations",
@@ -2228,11 +2376,11 @@
   ],
   "mistral-small-2603": [
    "mistral-conversations",
-   256000
+   262144
   ],
   "mistral-small-latest": [
    "mistral-conversations",
-   256000
+   262144
   ],
   "open-mistral-7b": [
    "mistral-conversations",
@@ -2258,17 +2406,21 @@
    "mistral-conversations",
    128000
   ],
+  "voxtral-small-2507": [
+   "mistral-conversations",
+   32768
+  ],
   "voxtral-small-latest": [
    "mistral-conversations",
-   32000
+   32768
   ],
   "zai-glm-5-2": [
    "mistral-conversations",
-   1000000
+   1048576
   ],
   "zai-glm-5-3": [
    "mistral-conversations",
-   1000000
+   1048576
   ]
  },
  "moonshotai": {
@@ -2308,6 +2460,14 @@
   ]
  },
  "nvidia": {
+  "deepseek-ai/deepseek-v4.1-flash": [
+   "openai-completions",
+   1000000
+  ],
+  "google/diffusiongemma-26b-a4b-it": [
+   "openai-completions",
+   250000
+  ],
   "google/gemma-3-12b-it": [
    "openai-completions",
    131072
@@ -2336,10 +2496,6 @@
    "openai-completions",
    262144
   ],
-  "moonshotai/kimi-k3": [
-   "openai-completions",
-   1048576
-  ],
   "nvidia/cosmos-reason2-8b": [
    "openai-completions",
    131072
@@ -2356,10 +2512,6 @@
    "openai-completions",
    256000
   ],
-  "nvidia/nemotron-3-super-120b-a12b": [
-   "openai-completions",
-   262144
-  ],
   "nvidia/nemotron-3-ultra-550b-a55b": [
    "openai-completions",
    1000000
@@ -2367,6 +2519,10 @@
   "nvidia/nemotron-3.5-lightning-30b-a3b": [
    "openai-completions",
    262144
+  ],
+  "nvidia/nemotron-3.5-super-vl-120b-a12b": [
+   "openai-completions",
+   1048576
   ],
   "openai/gpt-oss-20b": [
    "openai-completions",
@@ -2598,13 +2754,17 @@
   ],
   "gpt-6.1-sol": [
    "openai-codex-responses",
-   272000
+   500000
   ]
  },
  "opencode": {
   "big-pickle": [
    "openai-completions",
    200000
+  ],
+  "cat-jam-free": [
+   "openai-completions",
+   1048576
   ],
   "claude-fable-5": [
    "anthropic-messages",
@@ -2617,6 +2777,10 @@
   "claude-haiku-4-5": [
    "anthropic-messages",
    200000
+  ],
+  "claude-haiku-5-5": [
+   "anthropic-messages",
+   1000000
   ],
   "claude-opus-4-5": [
    "anthropic-messages",
@@ -2678,6 +2842,10 @@
    "openai-completions",
    1000000
   ],
+  "deepseek-v4.1-flash-free": [
+   "openai-completions",
+   200000
+  ],
   "gemini-3-flash": [
    "google-generative-ai",
    1048576
@@ -2706,6 +2874,10 @@
    "google-generative-ai",
    1048576
   ],
+  "gemini-4-argon": [
+   "google-generative-ai",
+   1048576
+  ],
   "glm-5": [
    "openai-completions",
    204800
@@ -2725,6 +2897,10 @@
   "glm-5.3-flash": [
    "openai-completions",
    1000000
+  ],
+  "glm-5.3-flash-free": [
+   "openai-completions",
+   200000
   ],
   "gpt-5": [
    "openai-responses",
@@ -2814,6 +2990,10 @@
    "openai-responses",
    1050000
   ],
+  "gpt-6.1-sol": [
+   "openai-responses",
+   1050000
+  ],
   "grok-4.5": [
    "openai-responses",
    500000
@@ -2846,7 +3026,7 @@
    "openai-completions",
    1048576
   ],
-  "ling-3.0-flash-fin-free": [
+  "ll-alpha-free": [
    "openai-completions",
    262144
   ],
@@ -2870,6 +3050,10 @@
    "openai-completions",
    512000
   ],
+  "mistral-large-4": [
+   "openai-completions",
+   524288
+  ],
   "muse-spark-1.2": [
    "openai-responses",
    1048576
@@ -2889,6 +3073,10 @@
   "nemotron-3.5-lightning-free": [
    "openai-completions",
    262144
+  ],
+  "nemotron-3.5-super-vl-free": [
+   "openai-completions",
+   1048576
   ],
   "qwen3.5-plus": [
    "anthropic-messages",
@@ -2912,12 +3100,12 @@
   ]
  },
  "opencode-go": {
-  "deepseek-v4-flash": [
+  "cat-jam-free": [
    "openai-completions",
-   1000000
+   1048576
   ],
-  "deepseek-v4-flash-vision-exp": [
-   "openai-completions",
+  "claude-haiku-5-5": [
+   "anthropic-messages",
    1000000
   ],
   "deepseek-v4-pro": [
@@ -2927,6 +3115,10 @@
   "deepseek-v4.1-flash": [
    "openai-completions",
    1000000
+  ],
+  "gemini-4-argon-contributor": [
+   "google-generative-ai",
+   1048576
   ],
   "glm-5.2": [
    "openai-completions",
@@ -2947,10 +3139,6 @@
   "gpt-6-luna": [
    "openai-responses",
    1050000
-  ],
-  "grok-4.6": [
-   "openai-responses",
-   500000
   ],
   "grok-4.7": [
    "openai-responses",
@@ -2996,10 +3184,6 @@
    "openai-completions",
    1048576
   ],
-  "minimax-m2.7": [
-   "openai-completions",
-   204800
-  ],
   "minimax-m3": [
    "anthropic-messages",
    1000000
@@ -3013,7 +3197,7 @@
    1048576
   ],
   "qwen3.7-plus": [
-   "openai-completions",
+   "anthropic-messages",
    1000000
   ],
   "qwen3.8-flash": [
@@ -3021,12 +3205,16 @@
    1000000
   ],
   "qwen3.8-max": [
-   "openai-completions",
+   "anthropic-messages",
    1000000
   ],
-  "space-bunny-free": [
+  "space-bunny": [
    "openai-completions",
    1048576
+  ],
+  "step-5-preview": [
+   "openai-completions",
+   1000000
   ]
  },
  "openrouter": {
@@ -3094,6 +3282,14 @@
    "openai-completions",
    200000
   ],
+  "anthropic/claude-haiku-5.5": [
+   "anthropic-messages",
+   1000000
+  ],
+  "anthropic/claude-haiku-5.5:batch": [
+   "openai-completions",
+   1000000
+  ],
   "anthropic/claude-opus-4.1": [
    "anthropic-messages",
    200000
@@ -3149,10 +3345,6 @@
   "anthropic/claude-opus-5:batch": [
    "openai-completions",
    1000000
-  ],
-  "anthropic/claude-sonnet-4": [
-   "anthropic-messages",
-   200000
   ],
   "anthropic/claude-sonnet-4.5": [
    "anthropic-messages",
@@ -3240,7 +3432,7 @@
   ],
   "deepseek/deepseek-chat-v3-0324": [
    "openai-completions",
-   163840
+   128000
   ],
   "deepseek/deepseek-chat-v3.1": [
    "openai-completions",
@@ -3256,11 +3448,11 @@
   ],
   "deepseek/deepseek-v3.1-terminus": [
    "openai-completions",
-   131072
+   163840
   ],
   "deepseek/deepseek-v3.2": [
    "openai-completions",
-   131072
+   163840
   ],
   "deepseek/deepseek-v3.2-exp": [
    "openai-completions",
@@ -3268,7 +3460,7 @@
   ],
   "deepseek/deepseek-v4-flash": [
    "openai-completions",
-   1048576
+   1048575
   ],
   "deepseek/deepseek-v4-flash-0731": [
    "openai-completions",
@@ -3406,6 +3598,18 @@
    "openai-completions",
    1048576
   ],
+  "google/gemini-4-argon": [
+   "openai-completions",
+   1048576
+  ],
+  "google/gemini-4-argon:batch": [
+   "openai-completions",
+   1048576
+  ],
+  "google/gemini-nano-banana-2.1": [
+   "openai-completions",
+   65536
+  ],
   "google/gemma-3-12b-it": [
    "openai-completions",
    131072
@@ -3446,25 +3650,21 @@
    "openai-completions",
    262144
   ],
-  "inclusionai/ling-3.0-flash-fin": [
-   "openai-completions",
-   262144
-  ],
-  "inclusionai/ling-3.0-flash-sante:free": [
-   "openai-completions",
-   262144
-  ],
   "inclusionai/ling-3.0-flash-vl": [
    "openai-completions",
-   262144
+   131072
   ],
-  "kwaipilot/kat-coder-pro-v2.5": [
+  "inclusionai/ling-3.1-flash": [
    "openai-completions",
    262144
   ],
   "liquid/lfm-2.5-2.6b:free": [
    "openai-completions",
    65536
+  ],
+  "liquid/lfm-2.5-24b-a2b": [
+   "openai-completions",
+   128000
   ],
   "meituan/longcat-2.0": [
    "openai-completions",
@@ -3514,13 +3714,21 @@
    "openai-completions",
    1048576
   ],
+  "meta/muse-spark-open": [
+   "openai-completions",
+   1048576
+  ],
+  "meta/muse-wonder": [
+   "openai-completions",
+   1048576
+  ],
   "minimax/minimax-m1": [
    "openai-completions",
    1000000
   ],
   "minimax/minimax-m2": [
    "openai-completions",
-   196608
+   204800
   ],
   "minimax/minimax-m2.1": [
    "openai-completions",
@@ -3528,11 +3736,11 @@
   ],
   "minimax/minimax-m2.5": [
    "openai-completions",
-   200000
+   198000
   ],
   "minimax/minimax-m2.7": [
    "openai-completions",
-   196608
+   204800
   ],
   "minimax/minimax-m3": [
    "openai-completions",
@@ -3581,6 +3789,10 @@
   "mistralai/mistral-large-2512:batch": [
    "openai-completions",
    262144
+  ],
+  "mistralai/mistral-large-4-0": [
+   "openai-completions",
+   1048576
   ],
   "mistralai/mistral-medium-3": [
    "openai-completions",
@@ -3699,6 +3911,14 @@
    262144
   ],
   "nvidia/nemotron-3.5-lightning:free": [
+   "openai-completions",
+   1000000
+  ],
+  "nvidia/nemotron-3.5-super-vl": [
+   "openai-completions",
+   262144
+  ],
+  "nvidia/nemotron-3.5-super-vl:free": [
    "openai-completions",
    1000000
   ],
@@ -4114,6 +4334,10 @@
    "openai-completions",
    1000000
   ],
+  "openrouter/pareto-code": [
+   "openai-completions",
+   2000000
+  ],
   "perceptron/perceptron-mk1.5": [
    "openai-completions",
    36864
@@ -4150,17 +4374,9 @@
    "openai-completions",
    1000000
   ],
-  "qwen/qwen-plus-2025-07-28": [
-   "openai-completions",
-   1000000
-  ],
   "qwen/qwen3-14b": [
    "openai-completions",
    40960
-  ],
-  "qwen/qwen3-235b-a22b": [
-   "openai-completions",
-   131072
   ],
   "qwen/qwen3-235b-a22b-2507": [
    "openai-completions",
@@ -4168,7 +4384,7 @@
   ],
   "qwen/qwen3-235b-a22b-thinking-2507": [
    "openai-completions",
-   131072
+   128000
   ],
   "qwen/qwen3-30b-a3b": [
    "openai-completions",
@@ -4176,19 +4392,11 @@
   ],
   "qwen/qwen3-30b-a3b-instruct-2507": [
    "openai-completions",
-   128000
-  ],
-  "qwen/qwen3-30b-a3b-thinking-2507": [
-   "openai-completions",
-   81920
+   262144
   ],
   "qwen/qwen3-32b": [
    "openai-completions",
    40960
-  ],
-  "qwen/qwen3-8b": [
-   "openai-completions",
-   131072
   ],
   "qwen/qwen3-coder": [
    "openai-completions",
@@ -4206,18 +4414,6 @@
    "openai-completions",
    262144
   ],
-  "qwen/qwen3-coder-plus": [
-   "openai-completions",
-   1000000
-  ],
-  "qwen/qwen3-max": [
-   "openai-completions",
-   262144
-  ],
-  "qwen/qwen3-max-thinking": [
-   "openai-completions",
-   262144
-  ],
   "qwen/qwen3-next-80b-a3b-instruct": [
    "openai-completions",
    262144
@@ -4230,29 +4426,17 @@
    "openai-completions",
    131072
   ],
-  "qwen/qwen3-vl-235b-a22b-thinking": [
-   "openai-completions",
-   131072
-  ],
   "qwen/qwen3-vl-30b-a3b-instruct": [
    "openai-completions",
    262144
   ],
   "qwen/qwen3-vl-30b-a3b-thinking": [
    "openai-completions",
-   131072
-  ],
-  "qwen/qwen3-vl-32b-instruct": [
-   "openai-completions",
-   131072
+   262144
   ],
   "qwen/qwen3-vl-8b-instruct": [
    "openai-completions",
-   131072
-  ],
-  "qwen/qwen3-vl-8b-thinking": [
-   "openai-completions",
-   131072
+   262144
   ],
   "qwen/qwen3.5-122b-a10b": [
    "openai-completions",
@@ -4264,7 +4448,7 @@
   ],
   "qwen/qwen3.5-35b-a3b": [
    "openai-completions",
-   262144
+   256000
   ],
   "qwen/qwen3.5-397b-a17b": [
    "openai-completions",
@@ -4298,10 +4482,6 @@
    "openai-completions",
    1000000
   ],
-  "qwen/qwen3.6-max-preview": [
-   "openai-completions",
-   262144
-  ],
   "qwen/qwen3.6-plus": [
    "openai-completions",
    1000000
@@ -4323,10 +4503,6 @@
    1000000
   ],
   "qwen/qwen3.8-27b": [
-   "openai-completions",
-   262144
-  ],
-  "qwen/qwen3.8-27b:free": [
    "openai-completions",
    262144
   ],
@@ -4370,14 +4546,6 @@
    "openai-completions",
    262144
   ],
-  "sao10k/l3.1-euryale-70b": [
-   "openai-completions",
-   131072
-  ],
-  "stealth/space-bunny-alpha": [
-   "openai-completions",
-   1000000
-  ],
   "stepfun/step-3.5-flash": [
    "openai-completions",
    262144
@@ -4385,6 +4553,10 @@
   "stepfun/step-3.7-flash": [
    "openai-completions",
    256000
+  ],
+  "stepfun/step-5-preview": [
+   "openai-completions",
+   1000000
   ],
   "tencent/hy3": [
    "openai-completions",
@@ -4414,7 +4586,11 @@
    "openai-completions",
    1048576
   ],
-  "unbiased/pareto": [
+  "typesafe/jev-router": [
+   "openai-completions",
+   1000000
+  ],
+  "unbiased/pareto-26.9": [
    "openai-completions",
    262144
   ],
@@ -4492,7 +4668,7 @@
   ],
   "z-ai/glm-4.6": [
    "openai-completions",
-   198000
+   202752
   ],
   "z-ai/glm-4.6v": [
    "openai-completions",
@@ -4508,7 +4684,7 @@
   ],
   "z-ai/glm-5": [
    "openai-completions",
-   198000
+   202752
   ],
   "z-ai/glm-5-turbo": [
    "openai-completions",
@@ -4516,7 +4692,7 @@
   ],
   "z-ai/glm-5.1": [
    "openai-completions",
-   202752
+   200000
   ],
   "z-ai/glm-5.2": [
    "openai-completions",
@@ -4524,11 +4700,11 @@
   ],
   "z-ai/glm-5.3": [
    "openai-completions",
-   1048575
+   1048576
   ],
   "z-ai/glm-5.3-flash": [
    "openai-completions",
-   1048575
+   1048576
   ],
   "z-ai/glm-5.3-flash:batch": [
    "openai-completions",
@@ -4556,7 +4732,7 @@
   ],
   "~anthropic/claude-haiku-latest": [
    "openai-completions",
-   200000
+   1000000
   ],
   "~anthropic/claude-opus-latest": [
    "openai-completions",
@@ -4609,6 +4785,10 @@
   "~openai/gpt-terra-latest": [
    "openai-completions",
    1050000
+  ],
+  "~unbiased/pareto-latest": [
+   "openai-completions",
+   262144
   ],
   "~x-ai/grok-latest": [
    "openai-completions",
@@ -4846,6 +5026,10 @@
    "pi-messages",
    200000
   ],
+  "claude-haiku-5-5": [
+   "pi-messages",
+   1000000
+  ],
   "claude-opus-4-5": [
    "pi-messages",
    200000
@@ -4864,7 +5048,7 @@
   ],
   "claude-sonnet-4-5": [
    "pi-messages",
-   1000000
+   200000
   ],
   "claude-sonnet-5": [
    "pi-messages",
@@ -4968,10 +5152,6 @@
    "openai-completions",
    1048576
   ],
-  "deepseek-ai/DeepSeek-V4-Pro": [
-   "openai-completions",
-   512000
-  ],
   "deepseek-ai/DeepSeek-V4-Pro-0813": [
    "openai-completions",
    1048576
@@ -4979,10 +5159,6 @@
   "deepseek-ai/DeepSeek-V4.1-Flash": [
    "openai-completions",
    1048576
-  ],
-  "google/gemma-4-31B-it": [
-   "openai-completions",
-   262144
   ],
   "meta-llama/Llama-3.3-70B-Instruct-Turbo": [
    "openai-completions",
@@ -4997,10 +5173,6 @@
    512300
   ],
   "openai/gpt-oss-120b": [
-   "openai-completions",
-   131072
-  ],
-  "openai/gpt-oss-20b": [
    "openai-completions",
    131072
   ],
@@ -5039,14 +5211,6 @@
    "anthropic-messages",
    128000
   ],
-  "alibaba/qwen-3.6-max-preview": [
-   "anthropic-messages",
-   240000
-  ],
-  "alibaba/qwen3-235b-a22b-thinking": [
-   "anthropic-messages",
-   131072
-  ],
   "alibaba/qwen3-coder": [
    "anthropic-messages",
    262144
@@ -5058,18 +5222,6 @@
   "alibaba/qwen3-coder-next": [
    "anthropic-messages",
    256000
-  ],
-  "alibaba/qwen3-coder-plus": [
-   "anthropic-messages",
-   1000000
-  ],
-  "alibaba/qwen3-max": [
-   "anthropic-messages",
-   262144
-  ],
-  "alibaba/qwen3-max-preview": [
-   "anthropic-messages",
-   262144
   ],
   "alibaba/qwen3-max-thinking": [
    "anthropic-messages",
@@ -5083,17 +5235,9 @@
    "anthropic-messages",
    262144
   ],
-  "alibaba/qwen3-vl-235b-a22b-instruct": [
-   "anthropic-messages",
-   131072
-  ],
   "alibaba/qwen3-vl-instruct": [
    "anthropic-messages",
-   131072
-  ],
-  "alibaba/qwen3-vl-thinking": [
-   "anthropic-messages",
-   131072
+   262144
   ],
   "alibaba/qwen3.5-flash": [
    "anthropic-messages",
@@ -5167,11 +5311,11 @@
    "anthropic-messages",
    300000
   ],
-  "anthropic/claude-3-haiku": [
-   "anthropic-messages",
-   200000
-  ],
   "anthropic/claude-fable-5": [
+   "anthropic-messages",
+   1000000
+  ],
+  "anthropic/claude-fable-5-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5179,15 +5323,31 @@
    "anthropic-messages",
    1000000
   ],
+  "anthropic/claude-fable-5.1-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "anthropic/claude-haiku-4.5": [
    "anthropic-messages",
    200000
   ],
-  "anthropic/claude-opus-4": [
+  "anthropic/claude-haiku-4.5-batch": [
    "anthropic-messages",
    200000
   ],
+  "anthropic/claude-haiku-5.5": [
+   "anthropic-messages",
+   1000000
+  ],
+  "anthropic/claude-haiku-5.5-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "anthropic/claude-opus-4.5": [
+   "anthropic-messages",
+   200000
+  ],
+  "anthropic/claude-opus-4.5-batch": [
    "anthropic-messages",
    200000
   ],
@@ -5195,11 +5355,23 @@
    "anthropic-messages",
    1000000
   ],
+  "anthropic/claude-opus-4.6-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "anthropic/claude-opus-4.7": [
    "anthropic-messages",
    1000000
   ],
+  "anthropic/claude-opus-4.7-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "anthropic/claude-opus-4.8": [
+   "anthropic-messages",
+   1000000
+  ],
+  "anthropic/claude-opus-4.8-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5211,6 +5383,10 @@
    "anthropic-messages",
    1000000
   ],
+  "anthropic/claude-opus-5-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "anthropic/claude-opus-5-fast": [
    "anthropic-messages",
    1000000
@@ -5219,11 +5395,11 @@
    "anthropic-messages",
    1000000
   ],
-  "anthropic/claude-opus-5.5-fast": [
+  "anthropic/claude-opus-5.5-batch": [
    "anthropic-messages",
    1000000
   ],
-  "anthropic/claude-sonnet-4": [
+  "anthropic/claude-opus-5.5-fast": [
    "anthropic-messages",
    1000000
   ],
@@ -5231,7 +5407,15 @@
    "anthropic-messages",
    1000000
   ],
+  "anthropic/claude-sonnet-4.5-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "anthropic/claude-sonnet-4.6": [
+   "anthropic-messages",
+   1000000
+  ],
+  "anthropic/claude-sonnet-4.6-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5239,7 +5423,15 @@
    "anthropic-messages",
    1000000
   ],
+  "anthropic/claude-sonnet-5-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "anthropic/claude-sonnet-5.5": [
+   "anthropic-messages",
+   1000000
+  ],
+  "anthropic/claude-sonnet-5.5-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5259,6 +5451,10 @@
    "anthropic-messages",
    262144
   ],
+  "callstack/apex": [
+   "anthropic-messages",
+   262144
+  ],
   "cohere/command-a": [
    "anthropic-messages",
    256000
@@ -5270,10 +5466,6 @@
   "deepseek/deepseek-v3.1": [
    "anthropic-messages",
    163840
-  ],
-  "deepseek/deepseek-v3.1-terminus": [
-   "anthropic-messages",
-   131072
   ],
   "deepseek/deepseek-v3.2": [
    "anthropic-messages",
@@ -5307,6 +5499,10 @@
    "anthropic-messages",
    1048576
   ],
+  "deepseek/deepseek-v4.1-flash-fast": [
+   "anthropic-messages",
+   1048576
+  ],
   "fireworks/ember-1": [
    "anthropic-messages",
    1048576
@@ -5315,7 +5511,15 @@
    "anthropic-messages",
    1000000
   ],
+  "google/gemini-2.5-flash-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "google/gemini-2.5-flash-lite": [
+   "anthropic-messages",
+   1048576
+  ],
+  "google/gemini-2.5-flash-lite-batch": [
    "anthropic-messages",
    1048576
   ],
@@ -5323,7 +5527,15 @@
    "anthropic-messages",
    1048576
   ],
+  "google/gemini-2.5-pro-batch": [
+   "anthropic-messages",
+   1048576
+  ],
   "google/gemini-3-flash": [
+   "anthropic-messages",
+   1000000
+  ],
+  "google/gemini-3-flash-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5331,7 +5543,15 @@
    "anthropic-messages",
    1000000
   ],
+  "google/gemini-3.1-flash-lite-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "google/gemini-3.1-pro-preview": [
+   "anthropic-messages",
+   1000000
+  ],
+  "google/gemini-3.1-pro-preview-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5339,7 +5559,15 @@
    "anthropic-messages",
    1000000
   ],
+  "google/gemini-3.5-flash-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "google/gemini-3.5-flash-lite": [
+   "anthropic-messages",
+   1000000
+  ],
+  "google/gemini-3.5-flash-lite-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5347,11 +5575,23 @@
    "anthropic-messages",
    1000000
   ],
+  "google/gemini-3.6-flash-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "google/gemini-3.7-flash": [
    "anthropic-messages",
    1000000
   ],
+  "google/gemini-3.7-flash-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "google/gemini-3.8-flash": [
+   "anthropic-messages",
+   1000000
+  ],
+  "google/gemini-4-argon": [
    "anthropic-messages",
    1000000
   ],
@@ -5387,10 +5627,6 @@
    "anthropic-messages",
    256000
   ],
-  "inclusionai/ling-3.0-flash-sante-free": [
-   "anthropic-messages",
-   256000
-  ],
   "inclusionai/ling-3.0-flash-vl": [
    "anthropic-messages",
    256000
@@ -5399,13 +5635,13 @@
    "anthropic-messages",
    262144
   ],
-  "inclusionai/ling-3.1-flash-free": [
-   "anthropic-messages",
-   262144
-  ],
   "interfaze/interfaze-beta": [
    "anthropic-messages",
    1000000
+  ],
+  "liquid/lfm2.5-24b-a2b": [
+   "anthropic-messages",
+   128000
   ],
   "meituan/longcat-2.5-preview": [
    "anthropic-messages",
@@ -5452,6 +5688,14 @@
    1048576
   ],
   "meta/muse-spark-1.3-contributor": [
+   "anthropic-messages",
+   1048576
+  ],
+  "meta/muse-spark-open": [
+   "anthropic-messages",
+   1048576
+  ],
+  "meta/muse-wonder-1.0": [
    "anthropic-messages",
    1048576
   ],
@@ -5507,13 +5751,17 @@
    "anthropic-messages",
    262144
   ],
+  "mistral/mistral-large-4": [
+   "anthropic-messages",
+   524288
+  ],
   "mistral/mistral-medium-3.5": [
    "anthropic-messages",
    262144
   ],
   "mistral/mistral-nemo": [
    "anthropic-messages",
-   60288
+   131072
   ],
   "mistral/mistral-small": [
    "anthropic-messages",
@@ -5526,10 +5774,6 @@
   "moonshotai/kimi-k2": [
    "anthropic-messages",
    131072
-  ],
-  "moonshotai/kimi-k2-thinking": [
-   "anthropic-messages",
-   216144
   ],
   "moonshotai/kimi-k2.5": [
    "anthropic-messages",
@@ -5571,6 +5815,14 @@
    "anthropic-messages",
    262144
   ],
+  "nvidia/nemotron-3.5-lightning-free": [
+   "anthropic-messages",
+   1000000
+  ],
+  "nvidia/nemotron-3.5-super-vl": [
+   "anthropic-messages",
+   1048576
+  ],
   "nvidia/nemotron-nano-12b-v2-vl": [
    "anthropic-messages",
    131072
@@ -5591,11 +5843,19 @@
    "anthropic-messages",
    1047576
   ],
+  "openai/gpt-4.1-batch": [
+   "anthropic-messages",
+   1047576
+  ],
   "openai/gpt-4.1-fast": [
    "anthropic-messages",
    1047576
   ],
   "openai/gpt-4.1-mini": [
+   "anthropic-messages",
+   1047576
+  ],
+  "openai/gpt-4.1-mini-batch": [
    "anthropic-messages",
    1047576
   ],
@@ -5607,11 +5867,19 @@
    "anthropic-messages",
    1047576
   ],
+  "openai/gpt-4.1-nano-batch": [
+   "anthropic-messages",
+   1047576
+  ],
   "openai/gpt-4.1-nano-fast": [
    "anthropic-messages",
    1047576
   ],
   "openai/gpt-4o": [
+   "anthropic-messages",
+   128000
+  ],
+  "openai/gpt-4o-batch": [
    "anthropic-messages",
    128000
   ],
@@ -5623,11 +5891,19 @@
    "anthropic-messages",
    128000
   ],
+  "openai/gpt-4o-mini-batch": [
+   "anthropic-messages",
+   128000
+  ],
   "openai/gpt-4o-mini-fast": [
    "anthropic-messages",
    128000
   ],
   "openai/gpt-5": [
+   "anthropic-messages",
+   400000
+  ],
+  "openai/gpt-5-batch": [
    "anthropic-messages",
    400000
   ],
@@ -5643,6 +5919,10 @@
    "anthropic-messages",
    400000
   ],
+  "openai/gpt-5-mini-batch": [
+   "anthropic-messages",
+   400000
+  ],
   "openai/gpt-5-mini-fast": [
    "anthropic-messages",
    400000
@@ -5651,7 +5931,15 @@
    "anthropic-messages",
    400000
   ],
+  "openai/gpt-5-nano-batch": [
+   "anthropic-messages",
+   400000
+  ],
   "openai/gpt-5-pro": [
+   "anthropic-messages",
+   400000
+  ],
+  "openai/gpt-5-pro-batch": [
    "anthropic-messages",
    400000
   ],
@@ -5679,6 +5967,10 @@
    "anthropic-messages",
    400000
   ],
+  "openai/gpt-5.2-batch": [
+   "anthropic-messages",
+   400000
+  ],
   "openai/gpt-5.2-codex": [
    "anthropic-messages",
    400000
@@ -5703,11 +5995,19 @@
    "anthropic-messages",
    1050000
   ],
+  "openai/gpt-5.4-batch": [
+   "anthropic-messages",
+   1050000
+  ],
   "openai/gpt-5.4-fast": [
    "anthropic-messages",
    1050000
   ],
   "openai/gpt-5.4-mini": [
+   "anthropic-messages",
+   400000
+  ],
+  "openai/gpt-5.4-mini-batch": [
    "anthropic-messages",
    400000
   ],
@@ -5719,11 +6019,19 @@
    "anthropic-messages",
    400000
   ],
+  "openai/gpt-5.4-nano-batch": [
+   "anthropic-messages",
+   400000
+  ],
   "openai/gpt-5.4-pro": [
    "anthropic-messages",
    1050000
   ],
   "openai/gpt-5.5": [
+   "anthropic-messages",
+   1000000
+  ],
+  "openai/gpt-5.5-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5735,7 +6043,15 @@
    "anthropic-messages",
    1000000
   ],
+  "openai/gpt-5.5-pro-batch": [
+   "anthropic-messages",
+   1000000
+  ],
   "openai/gpt-5.6-luna": [
+   "anthropic-messages",
+   1050000
+  ],
+  "openai/gpt-5.6-luna-batch": [
    "anthropic-messages",
    1050000
   ],
@@ -5747,11 +6063,19 @@
    "anthropic-messages",
    1050000
   ],
+  "openai/gpt-5.6-sol-batch": [
+   "anthropic-messages",
+   1050000
+  ],
   "openai/gpt-5.6-sol-fast": [
    "anthropic-messages",
    1050000
   ],
   "openai/gpt-5.6-terra": [
+   "anthropic-messages",
+   1050000
+  ],
+  "openai/gpt-5.6-terra-batch": [
    "anthropic-messages",
    1050000
   ],
@@ -5763,11 +6087,19 @@
    "anthropic-messages",
    1050000
   ],
+  "openai/gpt-6-astra-batch": [
+   "anthropic-messages",
+   1050000
+  ],
   "openai/gpt-6-astra-fast": [
    "anthropic-messages",
    1050000
   ],
   "openai/gpt-6-luna": [
+   "anthropic-messages",
+   1050000
+  ],
+  "openai/gpt-6-luna-batch": [
    "anthropic-messages",
    1050000
   ],
@@ -5779,11 +6111,19 @@
    "anthropic-messages",
    1050000
   ],
+  "openai/gpt-6-sol-batch": [
+   "anthropic-messages",
+   1050000
+  ],
   "openai/gpt-6-sol-fast": [
    "anthropic-messages",
    1050000
   ],
   "openai/gpt-6.1-sol": [
+   "anthropic-messages",
+   1050000
+  ],
+  "openai/gpt-6.1-sol-batch": [
    "anthropic-messages",
    1050000
   ],
@@ -5879,11 +6219,19 @@
    "anthropic-messages",
    2000000
   ],
+  "spacexai/grok-4.20-multi-agent-batch": [
+   "anthropic-messages",
+   2000000
+  ],
   "spacexai/grok-4.20-multi-agent-beta": [
    "anthropic-messages",
    2000000
   ],
   "spacexai/grok-4.20-non-reasoning": [
+   "anthropic-messages",
+   2000000
+  ],
+  "spacexai/grok-4.20-non-reasoning-batch": [
    "anthropic-messages",
    2000000
   ],
@@ -5895,11 +6243,19 @@
    "anthropic-messages",
    2000000
   ],
+  "spacexai/grok-4.20-reasoning-batch": [
+   "anthropic-messages",
+   2000000
+  ],
   "spacexai/grok-4.20-reasoning-beta": [
    "anthropic-messages",
    2000000
   ],
   "spacexai/grok-4.3": [
+   "anthropic-messages",
+   1000000
+  ],
+  "spacexai/grok-4.3-batch": [
    "anthropic-messages",
    1000000
   ],
@@ -5919,13 +6275,21 @@
    "anthropic-messages",
    256000
   ],
-  "stepfun/step-3.5-flash": [
+  "stealth/cat-jam": [
    "anthropic-messages",
-   262114
+   1048576
+  ],
+  "stealth/glyph-cluster": [
+   "anthropic-messages",
+   256000
   ],
   "stepfun/step-3.7-flash": [
    "anthropic-messages",
    256000
+  ],
+  "stepfun/step-5-preview": [
+   "anthropic-messages",
+   1048576
   ],
   "tencent/hy3": [
    "anthropic-messages",
@@ -6051,18 +6415,6 @@
   ]
  },
  "xiaomi": {
-  "mimo-v2.5": [
-   "openai-completions",
-   1048576
-  ],
-  "mimo-v2.5-pro": [
-   "openai-completions",
-   1048576
-  ],
-  "mimo-v2.5-pro-ultraspeed": [
-   "openai-completions",
-   1048576
-  ],
   "mimo-v2.6-flash": [
    "openai-completions",
    1048576
@@ -6077,14 +6429,6 @@
   ]
  },
  "xiaomi-token-plan-ams": {
-  "mimo-v2.5": [
-   "openai-completions",
-   1048576
-  ],
-  "mimo-v2.5-pro": [
-   "openai-completions",
-   1048576
-  ],
   "mimo-v2.6-flash": [
    "openai-completions",
    1048576
@@ -6095,14 +6439,6 @@
   ]
  },
  "xiaomi-token-plan-cn": {
-  "mimo-v2.5": [
-   "openai-completions",
-   1048576
-  ],
-  "mimo-v2.5-pro": [
-   "openai-completions",
-   1048576
-  ],
   "mimo-v2.6-flash": [
    "openai-completions",
    1048576
@@ -6113,14 +6449,6 @@
   ]
  },
  "xiaomi-token-plan-sgp": {
-  "mimo-v2.5": [
-   "openai-completions",
-   1048576
-  ],
-  "mimo-v2.5-pro": [
-   "openai-completions",
-   1048576
-  ],
   "mimo-v2.6-flash": [
    "openai-completions",
    1048576

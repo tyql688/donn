@@ -71,11 +71,6 @@ label = "Qwen3.8 2.4T A95B"
 max_context = 262144
 
 [[preset.model_choices]]
-id = "Qwen/Qwen3-Coder-Next"
-label = "Qwen3 Coder Next"
-max_context = 262144
-
-[[preset.model_choices]]
 id = "openai/gpt-oss-120b"
 label = "GPT-OSS 120B"
 max_context = 131072

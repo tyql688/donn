@@ -4,23 +4,25 @@
 
 | 对象 | 来源 | 上次核对 |
 | --- | --- | --- |
-| Claude Code 键（`keys.rs`） | claude 2.1.285 二进制 + env-vars / settings-reference / model-config 文档 | 2026-09-30 |
-| 官方模型（`custom.toml`） | platform.claude.com 模型总览 + 二进制 | 2026-09-30 |
+| Claude Code 键（`keys.rs`） | claude 2.1.303 二进制 + env-vars / settings-reference / model-config 文档 | 2026-10-19 |
+| 官方模型（`custom.toml`） | platform.claude.com 模型总览 + claude 2.1.303 二进制 | 2026-10-19 |
 | `deepseek` | api-docs.deepseek.com/quick_start/pricing + pi 目录 | 2026-09-21 |
 | `zai` / `zai-cn` | docs.z.ai/devpack/overview、devpack/tool/claude + pi 目录 | 2026-09-21 |
-| `kimi-cn` / `kimi-plan` | platform.kimi.ai/docs/models、kimi.com/code 模型页 + pi 目录 | 2026-09-21 |
+| `kimi-cn` | platform.kimi.ai/docs/models + pi 目录 | 2026-09-21 |
+| `kimi-plan` | kimi.com/code/docs/en/third-party-tools/claude-code.html + pi 目录；api.kimi.ai/coding 的 Anthropic Messages 路由 | 2026-10-19 |
 | `minimax` / `minimax-cn` | platform.minimax.io 文本生成指南 + pi 目录 | 2026-09-21 |
 | `qwen-plan` | help.aliyun.com 接入页与 Token Plan 总览 + pi 目录 | 2026-09-21 |
 | `ant-ling` | developer.ant-ling.com 接入页（页面日期 2026-09-18） | 2026-09-21 |
-| `openrouter` | live 目录 | 2026-09-30 |
-| `huggingface` | live 目录 | 2026-09-30 |
-| `vercel` | pi 目录里的 anthropic-messages 模型 | 2026-09-30 |
-| `fireworks` | pi 目录里的 anthropic-messages 模型 + fireworks.ai 模型页的 serverless 状态 | 2026-09-30 |
-| `opencode` / `opencode-go` | pi 目录里的 anthropic-messages 模型 | 2026-09-30 |
+| `openrouter` | openrouter.ai/api/v1/models live 目录 + pi 目录 | 2026-10-19 |
+| `huggingface` | router.huggingface.co/v1/models live 目录 + pi 目录 | 2026-10-19 |
+| `vercel` | pi 目录里的 anthropic-messages 模型 | 2026-10-19 |
+| `fireworks` | pi 目录里的 anthropic-messages 模型 + fireworks.ai/models/fireworks/muse-spark-open（serverless 限量预览至 2026-10-29） | 2026-10-19 |
+| `opencode` / `opencode-go` | opencode.ai/v2/docs/console/models/、console/go/ + pi 目录；模型表的 Anthropic Messages 端点 | 2026-10-19 |
 | `xai` | docs.x.ai/developers/models（.md 全文 + grok-4.7 模型页）+ pi 目录 | 2026-09-22 |
-| `mimo` / `mimo-plan` | mimo.mi.com 模型总览、V2.6 发布说明、按量价格、Token Plan 订阅页、Claude Code 接入页（页面日期 2026-09-21/22）；pi 目录的 V2.6 窗口与 preset 一致（2026-09-23） | 2026-09-22 |
-| `siliconflow` | siliconflow.cn/models（需登录，没重读） | 2026-09-14 |
+| `mimo` / `mimo-plan` | mimo.mi.com/docs/en-US/quick-start/summary/model + pi 目录；V2.5 自 2026-10-14 自动路由至 V2.6，旧 ID 于 2026-10-21 停用 | 2026-10-19 |
+| `siliconflow` | www.siliconflow.cn/models 的公开目录（92 个模型，modelName / contextLen / status）+ docs.siliconflow.cn/docs/api/messages-post | 2026-10-19 |
 | 各渠道 `/v1/messages` 端点 | `scripts/probe-endpoint.mjs` | 2026-09-14 |
-| pi 目录快照（`pi-models.json`） | pi.dev/api/models + npm `@earendil-works/pi-ai` | 2026-09-30 |
+| `opencode` / `opencode-go` / `kimi-plan` 端点 | 无鉴权探测：Messages 路由 400/401、对照路径 404；Go 需要客户端会话头 | 2026-10-19 |
+| pi 目录快照（`pi-models.json`） | pi.dev/api/models + npm `@earendil-works/pi-ai`，42 个 provider；网关采用精选候选 | 2026-10-19 |
 | `meta`（待定） | api.meta.ai/v1/messages 回 Anthropic 错误信封，与对照路径不同；缺厂商接入文档 | 2026-09-21 |
-| `typesafe`（待定） | pi 目录只有 provider 名，没有模型数据 | 2026-09-30 |
+| `typesafe`（待定） | pi 目录只有 provider 名，没有模型数据 | 2026-10-19 |

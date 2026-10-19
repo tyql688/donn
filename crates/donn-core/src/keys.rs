@@ -58,7 +58,7 @@ pub const EFFORT_SETTING: &str = "effortLevel";
 /// （与 env 的 [`Effort`] 不同：无 max，auto = 不设）。
 pub const EFFORT_SETTING_LEVELS: [&str; 4] = ["low", "medium", "high", "xhigh"];
 /// [官方] settings.json 顶层键：`false` 为所有会话关闭 extended thinking
-/// （thinking 默认开，`true` 无效果；Opus 5.5、Sonnet 5.5、Fable 等恒思考模型忽略此键）。
+/// （thinking 默认开，`true` 无效果；Opus 5.5、Sonnet 5.5、Haiku 5.5、Fable 等恒思考模型忽略此键）。
 /// 第三方端点上 Claude Code 是省略 `thinking` 参数而不是关闭，自适应推理的模型仍可能思考。
 pub const ALWAYS_THINKING: &str = "alwaysThinkingEnabled";
 /// [官方] settings.json 顶层键：思考强度上限（v2.1.267+），任何更高档位按上限运行；
@@ -124,10 +124,11 @@ pub const AUTO_COMPACT_ENABLED: &str = "autoCompactEnabled";
 /// donn 从不写、但启动时从继承的 shell 环境剥掉的键：留着会把会话改道到别的云厂商，
 /// 或盖掉 profile 的模型映射。用户写进 `[defaults.env]` / `[intent.env]` 的照常注入。
 /// 末两个是 [官方·未在册]（取自二进制里的 provider 开关名单），其余 [官方]。
-pub const SHELL_OVERRIDE_KEYS: [&str; 10] = [
+pub const SHELL_OVERRIDE_KEYS: [&str; 11] = [
     "ANTHROPIC_MODEL",
     "ANTHROPIC_DEFAULT_MODEL",
     "ANTHROPIC_SMALL_FAST_MODEL",
+    "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST",
     "CLAUDE_CODE_USE_BEDROCK",
     "CLAUDE_CODE_USE_VERTEX",
     "CLAUDE_CODE_USE_FOUNDRY",

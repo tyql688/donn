@@ -6,7 +6,7 @@ auth_mode = "auth_token"
 
 # 刻意不设 [preset.models]：中转卖哪些模型 donn 无从得知，写任何默认都是瞎猜。
 # 下面只是候选：选择器里可选、也可自由输入，不选就一个键都不写。
-# 官方 id 取自 platform.claude.com 模型总览，且都在 Claude Code 二进制里。Fable 5、Opus 5、Sonnet 5 为仍在服务的上一代。
+# Fable 5、Opus 5、Sonnet 5、Haiku 4.5 为仍在服务的上一代。
 # 不设 max_context：Claude 5 系列默认就是 1M，给未知中转硬塞上限同样是瞎猜。
 [[preset.model_choices]]
 id = "claude-fable-5-1"
@@ -21,8 +21,12 @@ id = "claude-sonnet-5-5"
 label = "Claude Sonnet 5.5"
 
 [[preset.model_choices]]
+id = "claude-haiku-5-5"
+label = "Claude Haiku 5.5"
+
+[[preset.model_choices]]
 id = "claude-haiku-4-5"
-label = "Claude Haiku 4.5"
+label = "Claude Haiku 4.5 · previous generation"
 
 [[preset.model_choices]]
 id = "claude-fable-5"
