@@ -35,7 +35,7 @@ make install                 # 从当前源码安装 donn
 make run                     # 不安装，直接打开 TUI
 make run ARGS="doctor"       # 从源码运行子命令
 make check                   # 格式、测试、Clippy、release 构建
-make build                   # 构建 target/release/donn
+make clean                   # 删除 target/ 下的构建产物
 ```
 
 ## 快速上手
@@ -93,10 +93,6 @@ donn doctor                  # 有任一失败项就返回非 0
 
 ## 开发
 
-```bash
-make check   # 格式、测试、Clippy、release 构建
-```
-
-改代码先看 [CLAUDE.md](CLAUDE.md)：里面有代码地图，也写明了每份文档各管什么（[架构](docs/ARCHITECTURE.md)、[硬规则](docs/RULES.md)、[全局设置对照表](docs/GLOBAL-SETTINGS.md)）。
+改代码先看 [CLAUDE.md](CLAUDE.md)：里面有代码地图、验证命令，也写明了每份文档各管什么（[架构](docs/ARCHITECTURE.md)、[硬规则](docs/RULES.md)、[全局设置对照表](docs/GLOBAL-SETTINGS.md)）。
 
 License: MIT

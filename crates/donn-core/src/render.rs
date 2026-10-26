@@ -6,7 +6,7 @@
 
 use crate::config::Defaults;
 use crate::keys::{self, ModelSlot, SlotMap};
-use crate::knobs::{BOOL_KNOBS, KnobTarget, Knobs, VALUE_KNOBS};
+use crate::knobs::{BOOL_KNOBS, KnobTarget, Knobs, TypedToggle, VALUE_KNOBS};
 use crate::preset::{AuthMode, ModelChoice, Preset};
 use crate::secret::Secret;
 use crate::spec::{Footprint, Isolation, ProfileSpec};
@@ -87,12 +87,15 @@ pub fn render(
     // tool search 不在这一遍：未拨动时不写键，由上游按端点主机判定（见 [`keys::TOOL_SEARCH`]）。
     if base_url.is_some() {
         env.set(keys::API_TIMEOUT, &defaults.knobs.api_timeout().to_string());
-        if defaults.knobs.disable_nonessential_traffic_on() {
-            env.set(keys::NONESSENTIAL_TRAFFIC, "1");
-        }
     }
-    if defaults.knobs.agent_teams_on() {
-        env.set(keys::AGENT_TEAMS, "1");
+    for toggle in TypedToggle::ALL {
+        let Some(key) = toggle.env_key() else {
+            continue;
+        };
+        let applies = base_url.is_some() || !toggle.requires_endpoint();
+        if applies && defaults.knobs.typed_on(toggle) {
+            env.set(key, "1");
+        }
     }
 
     // 认证：spec.auth.mode 决定 secret 落到哪个键
@@ -137,17 +140,18 @@ pub fn render(
     {
         env.set(keys::API_TIMEOUT, &ms.to_string());
     }
-    if base_url.is_some() {
-        match defaults.knobs.disable_nonessential_traffic {
-            Some(true) => env.set(keys::NONESSENTIAL_TRAFFIC, "1"),
-            Some(false) => env.remove(keys::NONESSENTIAL_TRAFFIC),
+    for toggle in TypedToggle::ALL {
+        let Some(key) = toggle.env_key() else {
+            continue;
+        };
+        if toggle.requires_endpoint() && base_url.is_none() {
+            continue;
+        }
+        match defaults.knobs.typed_override(toggle) {
+            Some(true) => env.set(key, "1"),
+            Some(false) => env.remove(key),
             None => {}
         }
-    }
-    match defaults.knobs.agent_teams {
-        Some(true) => env.set(keys::AGENT_TEAMS, "1"),
-        Some(false) => env.remove(keys::AGENT_TEAMS),
-        None => {}
     }
     match defaults.knobs.tool_search {
         Some(true) => env.set(keys::TOOL_SEARCH, "true"),
@@ -229,7 +233,7 @@ pub fn render(
 /// 外加权限模式。只取决于全局配置，与 profile 无关。
 fn settings_layer(defaults: &Defaults) -> (Vec<(String, serde_json::Value)>, Option<String>) {
     let mut top: std::collections::BTreeMap<String, serde_json::Value> = Default::default();
-    if defaults.knobs.hide_attribution_on() {
+    if defaults.knobs.typed_on(TypedToggle::HideAttribution) {
         top.insert(keys::ATTRIBUTION.into(), keys::attribution_hidden());
     }
     // default 档和非法存量值均不管理；bypass 档额外写确认屏标记。

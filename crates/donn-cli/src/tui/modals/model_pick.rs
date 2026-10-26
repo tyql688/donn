@@ -296,7 +296,7 @@ impl Modal for Picker {
                     if q.is_empty() {
                         i18n::MODEL_CUSTOM.to_string()
                     } else {
-                        i18n::fill(i18n::MODEL_USE_INPUT, &[q])
+                        i18n::model_use_input(q)
                     }
                 }
             };

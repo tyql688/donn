@@ -46,13 +46,43 @@ label = "DeepSeek V4.1 Flash · 1M"
 max_context = 1000000
 
 [[preset.model_choices]]
+id = "accounts/fireworks/models/deepseek-v4p1-flash-1017"
+label = "DeepSeek V4.1 Flash 1017 · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
 id = "accounts/fireworks/models/minimax-m3"
 label = "MiniMax M3 · 512K"
 max_context = 512000
 
 [[preset.model_choices]]
+id = "accounts/fireworks/models/minimax-m3p1-flash"
+label = "MiniMax-M3.1-Flash · 1M"
+max_context = 1000000
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/inkling"
+label = "Inkling · 1M"
+max_context = 1048576
+
+[[preset.model_choices]]
 id = "accounts/fireworks/models/qwen3p8-max"
 label = "Qwen3.8 Max · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/qwen3p8-2p4t-a95b"
+label = "Qwen3.8 2.4T A95B · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/nemotron-3-ultra-nvfp4"
+label = "Nemotron 3 Ultra 550B A55B · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b"
+label = "Nemotron 3.5 Lightning 30B A3B · 256K"
 max_context = 262144
 
 [[preset.model_choices]]

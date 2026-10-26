@@ -13,7 +13,7 @@ use crate::tui::i18n;
 pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
     let focused = core.focus == PaneId::Left;
     let theme = core.theme;
-    let title = i18n::fill(i18n::PROFILES_TITLE, &[&core.profiles.len().to_string()]);
+    let title = i18n::profiles_title(core.profiles.len());
     let block = theme.pane_block(title, focused);
 
     if core.profiles.is_empty() {

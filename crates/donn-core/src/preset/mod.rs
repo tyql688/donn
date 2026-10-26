@@ -375,17 +375,17 @@ mod tests {
         let plan = catalog.get("kimi-plan").unwrap();
         assert_eq!(
             plan.models.get(crate::keys::ModelSlot::Sonnet),
-            Some("k3[1m]")
+            Some("k3.1-pro[1m]")
         );
         assert!(plan.model_choices.iter().any(|c| c.id == "k3-256k"));
-        let pkg = plan.choice_for_model("k3[1m]").unwrap().package_env();
+        let pkg = plan.choice_for_model("k3.1-pro[1m]").unwrap().package_env();
         assert_eq!(
             pkg.get(crate::keys::MAX_CONTEXT).map(String::as_str),
             Some("1048576")
         );
         assert_eq!(
             pkg.get(crate::keys::SUBAGENT_MODEL).map(String::as_str),
-            Some("k3[1m]")
+            Some("k3.1-pro[1m]")
         );
         let zai = catalog.get("zai").unwrap();
         assert_eq!(

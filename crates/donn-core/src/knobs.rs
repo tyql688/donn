@@ -90,6 +90,77 @@ pub const BOOL_KNOBS: &[BoolKnob] = &[
     },
 ];
 
+/// 只在特定条件下写键、所以留在 [`Knobs`] 类型化字段里的布尔旋钮。表让面板与渲染
+/// 不必各自列举字段名；`on_when_unset` 是字段省略时的生效值。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypedToggle {
+    /// agent teams：donn 产品默认开，写 [`keys::AGENT_TEAMS`]。
+    AgentTeams,
+    /// 隐藏 Claude 署名：默认关，写 [`keys::ATTRIBUTION`]。
+    HideAttribution,
+    /// 禁非必要网络流量：默认关，只对有端点的 profile 写 [`keys::NONESSENTIAL_TRAFFIC`]。
+    NonessentialTraffic,
+}
+
+impl TypedToggle {
+    pub const ALL: [TypedToggle; 3] = [
+        TypedToggle::AgentTeams,
+        TypedToggle::HideAttribution,
+        TypedToggle::NonessentialTraffic,
+    ];
+
+    pub fn field(self) -> &'static str {
+        match self {
+            TypedToggle::AgentTeams => "agent_teams",
+            TypedToggle::HideAttribution => "hide_attribution",
+            TypedToggle::NonessentialTraffic => "disable_nonessential_traffic",
+        }
+    }
+
+    pub fn on_when_unset(self) -> bool {
+        matches!(self, TypedToggle::AgentTeams)
+    }
+
+    /// 对应的 env 键；写 settings 顶层字段的旋钮（署名）返回 `None`。
+    pub fn env_key(self) -> Option<&'static str> {
+        match self {
+            TypedToggle::AgentTeams => Some(keys::AGENT_TEAMS),
+            TypedToggle::HideAttribution => None,
+            TypedToggle::NonessentialTraffic => Some(keys::NONESSENTIAL_TRAFFIC),
+        }
+    }
+
+    /// 只对配了端点的 profile 生效。
+    pub fn requires_endpoint(self) -> bool {
+        matches!(self, TypedToggle::NonessentialTraffic)
+    }
+
+    /// 设置面板分组。
+    pub fn group(self) -> KnobGroup {
+        match self {
+            TypedToggle::AgentTeams => KnobGroup::Session,
+            TypedToggle::HideAttribution => KnobGroup::Privacy,
+            TypedToggle::NonessentialTraffic => KnobGroup::Endpoint,
+        }
+    }
+
+    fn slot(self, knobs: &mut Knobs) -> &mut Option<bool> {
+        match self {
+            TypedToggle::AgentTeams => &mut knobs.agent_teams,
+            TypedToggle::HideAttribution => &mut knobs.hide_attribution,
+            TypedToggle::NonessentialTraffic => &mut knobs.disable_nonessential_traffic,
+        }
+    }
+
+    fn read(self, knobs: &Knobs) -> Option<bool> {
+        match self {
+            TypedToggle::AgentTeams => knobs.agent_teams,
+            TypedToggle::HideAttribution => knobs.hide_attribution,
+            TypedToggle::NonessentialTraffic => knobs.disable_nonessential_traffic,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValueKind {
     Text,
@@ -193,22 +264,28 @@ pub fn knob_fields() -> impl Iterator<Item = &'static str> {
 }
 
 impl Knobs {
-    pub fn agent_teams_on(&self) -> bool {
-        self.agent_teams.unwrap_or(true)
-    }
     pub fn permission_mode(&self) -> &str {
         self.permission_mode
             .as_deref()
             .unwrap_or(keys::BYPASS_PERMISSIONS)
     }
-    pub fn hide_attribution_on(&self) -> bool {
-        self.hide_attribution.unwrap_or(false)
-    }
     pub fn api_timeout(&self) -> u64 {
         self.api_timeout_ms.unwrap_or(600_000)
     }
-    pub fn disable_nonessential_traffic_on(&self) -> bool {
-        self.disable_nonessential_traffic.unwrap_or(false)
+
+    /// 类型化布尔旋钮的生效值。
+    pub fn typed_on(&self, toggle: TypedToggle) -> bool {
+        toggle.read(self).unwrap_or(toggle.on_when_unset())
+    }
+
+    /// 显式写入的值；`None` = 跟随省略时的默认。
+    pub fn typed_override(&self, toggle: TypedToggle) -> Option<bool> {
+        toggle.read(self)
+    }
+
+    /// 翻转到 `next`；与省略时的值相同就回到省略（不给 provider 写多余键）。
+    pub fn set_typed(&mut self, toggle: TypedToggle, next: bool) {
+        *toggle.slot(self) = (next != toggle.on_when_unset()).then_some(next);
     }
 
     /// 简单布尔旋钮的生效值（未设置 = Claude 默认）。

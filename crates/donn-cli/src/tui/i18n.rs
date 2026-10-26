@@ -25,26 +25,6 @@ pub fn knob_label(field: &str) -> Option<&'static str> {
     })
 }
 
-/// Replace `{}` placeholders in order.
-pub fn fill(template: &str, args: &[&str]) -> String {
-    debug_assert_eq!(
-        template.matches("{}").count(),
-        args.len(),
-        "fill: placeholder/arg count mismatch in {template:?}"
-    );
-    let mut out = String::with_capacity(template.len() + 16);
-    let mut rest = template;
-    let mut i = 0;
-    while let Some(pos) = rest.find("{}") {
-        out.push_str(&rest[..pos]);
-        out.push_str(args.get(i).copied().unwrap_or(""));
-        rest = &rest[pos + 2..];
-        i += 1;
-    }
-    out.push_str(rest);
-    out
-}
-
 // status bar key hints
 pub const HINT_LAUNCH: &str = "launch";
 pub const HINT_EDIT: &str = "edit";
@@ -80,8 +60,12 @@ pub const KS_RERUN_DOCTOR: &str = "re-run doctor";
 pub const KS_QUIT: &str = "quit";
 
 // panes
-pub const PROFILES_TITLE: &str = " profiles ({}) ";
-pub const PROVIDERS_TITLE: &str = " providers ({}) ";
+pub fn profiles_title(n: usize) -> String {
+    format!(" profiles ({n}) ")
+}
+pub fn providers_title(n: usize) -> String {
+    format!(" providers ({n}) ")
+}
 pub const PROVIDER_PANE_TITLE: &str = " provider ";
 pub const NO_PROFILES: &str = "no profiles yet";
 pub const PRESS_A_TO_CREATE: &str = "press a to create one";
@@ -90,14 +74,22 @@ pub const DETAIL_BROKEN: &str = "profile failed to load — fix the file below, 
 pub const BADGE_BROKEN: &str = "broken";
 pub const BADGE_NO_KEY: &str = "no key";
 pub const BADGE_OAUTH: &str = "oauth";
-pub const DOCTOR_ALL_PASS: &str = " doctor · all {} pass ";
-pub const DOCTOR_FAILING: &str = " doctor · {} of {} failing ";
+pub fn doctor_all_pass(total: usize) -> String {
+    format!(" doctor · all {total} pass ")
+}
+pub fn doctor_failing(failed: usize, total: usize) -> String {
+    format!(" doctor · {failed} of {total} failing ")
+}
 
 // detail
 pub const ROW_API_KEY: &str = "api key";
 pub const ROW_BASE_URL: &str = "base_url";
-pub const ROW_MODEL: &str = "model {}";
-pub const ROW_ENV: &str = "env {}";
+pub fn row_model(slot: &str) -> String {
+    format!("model {slot}")
+}
+pub fn row_env(key: &str) -> String {
+    format!("env {key}")
+}
 pub const ROW_ENV_ADD: &str = "env +";
 pub const ROW_ALIAS: &str = "alias";
 pub const ROW_ALIAS_ADD: &str = "alias +";
@@ -107,11 +99,17 @@ pub const KEY_NOT_NEEDED: &str = "not needed (oauth)";
 pub const FROM_DEFAULT: &str = "(default)";
 /// Value comes from `[defaults.env]` rather than the preset.
 pub const FROM_GLOBAL: &str = "(global)";
-pub const DRIFT_BANNER: &str = "⚠ drift: {} key(s) hand-edited — press s to sync";
-/// Invalid value label: `"{} (invalid)"`.
-pub const INVALID_VALUE: &str = "{} (invalid)";
-/// Edit modal title: `"{} · {}"` (field · profile name).
-pub const EDIT_TITLE: &str = "{} · {}";
+pub fn drift_banner(n: usize) -> String {
+    format!("⚠ drift: {n} key(s) hand-edited — press s to sync")
+}
+/// Label for a stored value that is no longer valid: `<value> (invalid)`.
+pub fn invalid_value(raw: &str) -> String {
+    format!("{raw} (invalid)")
+}
+/// Edit modal title: field · subject.
+pub fn edit_title(field: &str, subject: &str) -> String {
+    format!("{field} · {subject}")
+}
 pub const ISO_FULL_TAG: &str = "isolated";
 pub const ISO_SHARED_TAG: &str = "(shared)";
 
@@ -122,7 +120,9 @@ pub const SB_SPEC: &str = "spec";
 pub const SB_WRAPPER: &str = "wrapper";
 pub const SB_CREATED: &str = "created";
 pub const SB_UPDATED: &str = "updated";
-pub const SB_OWNS: &str = "{} env key(s)";
+pub fn sb_owns(n: usize) -> String {
+    format!("{n} env key(s)")
+}
 pub const SB_COMMAND: &str = "command";
 
 // context window of the sonnet model
@@ -136,13 +136,17 @@ pub const V_MAX_CONTEXT_ERR: &str = "enter a whole number, e.g. 262144";
 pub const COPY_TITLE: &str = "copy";
 pub const COPY_COMMAND: &str = "launch command";
 pub const COPY_LINK: &str = "link";
-pub const ST_COPIED: &str = "copied {}";
+pub fn st_copied(what: &str) -> String {
+    format!("copied {what}")
+}
 pub const ST_NOTHING_TO_COPY: &str = "nothing to copy";
 pub const KS_COPY: &str = "copy command / path / env";
 pub const KS_LINK: &str = "open link · right-click copies";
 pub const HINT_KEY_URL: &str = "get key";
 pub const ST_NO_KEY_URL: &str = "this provider has no key page";
-pub const ST_OPENED_URL: &str = "opened {}";
+pub fn st_opened_url(url: &str) -> String {
+    format!("opened {url}")
+}
 
 // add form
 pub const ADD_TITLE: &str = " new profile ";
@@ -155,7 +159,9 @@ pub const ISO_FULL: &str = "isolated (own sessions)";
 pub const ISO_SHARED: &str = "shared ~/.claude";
 pub const ISO_SHARED_NOTE: &str = "connectors off";
 pub const F_ALIASES: &str = "aliases";
-pub const ALIASES_DEFAULT: &str = "{} (default)";
+pub fn aliases_default(name: &str) -> String {
+    format!("{name} (default)")
+}
 pub const F_CREATE: &str = "create profile";
 pub const ADD_FOOTER_FIELD: &str = "field";
 pub const ADD_FOOTER_NEXT: &str = "next";
@@ -169,7 +175,9 @@ pub const HINT_TOGGLE_MASK: &str = "show/hide key";
 pub const ESC_AGAIN_DISCARD: &str = "press esc again to discard";
 pub const V_NAME_REQUIRED: &str = "name required";
 pub const V_NAME_FORMAT: &str = "lowercase letters, digits or '-'; start with a letter";
-pub const V_NAME_EXISTS: &str = "profile '{}' already exists";
+pub fn v_name_exists(name: &str) -> String {
+    format!("profile '{name}' already exists")
+}
 pub const V_BASE_URL_REQUIRED: &str = "base_url required";
 
 // add form preview
@@ -187,65 +195,107 @@ pub const CFG_SEC_SESSION: &str = "session & models";
 pub const CFG_SEC_ENDPOINT: &str = "third-party endpoint";
 pub const CFG_SEC_PRIVACY: &str = "attribution & privacy";
 pub const CFG_SEC_CUSTOM: &str = "custom env / settings";
-pub const CFG_ROW_SETTING: &str = "settings {}";
+pub fn cfg_row_setting(key: &str) -> String {
+    format!("settings {key}")
+}
 pub const CFG_ENV_ADD_TITLE: &str = "add default env";
 pub const CFG_SETTING_ADD: &str = "settings +";
 pub const CFG_SETTING_ADD_TITLE: &str = "add settings field";
 pub const CFG_SETTING_HINT: &str = "JSON value · empty = remove";
 pub const CFG_SETTING_FORMAT_ERR: &str = "format: key = JSON value";
-pub const CFG_BUILTIN_HINT: &str = "default {} · empty = restore";
+pub fn cfg_builtin_hint(default: &str) -> String {
+    format!("default {default} · empty = restore")
+}
 pub const CFG_VALUE_HINT: &str = "empty = follow claude code";
 pub const V_ON: &str = "on";
 pub const V_OFF: &str = "off";
 pub const V_FOLLOW: &str = "follow claude code";
 pub const V_NUMBER_ERR: &str = "expected a number";
-pub const ST_CONFIG_SYNCED: &str = "saved · synced {} profile(s)";
+pub fn st_config_synced(n: usize) -> String {
+    format!("saved · synced {n} profile(s)")
+}
 
 // modals
 pub const SELECT_HINT: &str = "↑↓ move · enter confirm · esc cancel";
 pub const PICK_PROVIDER_TITLE: &str = " pick a provider ";
-pub const PICK_PROVIDER_HINT: &str = "{} provider(s) · type to filter";
+pub fn pick_provider_hint(n: usize) -> String {
+    format!("{n} provider(s) · type to filter")
+}
 /// Model list: follow-preset row label.
 pub const MODEL_FOLLOW_PRESET: &str = "default";
 /// Model list: custom freeform row.
 pub const MODEL_CUSTOM: &str = "custom…";
-/// Use typed input: `use “{}”`.
-pub const MODEL_USE_INPUT: &str = "use “{}”";
+/// Offer to use the freeform text as a model id.
+pub fn model_use_input(query: &str) -> String {
+    format!("use “{query}”")
+}
 /// Search modal controls.
 pub const MODEL_PICK_HINT: &str = "type to filter, or enter any model id";
 /// Placeholder when preset has no default model for the slot.
 pub const MODEL_NONE: &str = "none";
 pub const CONFIRM_YES: &str = "confirm";
 pub const CONFIRM_NO: &str = "cancel";
-pub const REMOVE_Q: &str = "remove profile '{}'?";
+pub fn remove_q(name: &str) -> String {
+    format!("remove profile '{name}'?")
+}
 pub const REMOVE_DETAIL: &str = "sessions live in ~/.claude and are kept";
 pub const REMOVE_KEEP_SESSIONS: &str = "keep session history";
 pub const REMOVE_PURGE: &str = "remove session history too";
 pub const REMOVE_LIVE_UNKNOWN: &str = "can't check for running sessions — close them first";
-pub const REMOVE_ALIAS_Q: &str = "remove alias '{}'?";
-pub const PROMPT_KEY_TITLE: &str = "API key · {}";
+pub fn remove_alias_q(alias: &str) -> String {
+    format!("remove alias '{alias}'?")
+}
+pub fn prompt_key_title(name: &str) -> String {
+    format!("API key · {name}")
+}
 pub const KEY_EMPTY_ERR: &str = "key must not be empty";
 pub const PROMPT_URL_HINT: &str = "empty = follow preset";
 pub const PROMPT_ENV_HINT: &str = "empty = remove";
-pub const PROMPT_ENV_ADD_TITLE: &str = "add env · {}";
+pub fn prompt_env_add_title(name: &str) -> String {
+    format!("add env · {name}")
+}
 pub const ENV_FORMAT_ERR: &str = "format: KEY=VALUE";
-pub const PROMPT_ALIAS_ADD_TITLE: &str = "add alias · {}";
+pub fn prompt_alias_add_title(name: &str) -> String {
+    format!("add alias · {name}")
+}
 pub const PROMPT_ALIAS_HINT: &str = "lowercase command name, e.g. z";
 
 // status messages
 pub const ST_SAVED: &str = "saved";
-pub const ST_OVERWROTE: &str = "saved; overwrote hand-edited: {}";
-pub const ST_REMOVED: &str = "removed '{}'";
-pub const ST_ALIAS_READY: &str = "alias ready: {}";
-pub const ST_ALIAS_REMOVED: &str = "removed alias '{}'";
-pub const ST_PROFILE_READY: &str = "profile ready — run `{}` to start a session";
-pub const ST_CREATED_NO_KEY: &str = "created '{}' without API key — set it in the detail pane";
-pub const ST_NOT_ON_PATH: &str = "profile ready, but {} is not on PATH — add it to your shell rc";
+pub fn st_overwrote(keys: &str) -> String {
+    format!("saved; overwrote hand-edited: {keys}")
+}
+pub fn st_removed(name: &str) -> String {
+    format!("removed '{name}'")
+}
+pub fn st_alias_ready(path: &str) -> String {
+    format!("alias ready: {path}")
+}
+pub fn st_alias_removed(alias: &str) -> String {
+    format!("removed alias '{alias}'")
+}
+pub fn st_profile_ready(command: &str) -> String {
+    format!("profile ready — run `{command}` to start a session")
+}
+pub fn st_created_no_key(name: &str) -> String {
+    format!("created '{name}' without API key — set it in the detail pane")
+}
+pub fn st_not_on_path(dir: &str) -> String {
+    format!("profile ready, but {dir} is not on PATH — add it to your shell rc")
+}
 pub const ST_SETTINGS_VALID: &str = "settings.json valid";
-pub const ST_DRIFT_AFTER_EDIT: &str = "hand-edited donn keys: {} — press s to restore";
-pub const ST_EDITOR_FAILED: &str = "failed to run editor '{}': {} (set $EDITOR)";
-pub const ST_EDITOR_EXIT: &str = "editor exited with {}; validation skipped";
-pub const ST_PROFILE_IN_USE: &str = "profile '{}' has a running session — close it first";
+pub fn st_drift_after_edit(keys: &str) -> String {
+    format!("hand-edited donn keys: {keys} — press s to restore")
+}
+pub fn st_editor_failed(program: &str, error: &str) -> String {
+    format!("failed to run editor '{program}': {error} (set $EDITOR)")
+}
+pub fn st_editor_exit(code: &str) -> String {
+    format!("editor exited with {code}; validation skipped")
+}
+pub fn st_profile_in_use(name: &str) -> String {
+    format!("profile '{name}' has a running session — close it first")
+}
 
 #[cfg(test)]
 mod tests {
@@ -260,16 +310,5 @@ mod tests {
                 "{field}: label must leave a gap before the value column"
             );
         }
-    }
-
-    #[test]
-    fn fill_table() {
-        assert_eq!(fill("a {} b {}", &["1", "2"]), "a 1 b 2");
-        assert_eq!(fill("no holes", &[]), "no holes");
-        assert_eq!(fill("{} tail", &["x"]), "x tail");
-        assert_eq!(
-            fill("profile '{}' already exists", &["zai"]),
-            "profile 'zai' already exists"
-        );
     }
 }

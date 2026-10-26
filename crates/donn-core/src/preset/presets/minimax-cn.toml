@@ -15,6 +15,12 @@ fable = "MiniMax-M3[1m]"
 haiku = "MiniMax-M2.7-highspeed"
 
 [[preset.model_choices]]
+id = "MiniMax-M3.1-Flash"
+label = "M3.1 Flash · 1M"
+max_context = 1000000
+auto_compact = 1000000
+
+[[preset.model_choices]]
 id = "MiniMax-M3[1m]"
 label = "M3 · 1M (Claude Code form)"
 max_context = 1000000

@@ -114,7 +114,7 @@ impl Modal for PresetPick {
             self.filter
                 .render_line(true, width.saturating_sub(4) as usize),
             Line::from(Span::styled(
-                i18n::fill(i18n::PICK_PROVIDER_HINT, &[&matches.len().to_string()]),
+                i18n::pick_provider_hint(matches.len()),
                 theme.dim(),
             )),
         ];

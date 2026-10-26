@@ -44,7 +44,7 @@ n=$(grep -n '^### `alwaysThinkingEnabled`' /tmp/donn-settings-ref.md | cut -d: -
 - `effortLevel` 档位仍是 low/medium/high/xhigh；`maxEffortLevel` 仍含 `max`；`CLAUDE_CODE_EFFORT_LEVEL` 仍含 `max`
 - `permissions.defaultMode` 枚举与别名
 - 布尔键的默认值有没有翻转（`alwaysThinkingEnabled` 只有 `false` 有效）：键名不变，旋钮语义要跟着变
-- `ENABLE_TOOL_SEARCH` 不设时的行为（官方主机 defer、第三方端点 upfront）和合法取值
+- `ENABLE_TOOL_SEARCH` 不设时的行为（网关后 v2.1.304+ 也 defer，更早的版本 upfront）和合法取值
 - `CLAUDE_CODE_AUTO_COMPACT_WINDOW` 取值范围（`100000..=1000000`）、`API_TIMEOUT_MS` 上限
 - 未在册键是否转正或消失
 - `keys::SHELL_OVERRIDE_KEYS`：有没有新的「换云厂商 / 盖模型」类 env 要加进启动剥除名单

@@ -245,18 +245,18 @@ fn edit_in_editor(terminal: &mut Term, core: &mut Core, name: &str) -> io::Resul
 
     match editor_result {
         Err(e) => {
-            let msg = i18n::fill(i18n::ST_EDITOR_FAILED, &[&program, &e.to_string()]);
+            let msg = i18n::st_editor_failed(&program, &e.to_string());
             core.status.error(msg);
         }
         Ok(exit) if !exit.success() => {
-            let msg = i18n::fill(i18n::ST_EDITOR_EXIT, &[&exit.to_string()]);
+            let msg = i18n::st_editor_exit(&exit.to_string());
             core.status.warn(msg);
         }
         Ok(_) => match core.donn.audit_settings(name) {
             Ok(drift) if drift.is_empty() => core.status.ok(i18n::ST_SETTINGS_VALID),
             Ok(drift) => {
                 let keys: Vec<&str> = drift.iter().map(|d| d.key.as_str()).collect();
-                let msg = i18n::fill(i18n::ST_DRIFT_AFTER_EDIT, &[&keys.join(", ")]);
+                let msg = i18n::st_drift_after_edit(&keys.join(", "));
                 core.status.warn(msg);
             }
             Err(e) => core.status.error(e.to_string()),

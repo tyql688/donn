@@ -45,8 +45,24 @@ id = "claude-opus-4-8"
 label = "Claude Opus 4.8"
 
 [[preset.model_choices]]
+id = "claude-opus-4-7"
+label = "Claude Opus 4.7"
+
+[[preset.model_choices]]
+id = "claude-opus-4-6"
+label = "Claude Opus 4.6"
+
+[[preset.model_choices]]
+id = "claude-opus-4-5"
+label = "Claude Opus 4.5"
+
+[[preset.model_choices]]
 id = "claude-sonnet-4-6"
 label = "Claude Sonnet 4.6"
+
+[[preset.model_choices]]
+id = "claude-sonnet-4-5"
+label = "Claude Sonnet 4.5"
 
 [[preset.model_choices]]
 id = "qwen3.8-flash"
@@ -56,4 +72,9 @@ max_context = 1000000
 [[preset.model_choices]]
 id = "qwen3.6-plus"
 label = "Qwen3.6 Plus · 256K"
+max_context = 262144
+
+[[preset.model_choices]]
+id = "qwen3.5-plus"
+label = "Qwen3.5 Plus · 256K"
 max_context = 262144

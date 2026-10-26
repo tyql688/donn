@@ -2,7 +2,7 @@
 //! 与自由 env/settings 补充。每次改动 = 落盘 config.toml + 自动同步全部 profile。
 
 use donn_core::keys::PERMISSION_MODES;
-use donn_core::knobs::{BOOL_KNOBS, KnobGroup, VALUE_KNOBS, ValueKind};
+use donn_core::knobs::{BOOL_KNOBS, KnobGroup, TypedToggle, VALUE_KNOBS, ValueKind};
 use donn_core::{ConfigChange, Knobs};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
@@ -24,11 +24,10 @@ const LABEL_WIDTH: usize = 30;
 pub enum Row {
     /// 分组标题：不可选中。
     Section(&'static str),
-    /// 开关旋钮：Enter 直接翻转。
-    AgentTeams,
+    /// 类型化布尔旋钮：Enter 直接翻转。
+    Toggle(TypedToggle),
+    /// 三态旋钮：Enter 弹选择框（跟随 / 开 / 关）。
     ToolSearch,
-    HideAttribution,
-    Nonessential,
     /// 选项旋钮：Enter 弹选择框。
     PermissionMode,
     /// 数值旋钮：Enter 弹输入框。
@@ -51,12 +50,19 @@ impl Row {
 }
 
 /// 类型化旋钮所属分组（表驱动旋钮的分组写在表里）。
-fn typed_rows(group: KnobGroup) -> &'static [Row] {
-    match group {
-        KnobGroup::Session => &[Row::PermissionMode, Row::AgentTeams, Row::ToolSearch],
-        KnobGroup::Endpoint => &[Row::Timeout, Row::Nonessential],
-        KnobGroup::Privacy => &[Row::HideAttribution],
-    }
+fn typed_rows(group: KnobGroup) -> Vec<Row> {
+    let mut rows: Vec<Row> = match group {
+        KnobGroup::Session => vec![Row::PermissionMode, Row::ToolSearch],
+        KnobGroup::Endpoint => vec![Row::Timeout],
+        KnobGroup::Privacy => Vec::new(),
+    };
+    rows.extend(
+        TypedToggle::ALL
+            .into_iter()
+            .filter(|t| t.group() == group)
+            .map(Row::Toggle),
+    );
+    rows
 }
 
 fn section_title(group: KnobGroup) -> &'static str {
@@ -158,10 +164,10 @@ fn apply(core: &mut Core, change: ConfigChange) -> Result<(), String> {
     if !report.errors.is_empty() {
         core.status.error(report.errors.join("; "));
     } else if !report.overwritten.is_empty() {
-        let msg = i18n::fill(i18n::ST_OVERWROTE, &[&report.overwritten.join(", ")]);
+        let msg = i18n::st_overwrote(&report.overwritten.join(", "));
         core.status.warn(msg);
     } else {
-        let msg = i18n::fill(i18n::ST_CONFIG_SYNCED, &[&report.synced.to_string()]);
+        let msg = i18n::st_config_synced(report.synced);
         core.status.ok(msg);
     }
     Ok(())
@@ -177,11 +183,6 @@ fn commit_knobs(core: &mut Core, base: Knobs, change: impl FnOnce(&mut Knobs)) {
 }
 
 /// 开关翻转：新生效值若与默认一致则回到 None（跟随默认）。
-fn toggle(field: &mut Option<bool>, default_on: bool) {
-    let next = !field.unwrap_or(default_on);
-    *field = (next != default_on).then_some(next);
-}
-
 fn label(field: &str) -> String {
     knob_label(field).unwrap_or(field).to_string()
 }
@@ -202,26 +203,10 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
     let defaults = Knobs::default();
     match row {
         Row::Section(_) => None,
-        // 开关旋钮：Enter 直接翻转，无需弹窗
-        Row::AgentTeams => {
-            commit_knobs(core, knobs, |k| {
-                toggle(&mut k.agent_teams, defaults.agent_teams_on());
-            });
-            None
-        }
-        Row::HideAttribution => {
-            commit_knobs(core, knobs, |k| {
-                toggle(&mut k.hide_attribution, defaults.hide_attribution_on());
-            });
-            None
-        }
-        Row::Nonessential => {
-            commit_knobs(core, knobs, |k| {
-                toggle(
-                    &mut k.disable_nonessential_traffic,
-                    defaults.disable_nonessential_traffic_on(),
-                );
-            });
+        // 类型化开关旋钮：Enter 直接翻转，无需弹窗
+        Row::Toggle(toggle) => {
+            let next = !knobs.typed_on(toggle);
+            commit_knobs(core, knobs, |k| k.set_typed(toggle, next));
             None
         }
         Row::Flag(i) => {
@@ -341,15 +326,12 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
                         apply(core, ConfigChange::Knobs { base, value })
                     },
                 )
-                .with_hint(i18n::fill(
-                    i18n::CFG_BUILTIN_HINT,
-                    &[&default_ms.to_string()],
-                )),
+                .with_hint(i18n::cfg_builtin_hint(&default_ms.to_string())),
             ))
         }
         Row::Env(key) => {
             let current = cfg.defaults.env.get(&key).cloned().unwrap_or_default();
-            let title = i18n::fill(i18n::ROW_ENV, &[&key]);
+            let title = i18n::row_env(&key);
             Some(Box::new(
                 Prompt::new(title, current, false, move |core, value| {
                     let value = value.trim();
@@ -382,7 +364,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
                 .get(&key)
                 .map(|v| v.to_string())
                 .unwrap_or_default();
-            let title = i18n::fill(i18n::CFG_ROW_SETTING, &[&key]);
+            let title = i18n::cfg_row_setting(&key);
             Some(Box::new(
                 Prompt::new(title, current, false, move |core, value| {
                     let value = value.trim();
@@ -482,9 +464,12 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
                         section_style,
                     )));
                 }
-                Row::AgentTeams => (
-                    label("agent_teams"),
-                    on_off(knobs.agent_teams_on(), knobs.agent_teams.is_none()),
+                Row::Toggle(toggle) => (
+                    label(toggle.field()),
+                    on_off(
+                        knobs.typed_on(*toggle),
+                        knobs.typed_override(*toggle).is_none(),
+                    ),
                 ),
                 Row::ToolSearch => (
                     label("tool_search"),
@@ -492,20 +477,6 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
                         Some(value) => on_off(value, false),
                         None => vec![Span::styled(i18n::V_FOLLOW.to_string(), theme.dim())],
                     },
-                ),
-                Row::HideAttribution => (
-                    label("hide_attribution"),
-                    on_off(
-                        knobs.hide_attribution_on(),
-                        knobs.hide_attribution.is_none(),
-                    ),
-                ),
-                Row::Nonessential => (
-                    label("disable_nonessential_traffic"),
-                    on_off(
-                        knobs.disable_nonessential_traffic_on(),
-                        knobs.disable_nonessential_traffic.is_none(),
-                    ),
                 ),
                 Row::PermissionMode => {
                     let mut spans = vec![Span::styled(
@@ -544,7 +515,7 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
                 }
                 Row::Env(key) => {
                     let value = cfg.defaults.env.get(key).cloned().unwrap_or_default();
-                    (i18n::fill(i18n::ROW_ENV, &[key]), vec![Span::raw(value)])
+                    (i18n::row_env(key), vec![Span::raw(value)])
                 }
                 Row::AddEnv => (
                     i18n::ROW_ENV_ADD.into(),
@@ -557,10 +528,7 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
                         .get(key)
                         .map(|v| v.to_string())
                         .unwrap_or_default();
-                    (
-                        i18n::fill(i18n::CFG_ROW_SETTING, &[key]),
-                        vec![Span::raw(value)],
-                    )
+                    (i18n::cfg_row_setting(key), vec![Span::raw(value)])
                 }
                 Row::AddSetting => (
                     i18n::CFG_SETTING_ADD.into(),

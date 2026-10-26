@@ -1,7 +1,7 @@
 [preset]
 key = "minimax"
 label = "MiniMax"
-description = "International coding plan — M3 (1M) + M2.7 / highspeed (200K)"
+description = "International coding plan — M3.1 Flash / M3 (1M) + M2.7 / highspeed (200K)"
 base_url = "https://api.minimax.io/anthropic"
 auth_mode = "auth_token"
 key_url = "https://platform.minimax.io/subscribe/coding-plan"
@@ -9,7 +9,7 @@ key_url = "https://platform.minimax.io/subscribe/coding-plan"
 # 官方 Claude Code 示例：
 #   https://platform.minimax.io/docs/token-plan/claude-code
 #   MiniMax-M3[1m] + CLAUDE_CODE_AUTO_COMPACT_WINDOW=1000000
-# 模型表：MiniMax-M3（1_000_000）、MiniMax-M2.7（204_800）、MiniMax-M2
+# 模型表：MiniMax-M3.1-Flash（1_000_000）、MiniMax-M3（1_000_000）、MiniMax-M2.7（204_800）、MiniMax-M2
 #   https://platform.minimax.io/docs/guides/text-generation
 # HighSpeed 变体：MiniMax-M2.7-highspeed（产品页/文档）
 [preset.models]
@@ -17,6 +17,12 @@ sonnet = "MiniMax-M3[1m]"
 opus = "MiniMax-M3[1m]"
 fable = "MiniMax-M3[1m]"
 haiku = "MiniMax-M2.7-highspeed"
+
+[[preset.model_choices]]
+id = "MiniMax-M3.1-Flash"
+label = "M3.1 Flash · 1M"
+max_context = 1000000
+auto_compact = 1000000
 
 [[preset.model_choices]]
 id = "MiniMax-M3[1m]"

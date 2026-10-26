@@ -13,7 +13,9 @@
     },
     "fireworks": {
       "preset": "fireworks",
-      "gateway": true
+      "gateway": true,
+      "ignore": "-spot$",
+      "ignore_reason": "spot 路由是同一模型的竞价容量入口，价格随时段变，选择器里不单列"
     },
     "huggingface": {
       "preset": "huggingface",
@@ -22,7 +24,8 @@
     "kimi-coding": {
       "preset": "kimi-plan",
       "vendor_windows": {
-        "k3": "Kimi Code 文档：裸 k3 在 Moderato 档是 256K，1M 用 k3[1m]"
+        "k3": "Kimi Code 文档：裸 k3 在 Moderato 档是 256K，1M 用 k3[1m]",
+        "k3.1-pro": "Kimi Code 文档：裸 k3.1-pro 在 Plus/Moderato 档是 256K，1M 用 k3.1-pro[1m]"
       }
     },
     "minimax": {

@@ -4,30 +4,24 @@ Claude Code profile 管理器：Rust 单二进制 + Ratatui TUI。
 
 ## 文档分工
 
-一件事只写在一个地方，其它地方链接过去。改东西时改它的归属文档，不要在别处再抄一份。
+每个事实只写一个地方。下面这张表说明每份文档负责什么，需要细节时直接去对应文件看，不要在别处再抄一份。
 
-| 文档 | 写什么 |
+| 文档 | 谁读，写什么 |
 |---|---|
-| [README.md](README.md) | 给用户：是什么、怎么装、怎么用、数据放哪 |
-| 本文 | 给改代码的人：文档分工、验证命令、代码地图、新配置该放哪 |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 怎么运转：Spec → Render → Reconcile、渲染层序（唯一的优先级定义）、隔离模式、启动链路、文件安全、依赖选型 |
-| [docs/RULES.md](docs/RULES.md) | 不能破的边界和验收标准 |
-| [docs/GLOBAL-SETTINGS.md](docs/GLOBAL-SETTINGS.md) | 每个全局旋钮写哪个键、默认值、写入规则 |
-| `config.rs` 的 `CONFIG_DOC` | `~/.donn/config.toml` 模板注释，就是用户看的配置字段文档 |
-| `keys.rs` 的注释 | 每个 Claude Code 键的含义、取值、出处 |
-| `.claude/skills/` | 维护流程：`update-claude-catalog` 刷新键、官方模型、渠道 preset（核对日期只记在它的 `references/ledger.md`）；`add-global-knob` 加旋钮 |
+| [README.md](README.md) | 用户读的：donn 是什么、怎么安装、怎么用、数据放哪 |
+| 本文 | 改代码的人读的：文档分工、验证方式、代码地图、新增配置该放哪 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 改代码的人读的：配置从意图到落盘的完整链路、渲染优先级、两种隔离模式、启动流程、写文件的安全保证、依赖选型 |
+| [docs/RULES.md](docs/RULES.md) | 改代码的人读的：不能破的边界，以及什么算验收通过 |
+| [docs/GLOBAL-SETTINGS.md](docs/GLOBAL-SETTINGS.md) | 加旋钮或改旋钮语义的人读的：每个全局设置写哪个 Claude Code 键、默认值、写入条件 |
+| `config.rs` 的 `CONFIG_DOC` | 用户读的：`~/.donn/config.toml` 模板里的字段注释 |
+| `keys.rs` 的常量注释 | 改键相关逻辑的人读的：每个 Claude Code 键的含义、取值、是否在官方文档在册 |
+| `.claude/skills/` | 维护流程：`update-claude-catalog` 刷新键、官方模型和渠道 preset（按版本核对的日期只记在它的 `references/ledger.md`）；`add-global-knob` 新增旋钮 |
 
 ## 构建与验证
 
-```bash
-make check   # = 下面四条
-cargo fmt --all -- --check
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
-cargo build --release --locked
-```
+`make check` 是唯一的提交前门槛，依次跑格式检查、全部测试、Clippy（警告即错误）和 release 构建。不通过就不能提交。
 
-测试过了不算完，落盘、启动、TUI 的改动还要按 [docs/RULES.md](docs/RULES.md) 的验收一节做真实检查。
+测试通过只是最低要求。涉及落盘逻辑的改动，要对照真实生成的文件看一眼；涉及 TUI 的改动，要在真实 PTY 里打开对应的搜索框、选择框、输入框和确认框走一遍；涉及启动流程的改动，要用一个假的 Claude 程序验证环境变量、命令行参数和退出码都正确传递。验收细节在 [docs/RULES.md](docs/RULES.md)。
 
 ## 一句话架构
 

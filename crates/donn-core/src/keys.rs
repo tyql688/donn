@@ -27,7 +27,8 @@ pub const API_KEY: &str = "ANTHROPIC_API_KEY";
 pub const AUTH_TOKEN: &str = "ANTHROPIC_AUTH_TOKEN";
 /// [官方] 禁自动更新。隔离实例恒写，防止实例间版本漂移。
 pub const AUTOUPDATER: &str = "DISABLE_AUTOUPDATER";
-/// [官方] 请求超时毫秒（默认 600000，上限 2147483647——超出会溢出上游计时器）。
+/// [官方] 请求超时毫秒（默认 600000，上限 2147483647——超出会溢出上游计时器；
+/// v2.1.305+ 可设 0 取消上限，donn 只写正数）。
 pub const API_TIMEOUT: &str = "API_TIMEOUT_MS";
 /// [官方] `API_TIMEOUT_MS` 接受的最大值（i32 上限）。
 pub const API_TIMEOUT_MAX: u64 = 2_147_483_647;
@@ -35,10 +36,11 @@ pub const API_TIMEOUT_MAX: u64 = 2_147_483_647;
 pub const NONESSENTIAL_TRAFFIC: &str = "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC";
 /// [官方] 实验特性：agent teams（上游默认关；donn 产品默认开，见 `Knobs::agent_teams_on`）。
 pub const AGENT_TEAMS: &str = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS";
-/// [官方] MCP tool search（env）。unset = defer，但 `ANTHROPIC_BASE_URL` 指向非官方主机时全部
-/// upfront；`"true"` 恒 defer 并发 beta 头（代理需支持 tool_reference）；`"auto"`/`"auto:N"`
-/// 工具定义超上下文阈值才 defer；`"false"` 全部 upfront。设了
-/// [`DISABLE_EXPERIMENTAL_BETAS`] 时本键被忽略。donn 默认不写键；显式 `true`/`false` 照写。
+/// [官方] MCP tool search（env）。unset = defer；`"true"` 恒 defer 并发 beta 头（代理需支持
+/// tool_reference）；`"auto"`/`"auto:N"` 工具定义超上下文阈值才 defer；`"false"` 全部
+/// upfront。v2.1.304 起 `ANTHROPIC_BASE_URL` 指向网关时同样默认 defer，更早的版本在网关后
+/// 只有显式 `true`/`auto` 才 defer。设了 [`DISABLE_EXPERIMENTAL_BETAS`] 时本键被忽略。
+/// donn 默认不写键；显式 `true`/`false` 照写。
 pub const TOOL_SEARCH: &str = "ENABLE_TOOL_SEARCH";
 
 /// [官方·二进制 schema] settings.json 顶层键：commit/PR 署名（空串 = 不加）。
@@ -93,8 +95,9 @@ pub const BYPASS_PERMISSIONS: &str = "bypassPermissions";
 pub const CLAUDEAI_MCP: &str = "ENABLE_CLAUDEAI_MCP_SERVERS";
 /// [官方] 思考强度（low/medium/high/xhigh/max/auto；env 优先于持久化的 effortLevel）。
 pub const EFFORT: &str = "CLAUDE_CODE_EFFORT_LEVEL";
-/// [官方] 自动压缩触发窗口（token，`100000..=1000000`，只收纯整数）。超过上限的窗口按
-/// [`AUTO_COMPACT_MAX`] 写；优先于 `--autocompact` flag 与 `autoCompactWindow` 设置键。
+/// [官方] 自动压缩触发窗口（token，`100000..=1000000`；v2.1.304+ 也收 `200k`/`1M` 这类后缀
+/// 写法，donn 只写纯整数）。超过上限的窗口按 [`AUTO_COMPACT_MAX`] 写；优先于 `--autocompact`
+/// flag 与 `autoCompactWindow` 设置键。
 pub const AUTO_COMPACT: &str = "CLAUDE_CODE_AUTO_COMPACT_WINDOW";
 /// [官方] `CLAUDE_CODE_AUTO_COMPACT_WINDOW` 接受的最大值。
 pub const AUTO_COMPACT_MAX: u64 = 1_000_000;
@@ -293,13 +296,6 @@ impl SlotMap {
         ModelSlot::ALL.iter().all(|&s| self.get(s).is_none())
     }
 
-    /// 已填槽位遍历。
-    pub fn iter(&self) -> impl Iterator<Item = (ModelSlot, &str)> {
-        ModelSlot::ALL
-            .into_iter()
-            .filter_map(|slot| self.get(slot).map(|v| (slot, v)))
-    }
-
     /// `self` 覆盖 `base` 的逐槽合并结果（生效值 = 覆盖 > 底座）。
     pub fn over(&self, base: &SlotMap) -> SlotMap {
         let mut out = SlotMap::default();
@@ -347,8 +343,6 @@ mod tests {
         m.set(ModelSlot::Haiku, Some(String::new())); // 空 = 清除
         assert_eq!(m.get(ModelSlot::Sonnet), Some("glm-5.1"));
         assert_eq!(m.get(ModelSlot::Haiku), None);
-        let filled: Vec<_> = m.iter().collect();
-        assert_eq!(filled, vec![(ModelSlot::Sonnet, "glm-5.1")]);
     }
 
     #[test]

@@ -23,7 +23,7 @@ pub const CONFIG_DOC: &str = r#"# ~/.donn/config.toml —— donn 全局配置�
 # shared 模式由 sync 生成 shared-settings.json overlay、启动时经 --settings 带进会话
 # （不写 ~/.claude）。
 # agent_teams = true         # 实验特性 agent teams（默认开）
-# tool_search = true         # MCP tool search。不写 = 交给 Claude Code：官方主机按需加载工具，第三方端点一次全加载；true = 强制按需加载（发 beta 头，代理得支持 tool_reference）；false = 一次全加载
+# tool_search = true         # MCP tool search。不写 = 交给 Claude Code 决定（网关后 v2.1.304+ 同样按需加载）；true = 强制按需加载（发 beta 头，代理得支持 tool_reference）；false = 一次全加载
 # permission_mode = "bypassPermissions" # 默认权限模式 default/acceptEdits/plan/dontAsk/auto/bypassPermissions
 #                            # （默认 bypassPermissions=权限直通；default = 交还 claude code 管理）
 # hide_attribution = false   # 隐藏 Claude 署名：commit/PR 文本 + session 链接（默认关）
@@ -64,18 +64,23 @@ pub fn ensure_config_doc(home: &DonnHome) -> Result<()> {
 
 /// 文件开头连续的注释/空行块是 donn 的模板头，替换为 [`CONFIG_DOC`]；其余原样保留。
 fn refresh_doc_header(existing: &str) -> String {
-    let body: String = existing
-        .split_inclusive('\n')
-        .skip_while(|line| {
-            let line = line.trim_end_matches(['\n', '\r']);
-            line.is_empty() || line.starts_with('#')
-        })
-        .collect();
+    let body = body_without_doc_header(existing);
     if body.is_empty() {
         CONFIG_DOC.to_string()
     } else {
         format!("{CONFIG_DOC}\n{body}")
     }
+}
+
+/// 去掉文件开头连续的注释/空行块（模板头），返回正文。
+fn body_without_doc_header(existing: &str) -> String {
+    existing
+        .split_inclusive('\n')
+        .skip_while(|line| {
+            let line = line.trim_end_matches(['\n', '\r']);
+            line.is_empty() || line.starts_with('#')
+        })
+        .collect()
 }
 
 /// 用户全局默认：注入每个 profile 的个人偏好，一处配置全体生效。
@@ -153,8 +158,11 @@ impl GlobalConfig {
         let rendered = toml_edit::ser::to_string_pretty(self)
             .map_err(|e| Error::Internal(format!("failed to serialize config.toml: {e}")))?;
         let existing = fsx::read_if_exists(&path)?.unwrap_or_default();
-        let merged = fsx::merge_toml_owned(&path, &existing, &rendered, &OWNED_TOP_KEYS)?;
-        let text = refresh_doc_header(&merged);
+        // 先摘掉模板头再合并：toml_edit 会把新表插到文件末尾/头部注释之外，
+        // 合并后再摘就会漏掉这层头，写出第二份。
+        let body = body_without_doc_header(&existing);
+        let merged = fsx::merge_toml_owned(&path, &body, &rendered, &OWNED_TOP_KEYS)?;
+        let text = format!("{CONFIG_DOC}\n{merged}");
         if text != existing {
             fsx::write_atomic(&path, text.as_bytes())?;
         }
@@ -186,7 +194,7 @@ fn expand_tilde(raw: &str, home: &DonnHome) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::knobs::{BOOL_KNOBS, VALUE_KNOBS, knob_fields};
+    use crate::knobs::{BOOL_KNOBS, TypedToggle, VALUE_KNOBS, knob_fields};
     use tempfile::TempDir;
 
     #[test]
@@ -226,11 +234,12 @@ mod tests {
     fn knob_defaults_are_locked() {
         // 默认值的唯一定义处：改这里 = 改产品行为，测试必须跟着改
         let f = Knobs::default();
-        assert!(f.agent_teams_on());
         assert_eq!(f.permission_mode(), crate::keys::BYPASS_PERMISSIONS);
-        assert!(!f.hide_attribution_on());
         assert_eq!(f.api_timeout(), 600_000);
-        assert!(!f.disable_nonessential_traffic_on());
+        for toggle in TypedToggle::ALL {
+            assert_eq!(f.typed_on(toggle), toggle.on_when_unset(), "{toggle:?}");
+            assert!(f.typed_override(toggle).is_none(), "{toggle:?}");
+        }
         for knob in BOOL_KNOBS {
             assert_eq!(f.flag(knob), knob.claude_default, "{}", knob.field);
             assert!(!f.is_explicit(knob.field));
@@ -324,6 +333,20 @@ mod tests {
                 .unwrap(),
             before
         );
+    }
+
+    #[test]
+    fn first_knob_save_keeps_exactly_one_template_header() {
+        let dir = TempDir::new().unwrap();
+        let home = DonnHome::for_test(dir.path());
+        std::fs::create_dir_all(home.root()).unwrap();
+        ensure_config_doc(&home).unwrap();
+        let mut cfg = GlobalConfig::load(&home).unwrap();
+        cfg.defaults.knobs.agent_teams = Some(false);
+        cfg.save(&home).unwrap();
+        let text = std::fs::read_to_string(home.config_file()).unwrap();
+        assert_eq!(text.matches("# ~/.donn/config.toml").count(), 1, "{text}");
+        assert!(text.contains("agent_teams = false"), "{text}");
     }
 
     #[test]

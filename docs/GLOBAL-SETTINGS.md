@@ -1,18 +1,25 @@
 # 全局设置一览
 
-`~/.donn/config.toml [defaults.knobs]` 每个字段的对照表：TUI 设置面板（`S`）里叫什么、写到 Claude Code 的哪个键、什么时候写。每个旋钮的默认值和写入规则只在这里写，别处不重复。给用户看的字段说明是 `config.toml` 模板里的注释。
+donn 的「旋钮」是一次配置、对所有 profile 生效的 Claude Code 开关，比如权限模式、思考强度、回复语言。它们存在 `~/.donn/config.toml` 的 `[defaults.knobs]` 段，在 TUI 里按 `S` 打开设置面板修改，改完立即写入并同步到每个 profile。
 
-代码位置：字段在 `crates/donn-core/src/knobs.rs`（`Knobs` 类型化字段、`BOOL_KNOBS`、`VALUE_KNOBS`），行名在 `crates/donn-cli/src/tui/i18n.rs` 的 `knob_label`，键的含义在 `crates/donn-core/src/keys.rs`。`config.rs` 有测试断言本文列全了字段：加旋钮必须在这里加一行。
+本文是每个旋钮的对照表：面板里叫什么、写进 Claude Code 的哪个键、默认值是什么、什么条件下才写。用户读到的字段说明是 `config.toml` 模板里的注释，那部分是给安装后直接改文件的人看的，和本文内容一致但更简短。
 
-没做成旋钮的键（遥测、错误上报、问卷、外观、auto memory、git 指令、会话清理天数等）直接写进 `[defaults.settings]` / `[defaults.env]`，效果一样。
+## 改代码时要知道的
 
-通用规则：
+- 旋钮的字段定义、分组、目标键都在 `crates/donn-core/src/knobs.rs`。
+- 面板每行的英文名在 `crates/donn-cli/src/tui/i18n.rs` 的 `knob_label`。
+- 每个 Claude Code 键的含义和取值在 `crates/donn-core/src/keys.rs`。
+- `crates/donn-core/src/config.rs` 有测试断言本文列全了所有字段，所以新增旋钮必须在这里补一行，否则测试失败。
 
-- 字段不写 = 跟 Claude Code 默认走，donn 不写键。
-- 已知字段的值不合法，`config.toml` 加载就报错。
-- 表驱动旋钮（`BOOL_KNOBS` / `VALUE_KNOBS`）：生效值等于 Claude 默认时不写键；显式设成默认值会删掉 preset 写的同名 env 键；枚举表以外的旧值不写键，面板标 invalid。
-- 改任何旋钮都会立刻 sync 全部 profile。
-- 「Claude Code 键」一列带 `env` 前缀的写进 `settings.json` 的 `env`，不带的写到 `settings.json` 顶层。两种隔离模式怎么把它们送进会话，见 [ARCHITECTURE.md 的隔离模式](ARCHITECTURE.md#隔离模式)。
+旋钮按实现分三类。一键一值、无条件生效的放 `BOOL_KNOBS` / `VALUE_KNOBS` 表，加一行就生效；需要条件判断或成对写键的（权限模式、超时、agent teams、tool search）是 `Knobs` 上的类型化字段；只在该字段被显式设置过才写、且大多是布尔开关的，用 `knobs::TypedToggle` 表统一管理，面板和渲染都遍历它，不必各自列举字段名。
+
+## 通用规则
+
+- 字段不写，就不写对应的键，Claude Code 用它自己的默认行为。
+- 已知字段的值不合法时，`config.toml` 在加载阶段就报错，不会带着错误的配置跑起来。
+- 表驱动和 `TypedToggle` 管理的旋钮：生效值恰好等于 Claude Code 的默认值时，donn 不写这个键；如果用户显式把它设成默认值，donn 会删掉 preset 写过的同名 env 键，保证用户的显式选择和默认值表现一致。枚举类字段如果存了不在枚举里的旧值，donn 不写键，面板上那一行标成 invalid。
+- 改任何一个旋钮，donn 都会立刻重新同步所有 profile。
+- 「Claude Code 键」一列里带 `env` 前缀的，写进 `settings.json` 的 `env` 对象；不带前缀的，写在 `settings.json` 顶层。两种隔离模式下这些值怎么进入会话：`full` 模式直接由 profile 自己的 `settings.json` 生效；`shared` 模式把它们写进 `shared-settings.json`，启动时用 `--settings` 传给 Claude，从而压过 `~/.claude` 里的同名设置。
 
 ## session & models
 
@@ -20,7 +27,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `permission_mode` | default permission mode | `permissions.defaultMode` + `skipDangerousModePermissionPrompt` | default / acceptEdits / plan / dontAsk / auto / bypassPermissions | 未设 | donn 默认 `bypassPermissions`；非 `default` 写 `defaultMode`，`bypassPermissions` 同时写确认标记 `true`；`default` 不管理该键 |
 | `agent_teams` | agent teams (experimental) | env `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | bool | 关 | donn 默认开，写 `"1"`；显式 `false` 删键（压过 preset） |
-| `tool_search` | MCP tool search | env `ENABLE_TOOL_SEARCH` | 不设 / true / false（面板三选一） | 不设时：官方主机按需加载工具（defer），第三方端点一次全加载（upfront） | 不设不写键；`true` 写 `"true"`，强制按需加载并发 beta 头，代理不支持 `tool_reference` 会请求失败；`false` 写 `"false"`，一次全加载 |
+| `tool_search` | MCP tool search | env `ENABLE_TOOL_SEARCH` | 不设 / true / false（面板三选一） | 不设时按需加载；`ANTHROPIC_BASE_URL` 在网关后时 v2.1.304+ 也是按需加载，更早的版本一次全加载 | 不设不写键；`true` 写 `"true"`，强制按需加载并发 beta 头，代理不支持 `tool_reference` 会请求失败；`false` 写 `"false"`，一次全加载 |
 | `effort` | default thinking effort | `effortLevel` | low / medium / high / xhigh | 未设 | 有值才写 |
 | `max_effort` | effort cap | `maxEffortLevel` | low / medium / high / xhigh / max | 未设（不封顶） | 有值才写；v2.1.267+ |
 | `language` | response language | `language` | 任意语言名 | 未设 | 有值才写，原样进系统提示 |

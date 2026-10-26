@@ -18,7 +18,7 @@ use crate::tui::components::effort_options;
 use crate::tui::components::list::{Nav, SelectList};
 use crate::tui::components::modal::{Modal, Select};
 use crate::tui::components::text_input::TextInput;
-use crate::tui::i18n::{self, fill};
+use crate::tui::i18n;
 use crate::tui::modals::help::HelpModal;
 use crate::tui::modals::model_pick;
 use crate::tui::modals::preset_pick::PresetPick;
@@ -335,7 +335,7 @@ impl AddForm {
                     return Some(i18n::V_NAME_FORMAT.into());
                 }
                 if core.donn.exists(name) {
-                    return Some(fill(i18n::V_NAME_EXISTS, &[name]));
+                    return Some(i18n::v_name_exists(name));
                 }
                 None
             }
@@ -435,16 +435,13 @@ impl AddForm {
             .unwrap_or(name.clone());
         let mut warnings = Vec::new();
         if key_missing {
-            warnings.push(fill(i18n::ST_CREATED_NO_KEY, &[&name]));
+            warnings.push(i18n::st_created_no_key(&name));
         }
         if !receipt.bin_dir_in_path {
-            warnings.push(fill(
-                i18n::ST_NOT_ON_PATH,
-                &[&receipt.bin_dir.display().to_string()],
-            ));
+            warnings.push(i18n::st_not_on_path(&receipt.bin_dir.display().to_string()));
         }
         if warnings.is_empty() {
-            let msg = fill(i18n::ST_PROFILE_READY, &[&command]);
+            let msg = i18n::st_profile_ready(&command);
             core.status.ok(msg);
         } else {
             core.status.warn(warnings.join(" · "));
@@ -529,13 +526,7 @@ impl AddForm {
                 // 模型槽：可搜索可填入
                 if let Field::Model(slot) = field {
                     let current = self.slots[slot.index()].value().to_string();
-                    let title = i18n::fill(
-                        i18n::EDIT_TITLE,
-                        &[
-                            &i18n::fill(i18n::ROW_MODEL, &[slot.label()]),
-                            self.name.value(),
-                        ],
-                    );
+                    let title = i18n::edit_title(&i18n::row_model(slot.label()), self.name.value());
                     return FormOutcome::OpenPicker(model_pick::open(
                         title,
                         self.provider(),

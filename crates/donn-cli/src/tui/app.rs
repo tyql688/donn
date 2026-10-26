@@ -175,7 +175,7 @@ impl Core {
     /// SyncReport → 状态栏文案。
     pub fn report_sync(&mut self, report: &SyncReport) {
         if !report.overwritten.is_empty() {
-            let msg = i18n::fill(i18n::ST_OVERWROTE, &[&report.overwritten.join(", ")]);
+            let msg = i18n::st_overwrote(&report.overwritten.join(", "));
             self.status.warn(msg);
         } else {
             self.status.ok(i18n::ST_SAVED);
@@ -199,7 +199,7 @@ impl Core {
     /// 用系统默认应用打开 URL。
     pub fn open_url(&mut self, url: &str) {
         match open::that(url) {
-            Ok(()) => self.status.ok(i18n::fill(i18n::ST_OPENED_URL, &[url])),
+            Ok(()) => self.status.ok(i18n::st_opened_url(url)),
             Err(e) => self.status.error(e.to_string()),
         }
     }
@@ -207,7 +207,7 @@ impl Core {
     pub fn copy_text(&mut self, label: &str, text: String) {
         match self.clipboard.set_text(text) {
             Ok(()) => {
-                let message = i18n::fill(i18n::ST_COPIED, &[label]);
+                let message = i18n::st_copied(label);
                 self.status.ok(message);
             }
             Err(error) => self.status.error(error),
@@ -317,7 +317,7 @@ impl App {
                     match core.donn.live_check(&name) {
                         // 运行中会话：确认框确认了也删不掉，提前拦截并提示
                         LiveCheck::Running => {
-                            let msg = i18n::fill(i18n::ST_PROFILE_IN_USE, &[&name]);
+                            let msg = i18n::st_profile_in_use(&name);
                             core.status.error(msg);
                         }
                         live => self
@@ -542,7 +542,7 @@ fn confirm_remove(
     isolation: Option<Isolation>,
     live: LiveCheck,
 ) -> Box<dyn Modal> {
-    let question = i18n::fill(i18n::REMOVE_Q, &[&name]);
+    let question = i18n::remove_q(&name);
     let probe_failed = live == LiveCheck::Unavailable;
     if isolation == Some(Isolation::Shared) {
         let mut body = vec![i18n::REMOVE_DETAIL.to_string()];
@@ -569,7 +569,7 @@ fn confirm_remove(
 fn do_remove(core: &mut Core, name: &str, keep_sessions: bool) {
     match core.donn.remove(name, false, keep_sessions) {
         Ok(()) => {
-            let msg = i18n::fill(i18n::ST_REMOVED, &[name]);
+            let msg = i18n::st_removed(name);
             core.status.ok(msg);
             core.refresh();
         }

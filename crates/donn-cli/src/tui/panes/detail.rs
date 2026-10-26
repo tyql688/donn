@@ -178,10 +178,7 @@ pub fn parse_tokens(raw: &str) -> Result<Option<u64>, String> {
 
 /// 模型槽：可搜索可填入（全 provider 同一套）。
 fn model_edit_modal(view: &ProfileView, slot: ModelSlot, name: &str) -> Box<dyn Modal> {
-    let title = i18n::fill(
-        i18n::EDIT_TITLE,
-        &[&i18n::fill(i18n::ROW_MODEL, &[slot.label()]), name],
-    );
+    let title = i18n::edit_title(&i18n::row_model(slot.label()), name);
     let current = view
         .spec
         .intent
@@ -201,7 +198,7 @@ fn model_edit_modal(view: &ProfileView, slot: ModelSlot, name: &str) -> Box<dyn 
             let id = id.clone();
             return Some(Box::new(
                 Prompt::new(
-                    i18n::fill(i18n::EDIT_TITLE, &[i18n::ROW_MAX_CONTEXT, &id]),
+                    i18n::edit_title(i18n::ROW_MAX_CONTEXT, &id),
                     DEFAULT_CUSTOM_WINDOW.to_string(),
                     false,
                     move |core, value| {
@@ -226,7 +223,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
     match row {
         Row::Key => {
             let mut prompt = Prompt::new(
-                i18n::fill(i18n::PROMPT_KEY_TITLE, &[&name]),
+                i18n::prompt_key_title(&name),
                 "",
                 true,
                 move |core, value| {
@@ -248,7 +245,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
             Some(Box::new(prompt))
         }
         Row::BaseUrl => Some(edit_prompt(
-            i18n::fill(i18n::EDIT_TITLE, &[i18n::ROW_BASE_URL, &name]),
+            i18n::edit_title(i18n::ROW_BASE_URL, &name),
             view.spec.intent.base_url.unwrap_or_default(),
             i18n::PROMPT_URL_HINT,
             name,
@@ -263,11 +260,11 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
             let (mut options, mut selected) =
                 effort_options(i18n::EFFORT_AUTO, parsed.unwrap_or_default());
             if let Some(raw) = raw.filter(|_| invalid) {
-                options.insert(0, i18n::fill(i18n::INVALID_VALUE, &[raw]));
+                options.insert(0, i18n::invalid_value(raw));
                 selected = 0;
             }
             Some(Box::new(Select::new(
-                i18n::fill(i18n::EDIT_TITLE, &[i18n::F_EFFORT, &name]),
+                i18n::edit_title(i18n::F_EFFORT, &name),
                 options,
                 selected,
                 move |core, picked| {
@@ -286,7 +283,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
         Row::Isolation => {
             let selected = usize::from(view.spec.isolation == Isolation::Shared);
             Some(Box::new(Select::new(
-                i18n::fill(i18n::EDIT_TITLE, &[i18n::F_ISOLATION, &name]),
+                i18n::edit_title(i18n::F_ISOLATION, &name),
                 vec![i18n::ISO_FULL.to_string(), i18n::ISO_SHARED.to_string()],
                 selected,
                 move |core, picked| {
@@ -305,7 +302,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
             let current = view.spec.intent.model_windows.get(&model);
             Some(Box::new(
                 Prompt::new(
-                    i18n::fill(i18n::EDIT_TITLE, &[i18n::ROW_MAX_CONTEXT, &model]),
+                    i18n::edit_title(i18n::ROW_MAX_CONTEXT, &model),
                     current.map(u64::to_string).unwrap_or_default(),
                     false,
                     move |core, value| {
@@ -318,9 +315,9 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
             ))
         }
         Row::Env(key) => {
-            let field = i18n::fill(i18n::ROW_ENV, &[&key]);
+            let field = i18n::row_env(&key);
             Some(edit_prompt(
-                i18n::fill(i18n::EDIT_TITLE, &[&field, &name]),
+                i18n::edit_title(&field, &name),
                 view.spec.intent.env.get(&key).cloned().unwrap_or_default(),
                 i18n::PROMPT_ENV_HINT,
                 name,
@@ -335,7 +332,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
         }
         Row::AddEnv => Some(Box::new(
             Prompt::new(
-                i18n::fill(i18n::PROMPT_ENV_ADD_TITLE, &[&name]),
+                i18n::prompt_env_add_title(&name),
                 "",
                 false,
                 move |core, value| {
@@ -352,11 +349,11 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
             .with_hint(i18n::ENV_FORMAT_ERR),
         )),
         Row::Alias(alias) => Some(Box::new(Confirm::new(
-            i18n::fill(i18n::REMOVE_ALIAS_Q, &[&alias]),
+            i18n::remove_alias_q(&alias),
             Vec::new(),
             move |core| match core.donn.remove_alias(&name, &alias) {
                 Ok(()) => {
-                    let msg = i18n::fill(i18n::ST_ALIAS_REMOVED, &[&alias]);
+                    let msg = i18n::st_alias_removed(&alias);
                     core.status.ok(msg);
                     core.refresh();
                 }
@@ -365,7 +362,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
         ))),
         Row::AddAlias => Some(Box::new(
             Prompt::new(
-                i18n::fill(i18n::PROMPT_ALIAS_ADD_TITLE, &[&name]),
+                i18n::prompt_alias_add_title(&name),
                 "",
                 false,
                 move |core, value| {
@@ -373,7 +370,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
                         .donn
                         .add_alias(&name, value)
                         .map_err(|e| e.to_string())?;
-                    let msg = i18n::fill(i18n::ST_ALIAS_READY, &[&path.display().to_string()]);
+                    let msg = i18n::st_alias_ready(&path.display().to_string());
                     core.status.ok(msg);
                     core.refresh();
                     Ok(())
@@ -427,7 +424,7 @@ fn copy_items(core: &Core) -> Vec<CopyItem> {
             .iter()
             .filter(|(key, _)| key.as_str() != keys::EFFORT)
             .map(|(key, value)| CopyItem {
-                label: i18n::fill(i18n::ROW_ENV, &[key]),
+                label: i18n::row_env(key),
                 display: value.clone(),
                 value: value.clone(),
             }),
@@ -490,7 +487,7 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
         Span::styled(format!("  ({})", view.preset.label), theme.dim()),
     ])];
     if !view.drift.is_empty() {
-        let banner = i18n::fill(i18n::DRIFT_BANNER, &[&view.drift.len().to_string()]);
+        let banner = i18n::drift_banner(view.drift.len());
         header.push(Line::from(Span::styled(banner, theme.warn())));
     }
     header.push(Line::default());
@@ -598,10 +595,7 @@ fn info_lines(core: &Core, view: &ProfileView, theme: &Theme, width: u16) -> Vec
         auth_short.to_string(),
         format!(
             "{} · {} settings · {} claude · {} permissions",
-            i18n::fill(
-                i18n::SB_OWNS,
-                &[&view.spec.footprint.settings_env.len().to_string()],
-            ),
+            i18n::sb_owns(view.spec.footprint.settings_env.len()),
             view.spec.footprint.settings_top.len(),
             view.spec.footprint.claude_json.len(),
             view.spec.footprint.permissions_top.len(),
@@ -646,10 +640,7 @@ fn render_row(
                 Some(level) => match Effort::from_env(Some(level)) {
                     Some(_) => vec![Span::styled(level.clone(), theme.accent())],
                     None => {
-                        vec![Span::styled(
-                            i18n::fill(i18n::INVALID_VALUE, &[level]),
-                            theme.err(),
-                        )]
+                        vec![Span::styled(i18n::invalid_value(level), theme.err())]
                     }
                 },
                 None => match view.preset.env.get(keys::EFFORT) {
@@ -695,7 +686,7 @@ fn render_row(
                 };
                 spans.push(Span::styled(format!("  {tag}"), theme.dim()));
             }
-            (i18n::fill(i18n::ROW_MODEL, &[slot.label()]), spans)
+            (i18n::row_model(slot.label()), spans)
         }
         Row::MaxContext => {
             // 当前 sonnet 这个模型的窗口：用户定义的 > preset 候选自带的 > 交给 Claude Code
@@ -719,7 +710,7 @@ fn render_row(
         }
         Row::Env(key) => {
             let value = view.spec.intent.env.get(key).cloned().unwrap_or_default();
-            (i18n::fill(i18n::ROW_ENV, &[key]), vec![Span::raw(value)])
+            (i18n::row_env(key), vec![Span::raw(value)])
         }
         Row::AddEnv => (
             i18n::ROW_ENV_ADD.into(),
@@ -828,7 +819,7 @@ mod tests {
         assert!(
             items
                 .iter()
-                .all(|item| item.label != i18n::ROW_ENV.replace("{}", keys::EFFORT))
+                .all(|item| item.label != i18n::row_env(keys::EFFORT))
         );
     }
 }

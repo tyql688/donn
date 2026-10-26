@@ -20,10 +20,7 @@ pub fn render_providers(form: &mut AddForm, core: &mut Core, f: &mut Frame, area
     let focused = core.focus == PaneId::Left;
     let theme = core.theme;
     let n = form.providers().items.len();
-    let block = theme.pane_block(
-        i18n::fill(i18n::PROVIDERS_TITLE, &[&n.to_string()]),
-        focused,
-    );
+    let block = theme.pane_block(i18n::providers_title(n), focused);
     let items: Vec<ListItem> = form
         .providers()
         .items
@@ -135,7 +132,7 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
             Field::Name => i18n::F_NAME.to_string(),
             Field::Key => i18n::ROW_API_KEY.into(),
             Field::BaseUrl => i18n::ROW_BASE_URL.into(),
-            Field::Model(slot) => i18n::fill(i18n::ROW_MODEL, &[slot.label()]),
+            Field::Model(slot) => i18n::row_model(slot.label()),
             Field::MaxContext => format!("  {}", i18n::ROW_MAX_CONTEXT),
             Field::Effort => i18n::F_EFFORT.into(),
             Field::Isolation => i18n::F_ISOLATION.into(),
@@ -223,7 +220,7 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
                     ));
                 } else if input.is_empty() && *field == Field::Aliases {
                     spans.push(Span::styled(
-                        i18n::fill(i18n::ALIASES_DEFAULT, &[form.name.value()]),
+                        i18n::aliases_default(form.name.value()),
                         theme.dim(),
                     ));
                 } else {

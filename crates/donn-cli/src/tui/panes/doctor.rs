@@ -32,12 +32,9 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
     let failing = doctor_pane.checks.items.iter().filter(|c| !c.ok).count();
     let total = doctor_pane.checks.len();
     let title = if failing == 0 {
-        i18n::fill(i18n::DOCTOR_ALL_PASS, &[&total.to_string()])
+        i18n::doctor_all_pass(total)
     } else {
-        i18n::fill(
-            i18n::DOCTOR_FAILING,
-            &[&failing.to_string(), &total.to_string()],
-        )
+        i18n::doctor_failing(failing, total)
     };
     let block = theme.pane_block(title, focused);
 
