@@ -1,122 +1,90 @@
 # donn 架构
 
-donn 管理同一个 Claude Code 二进制和多套互相隔离的配置。它不复制 Claude Code，也不改官方客户端，只维护每个 profile 该有哪些设置，并在启动前把它们写进 Claude Code 会读的文件。
-
-本文讲它怎么运转：进程怎么组织、配置从意图到落盘经过哪几层、两种 isolation 有什么区别、启动时发生什么，以及写文件怎么保证安全。
-
-## 进程形态
-
-donn 是一个 Rust 单二进制。无参数进入 Ratatui dashboard；`run`、`list`、`doctor` 是同一二进制的脚本接口。
-
-```text
-Ratatui TUI ─┐
-Clap CLI ────┼──> donn_core::ops::Donn ──> ~/.donn
-wrappers ────┘              │
-                            └──> exec Claude
-```
+donn 管理一个 Claude Code 二进制和多套配置。Bubble Tea TUI、Cobra CLI 和 alias 都通过 `internal/core.Donn` 访问同一份磁盘状态。
 
 ## Spec → Render → Reconcile
 
-```text
-profile.toml (ProfileSpec)             意图唯一来源；永不含 secret
-        │
-        ▼ render(spec, preset, secret, defaults)
-Rendered                                有序的 donn 应然配置
-        │
-        ▼ reconcile(existing, old footprint, rendered)
-settings.json / .claude.json            精确清旧 key、写新 key、未知字段穿透
-```
+`profile.toml` 是 schema v2 的配置意图，包含 preset、isolation、model/env 覆盖、alias 与 footprint；API key 只存在于 profile 的 `settings.json`。`Render` 纯函数计算应有配置，`reconcile` 按上次的 footprint 清理拥有的 key，再写入新值，保留未知 JSON 字段。认证模式变化时，sync 从 settings 中恢复 secret 并写入当前认证 key。
 
-三个角色：
+footprint 记录上次管理的 key。用户修改这些 key 会产生 drift，详情和 Doctor 会报告；sync 恢复 spec 定义的值。生效值和来源由 core 统一计算，TUI 直接展示。
 
-- `ProfileSpec`（`profile.toml`，schema v2）记录 donn 的意图：preset、覆盖、附加 env、isolation、alias、footprint。它不含 secret；secret 只在 `settings.json`。认证模式变了，sync 会从旧认证 key 里把 secret 取出来搬到新 key。
-- `render` 是纯函数，算出 donn 这次应该写的全部 env、settings 顶层 key 和 `.claude.json` key。
-- `reconcile` 拿旧 footprint 精确删掉上次写过、这次不再需要的 key，写入新值，并报告被覆盖的手改。不是 donn 写的字段不碰。
+## 渲染顺序
 
-`footprint` 只是「上次写了哪些 key」的清单，用来清理，不是审计日志。手改 donn 拥有的 key 会形成 drift，Doctor 和详情页能看见，sync 时以 spec 为准盖回去。
+后面的层覆盖前面的层：
 
-### 渲染层序
-
-后写的盖先写的。这是全项目唯一的优先级定义，展示层的「生效值」也用同一组函数（`effective_base_url` / `effective_models`）算，不另写一套。
-
-1. endpoint，以及类型化 knob 的默认值（超时、agent teams）。
+1. endpoint 与需要始终参与的 knob 默认值。
 2. 认证 key。
-3. preset：model slot → `preset.env` → 按 preset 的 sonnet 匹配的 model package。
-4. 用户显式拨过的全局 knob（类型化字段，然后是表驱动 knob）。
-5. `[defaults.env]`，以及它换了 sonnet 时对应的 package。
-6. profile 的 `[intent]`：model slot → package → `model_windows`（用户给 model id 定义的窗口，生效 sonnet 命中时按 package 同一套规则展开，压过 preset 的数字）→ `intent.env`。
-7. donn 常量（`DISABLE_AUTOUPDATER=1`，shared 模式的 `ENABLE_CLAUDEAI_MCP_SERVERS=0`）。
+3. preset 的 model slot、env、Sonnet model package。
+4. 用户显式配置的全局 knob。
+5. `[defaults.env]`，以及它选中的 Sonnet package。
+6. profile 的 model slot、Sonnet package、自定义 model window、`intent.env`。
+7. donn 常量：`DISABLE_AUTOUPDATER=1`；shared 下的 `ENABLE_CLAUDEAI_MCP_SERVERS=0`。
 
-model package（`max_context` 等）总是跟着最终生效的 sonnet 走：高层换了 sonnet，低层 package 写的窗口 key 不会残留。settings 顶层 key 同理：knob < `[defaults.settings]`。
+model slot 依次由 preset 的 models、preset 的 env、`defaults.env`、`intent.models`、`intent.env` 覆盖；显式空 env 值也参与覆盖。列表、TUI 和 shared overlay 使用同一组生效值与来源。model package 只展开最终 Sonnet 的候选配置，放在选中该模型的配置层；全局与 profile 的显式 env 覆盖同层 package。package 的窗口、自动压缩窗口和 subagent model 由同一个函数展开，用户的 `model_windows` 使用同一规则。settings 顶层值按 knob、`[defaults.settings]` 的顺序覆盖。
 
-全局 knob 在代码里分两种。一个 key 对应一个值的放 `BOOL_KNOBS` / `VALUE_KNOBS` 表，加一行就生效；带条件或要成对写 key 的（permission mode、只对有 `base_url` 的 provider 注入的超时与非必要流量、agent teams、tool search）是 `knobs::Knobs` 的类型化字段。类型化字段由 `knobs::TypedKnob::ALL` 统一描述字段名、分组、默认值和适用条件，设置面板、合并、校验与两遍渲染都遍历这张表，不各自列举字段名。
+`KnobCatalog` 统一定义字段、行名、类型、默认值和校验。单 key 映射由表驱动，有条件或配对写入的 `TargetSpecial` 在 render 中处理；显式 env knob 在 preset 后再应用一次。具体写入规则见 [GLOBAL-SETTINGS.md](GLOBAL-SETTINGS.md)。
 
-## isolation
+## Isolation
 
-| | `full`（默认） | `shared` |
+| | full（默认） | shared |
 |---|---|---|
-| `CLAUDE_CONFIG_DIR` | `~/.donn/profiles/<name>/claude/` | 不设置，Claude 用 `~/.claude` |
-| session、CLAUDE.md、agents | 每个 profile 一套 | 共用 `~/.claude` 的 |
-| provider env | 写进 profile 的 `settings.json`，启动时也注入进程 | 同样写进 profile 的 `settings.json`，但只为了启动时读出来注入进程 |
-| settings 类 knob、permission mode、model 选择 | 写进 profile 的 `settings.json` | sync 生成 `shared-settings.json`，启动时用 `--settings` 带进 session，压过 `~/.claude` 里的同名配置 |
-| connectors | profile 自己配 | 恒注入 `ENABLE_CLAUDEAI_MCP_SERVERS=0` |
-| 删除 profile | 可以保留 `claude/` session 目录 | session 不归 donn，只删 profile 目录 |
+| Claude 配置目录 | profile 的 `claude/`，通过 `CLAUDE_CONFIG_DIR` 指定 | Claude 的默认目录 |
+| session、agents、CLAUDE.md | 每个 profile 独立 | 使用 `~/.claude` 中的内容 |
+| provider env | settings 文件与启动进程 | 从 profile settings 注入启动进程 |
+| settings、permission mode、model | profile 的 settings.json | `shared-settings.json` 通过 `--settings` 注入 |
+| 删除 | 可保留 session 后同名重建 | 删除 profile，公共 session 不受影响 |
 
-两种模式 donn 都不写 `~/.claude`。
+两种模式都不写 `~/.claude`。overlay 整份归 donn 所有。
 
-## 启动链路
+## 启动
 
-wrapper（`~/.local/bin/<alias>`，只做一件事：`exec donn run <profile> -- "$@"`；记下的 donn 路径失效时退回 PATH 里的 `donn`）→ `donn run` → 尽力 sync 一次 → `launch::prepare` → exec `claude`。Unix 用 `exec` 替换进程，信号和退出码直接透传；Windows 是 spawn 后等待再透传退出码。
+alias 记录 donn 路径并执行 `donn run <profile> -- <args>`；路径失效时在 PATH 中查找 donn。CLI 和 TUI 通过 `PrepareLaunch` 同步配置、准备 `exec.Cmd` 并获取启动提示；sync 失败会给出警告，并尝试使用现有文件启动。
 
-进程 env 分三步拼出来：
+启动环境先继承 shell，再剥掉 donn 管理的 env 和切换云厂商、覆盖 model 的 key，随后注入 profile settings 中的 env；full 最后强制设置 `CLAUDE_CONFIG_DIR`。shared 默认追加 `--settings <overlay>`。用户自己传入 `--settings` 时使用用户参数，并明确提示此次没有加载 donn overlay。
 
-1. 先继承当前 shell 的 env，然后剥掉 donn 会写的所有 env key，以及 `keys::SHELL_OVERRIDE_KEYS` 里那批会改道到别的云厂商或盖掉 model 映射的 key（`ANTHROPIC_MODEL`、`CLAUDE_CODE_USE_BEDROCK` 等）。不剥的话，shell 里 export 过的同名变量会让「knob 关掉」这个动作失效。
-2. 注入 profile `settings.json` 里的 `env`。用户自己写进 `[defaults.env]` / `[intent.env]` 的 key 在这一步进来，不受第 1 步影响。
-3. `full` 模式最后强制写入 `CLAUDE_CONFIG_DIR`。
+CLI 在 Unix 上用 exec 替换进程，Windows 上等待子进程并返回其退出码。TUI 使用 Bubble Tea 的 Exec 暂停界面，将标准输入输出交给 Claude 或编辑器，进程结束后恢复终端和界面。
 
-`shared` 模式唯一追加的命令行参数是 `--settings <shared-settings.json>`。Claude 的 `--settings` 只认一个值，所以用户自己传了 `--settings` 时以用户的为准，donn 的不再追加，并在 stderr 提示这次 session 没带上 profile 的 model、permission mode 和全局设置。
+## Preset
 
-## Preset 加载
+`go:embed` 将 `internal/core/presets/*.toml` 编入二进制。加载时检查文件名与 key 一致，再读 `~/.donn/presets.d/*.toml`：同 key 覆盖，其余追加，按 key 排序。用户 preset 错误单独收集，由 Doctor 报告，不阻塞其它 provider。
 
-内置 preset 编译进二进制；清单由 `build.rs` 从 `preset/presets/*.toml` 生成，文件名和 `key` 字段不一致时构建失败。启动时再读 `~/.donn/presets.d/*.toml`：key 相同的覆盖内置版本，其余追加，最后按 key 字典序排列。用户写的 preset 如果解析失败，会记进 `load_errors` 由 Doctor 报告，不影响其它 provider 正常使用。
+## 文件安全与并发
 
-## Doctor 与 session 探测
+- 写操作持有 gofrs/flock 跨进程锁，最长等 5 秒。全局编辑在锁内重新读配置，只修改指定字段，然后逐 profile 同步并汇报失败。
+- natefinch/atomic 写临时文件并替换目标，已存在文件保持权限，新文件使用 0600，目录使用 0700；Unix 上替换后尽力同步父目录。Windows 权限由目录 ACL 决定。
+- JSON 用通用对象与 json.Number 保留未知字段和大整数。TOML 使用 go-toml 做类型映射、tomledit 保留未知顶层字段及关联注释。全局配置的模板注释在启动和保存时刷新。
+- 内容相同就不写。profile 比较只忽略 updated_at，稳态 sync 保持文件字节和 mtime。
+- 创建和 alias 修改失败会恢复涉及的原文件；保留 session 的目录不会被整体回滚删除。wrapper 只在内容严格匹配所有权和目标 profile 时才可删除。
+- Secret 默认格式化脱敏并拒绝通用序列化，明文读取必须显式调用 Reveal；Go 字符串不承诺内存清零。
 
-Doctor 逐项检查下面这些，单项失败不会中断其它检查：claude 二进制可执行、`--version` 在 10 秒内返回；wrapper 所在目录在 PATH 上；`[defaults.knobs]` 里没有 donn 不认识的 key；用户 preset 都能解析；每个 profile 的 `profile.toml` 可读；`settings.json` 可解析且与渲染结果无 drift；认证 key 存在；preset 存在；每个 wrapper 存在并指向本 profile。
+锁只约束 donn 进程。Claude 同时写 `.claude.json` 时，整文件读改写仍可能覆盖其刚完成的写入，因此 session 运行期间应避免主动同步同一个 profile。
 
-删除 profile 之前，donn 用 `lsof +D <config_dir>`（3 秒超时）探测这个 profile 自己的 `claude/` 目录有没有正在运行的 session。lsof 不可用或超时，按 `Unavailable` 处理，`full` 模式在状态栏提示探测失败。`shared` 模式的 session 跑在 `~/.claude` 里，donn 不探测 profile 自己的 `claude/` 目录；`profile.toml` 读不出来时仍按保守策略探测。
+## TUI
 
-## 并发与文件安全
+Bubble Tea 管理事件循环与外部进程，Bubbles 提供 list、fuzzy filter、textinput 和 viewport，Lip Gloss 负责布局与显示宽度。磁盘操作通过 Cmd 执行，返回消息后更新界面；modal 独占输入，有限选项用 picker，删除与丢弃用确认选择。
 
-- 所有写操作都在 `~/.donn/.write.lock` 这把跨进程 lock 里串行执行。lock 用标准库的 `File::try_lock`，最多等约 5 秒，拿不到就报明确的错误，不会静默继续。
-- JSON 和 TOML 都先写临时文件再 rename 替换，读的人永远看到完整文件；rename 之后尽力 fsync 目录项。新建的、含 secret 的 JSON 权限是 `0600`，已存在的文件保持原 mode。Windows 没有 POSIX mode，靠 `~/.donn` 目录本身的权限兜底。
-- 全局配置每次调用都重新读盘，长期开着的 TUI 不会缓存旧配置。写 lock 内会再做一次合并，避免另一个进程的独立改动被覆盖。
-- 没有变化就不写盘：生成结果先和现有文件深比较，`profile.toml` 的比较只忽略 `updated_at`。`shared-settings.json` 整份归 donn 所有，读不出来就直接重写。
-- 已知限制：sync 对 `.claude.json` 是整文件读、改、写。lock 只能管住 donn 自己的进程，管不住正在运行的 Claude 同时写这个文件，极小的时间窗口里 Claude 刚写进去的内容可能被盖掉。session 进行中尽量别对同一个 profile 手动 sync。
+每次列表刷新从磁盘读取一次全局配置和 preset catalog，逐 profile 检查时复用本次读取的值。Doctor 同样在一次检查内复用配置和 catalog。
 
-## TUI 交互层
+model picker 合并 preset 候选、slot 默认、自定义窗口和当前值。无匹配的搜索文本可作为任意 model ID；第三方 Sonnet 缺少窗口时继续询问 token 数，取消不会提前保存。provider 列表展示名称和 endpoint，model 列表展示 ID 和上下文窗口。小于 60 列时切为单面板。
 
-Ratatui 和 crossterm 负责终端底座，`tui-input` 负责 Unicode 输入编辑，`nucleo-matcher` 负责 provider 和 model 的模糊搜索。每帧画完之后，`tui/links.rs` 会扫一遍屏幕缓冲区，记下完整显示出来的 http(s) 链接各占哪些格子；右键复制和左键打开都查这张表，各个面板不用自己登记链接，被省略号截断的链接不算。左键先按普通点击处理，只有这一下没有改变选中或焦点时才打开链接，所以点一行来选中它不会顺手弹出浏览器。有限选项统一用 `Select` 控件，破坏性操作统一用 `Confirm` 或语义明确的 `Select`，所有弹窗挂在同一个 modal 栈上独占键盘输入。
+鼠标选择按屏幕坐标定位 Bubbles 列表。完整显示的 URL 用 xurls 识别，左键在焦点和选中项未变化时打开，右键复制；省略的 URL 不打开。浏览器使用 cli/browser，剪贴板通过终端 OSC 52，支持情况取决于终端设置。
 
-model picker 的候选来自 `model_choices`、preset 各 slot 的默认值、用户给自定义 model 定义过窗口的条目，以及当前覆盖值。去重后按列显示短 label 和真实 ID，当前选中项的 package 和上下文窗口单独放在底部详情行。当前值不在目录里时也会作为候选项出现并保持选中，重新打开不会跳回 Follow。输入没有命中任何候选时，输入的文本直接当作自由 model ID 使用。provider 概览里的候选 model 逐行显示 ID，不拼成长段文字。编辑单个 slot 只改那一个 slot，package 相关的 env 由 render 根据最终生效的 Sonnet ID 推导出来。
+## Doctor 与 session
+
+Doctor 检查 Claude 可执行文件及 10 秒内的版本响应、PATH、未知 knob、preset 解析、profile 状态、认证、drift、wrapper 与文件权限。单项错误不终止其它检查。
+
+删除 full profile 前用 `lsof +D` 检查活动 session，3 秒超时，发现活动 session 就拒绝删除。shared 不探测公共目录；损坏 profile 按 full 保守处理。探测不可用时界面会提示，默认选择保留 session。
 
 ## 主要依赖
 
-| 用途 | 依赖 | 选择理由 |
-|---|---|---|
-| TUI | `ratatui` + `crossterm` | 成熟、跨平台终端生态 |
-| 宽度截断/补齐 | `unicode-truncate` + `unicode-width` | 按显示宽度处理 CJK，不自写字符循环 |
-| 输入 | `tui-input` | Unicode 光标/编辑，不自造文本框 |
-| 模糊搜索 | `nucleo-matcher` | Helix 同源的成熟 matcher |
-| CLI | `clap` | 子命令、帮助与透传边界清晰 |
-| 表格 | `comfy-table` | `donn list` 非 TTY 输出 |
-| TOML | `toml_edit` | serde 映射并保留未知顶层字段 |
-| JSON | `serde_json` `preserve_order` | 未知字段与稳定 key 序 |
-| secret | `secrecy` | 明文暴露点显式、drop 时清零 |
-| URL | `open` | 使用系统默认应用，不手写平台分支 |
-| 找链接 | `linkify` | 从屏幕文本里找 URL，边界（括号、标点）处理正确，不自写正则 |
-| 文本剪贴板 | `arboard` | 跨平台文本复制；关闭图片 feature，Linux 启用 Wayland data-control |
-| 进程超时 | `wait-timeout` | `lsof` / `claude --version` 不无限挂起 |
-| shell 参数 | `shlex` | wrapper 与 `$EDITOR` 参数安全解析 |
+| 用途 | 依赖 |
+|---|---|
+| TUI 与组件 | Bubble Tea v2、Bubbles v2、Lip Gloss v2 |
+| CLI | Cobra |
+| TOML | go-toml/v2、tomledit |
+| 原子文件与锁 | natefinch/atomic、gofrs/flock |
+| shell quoting 与编辑器参数 | mvdan.cc/sh/v3 |
+| URL 与浏览器 | xurls/v2、cli/browser |
+| JSON、进程超时、嵌入资源 | Go 标准库 |
 
-release 构建使用 LTO、单 codegen unit、strip 与 panic abort。
+`make build` 使用 `CGO_ENABLED=0`、trimpath 和去符号参数生成可独立分发的二进制。

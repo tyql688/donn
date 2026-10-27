@@ -1,6 +1,6 @@
 # donn
 
-管理 Claude Code profile 的单二进制工具，带 TUI。每个 profile 有自己的配置目录、model 映射和 API key，可以在官方 Claude 与 Kimi、MiniMax、Z.ai、OpenRouter、DeepSeek 等 Anthropic 兼容 provider 之间切换。
+管理 Claude Code profile 的 Go 单二进制工具，使用 Bubble Tea TUI。每个 profile 有自己的配置目录、model 映射和 API key，可以在官方 Claude 与 Kimi、MiniMax、Z.ai、OpenRouter、DeepSeek 等 Anthropic 兼容 provider 之间切换。
 
 ```bash
 donn        # 打开 TUI dashboard
@@ -20,13 +20,13 @@ kimi        # 用创建 profile 时生成的 alias 启动 Claude
 
 ## 从当前源码安装
 
-需要 Rust 1.97 或更新版本。
+需要 Go 1.26 或更新版本。
 
 ```bash
-cargo install --path crates/donn-cli --locked
+go install ./cmd/donn
 ```
 
-本地开发直接运行 `cargo run -p donn-cli --`。
+本地开发直接运行 `go run ./cmd/donn`。`make build` 生成不依赖 C 运行时的 `bin/donn`，可直接复制到目标机器；交叉编译通过 `GOOS` 和 `GOARCH` 指定目标系统与架构。
 
 Makefile 目标：
 
@@ -34,15 +34,15 @@ Makefile 目标：
 make install                 # 从当前源码安装 donn
 make run                     # 不安装，直接打开 TUI
 make run ARGS="doctor"       # 从源码运行子命令
-make check                   # 格式、Clippy、release 构建
-make clean                   # 删除 target/ 下的构建产物
+make check                   # gofmt、go vet、二进制构建
+make clean                   # 删除 bin/ 下的构建产物
 ```
 
 ## 快速上手
 
 1. 运行 `donn`。
 2. 按 `a`，搜索 provider，按 Enter 选中。
-3. 填 profile 名和 API key。provider、model、effort、permission 和 isolation 都有选择弹窗；model 也可以直接输入任意 ID。
+3. 填 profile 名和 API key。provider、model、effort 和 isolation 都有选择弹窗；permission 在全局设置中修改；model 也可以直接输入任意 ID。
 4. 创建后运行生成的 alias，或者用 `donn run <name>` 启动。
 
 常用按键：
@@ -87,7 +87,7 @@ donn doctor                  # 有任一失败项就返回非 0
         └── .claude.json
 ```
 
-`~/.donn/config.toml` 自带说明。第一次打开 TUI 会生成带注释的模板，在 TUI 里改设置不会弄丢这些注释。全局设置一改，立刻同步到所有 profile。同一项在多处设置时，优先级是 profile 自己的设置 > 全局设置 > provider preset。
+`~/.donn/config.toml` 自带说明。第一次打开 TUI 会生成带注释的模板，在 TUI 里改设置会保留模板注释和未知顶层配置。全局设置一改，立刻同步到所有 profile。同一项在多处设置时，优先级是 profile 自己的设置 > 全局设置 > provider preset。
 
 两种 isolation 下，donn 都不会写你的 `~/.claude/`。
 

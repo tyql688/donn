@@ -17,7 +17,7 @@ const PKG_DATA = (version, provider) =>
 const here = new URL(".", import.meta.url);
 const snapshotFile = new URL("../references/pi-models.json", here);
 const decisions = JSON.parse(fs.readFileSync(new URL("../references/pi-providers.json", here))).providers;
-const presetDir = new URL("../../../../crates/donn-core/src/preset/presets/", here);
+const presetDir = new URL("../../../../internal/core/presets/", here);
 
 const args = process.argv.slice(2);
 const flag = args.find((a) => a.startsWith("--"));

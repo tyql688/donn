@@ -1,7 +1,7 @@
 ---
 name: update-claude-catalog
-description: 刷新 donn 的三份数据面：Claude Code 键注册表（keys.rs）、Anthropic 官方模型 id、第三方渠道 preset。Claude Code 升级、厂商出新模型、改 id/端点、新增渠道都走这里。
-when_to_use: 触发词 - claude 升级、键漂移、keys.rs、CLAUDE_CODE_*、settings.json key、Claude 新模型、官方模型 id、ModelSlot、新增渠道、加 provider、模型 id 变了、渠道下架模型、preset、model_choices、base_url、context window、刷新模型目录、根据 skills 更新资源。
+description: 刷新 donn 的三份数据面：Claude Code 键注册表（keys.go）、Anthropic 官方模型 id、第三方渠道 preset。Claude Code 升级、厂商出新模型、改 id/端点、新增渠道都走这里。
+when_to_use: 触发词 - claude 升级、键漂移、keys.go、CLAUDE_CODE_*、settings.json key、Claude 新模型、官方模型 id、ModelSlot、新增渠道、加 provider、模型 id 变了、渠道下架模型、preset、model_choices、base_url、context window、刷新模型目录、根据 skills 更新资源。
 allowed-tools: Bash(claude --version), Bash(rg *), Bash(grep *), Bash(strings *), Bash(node *), Bash(curl -sL https://code.claude.com/*), Bash(curl -sL https://platform.claude.com/*), Bash(curl -s https://openrouter.ai/api/v1/models), Bash(curl -s https://router.huggingface.co/v1/models)
 ---
 
@@ -21,14 +21,14 @@ allowed-tools: Bash(claude --version), Bash(rg *), Bash(grep *), Bash(strings *)
 
 下面的命令都从仓库根目录跑，`S=.claude/skills/update-claude-catalog`。
 
-## 1. Claude Code 键（`crates/donn-core/src/keys.rs`）
+## 1. Claude Code 键（`internal/core/keys.go`）
 
-键的用途、取值和出处只写在 `keys.rs` 常量注释。每个键标 `[官方]`、`[官方·未在册]`（二进制有、文档无）或 `[官方·二进制 schema]`；后两类升级时优先复查。用户自定义 env 不入册。
+键的用途与取值写在 `keys.go`；出处与核对时间记在 ledger。文档未列、仅二进制存在的键在升级时优先复查。用户自定义 env 不入册。
 
 ```bash
 claude --version
 strings -a "$(readlink -f "$(command -v claude)")" > /tmp/donn-claude-strings.txt
-rg -cF 'CLAUDE_CODE_MAX_CONTEXT_TOKENS' /tmp/donn-claude-strings.txt   # keys.rs 里每个键都数一遍，0 必须解释
+rg -cF 'CLAUDE_CODE_MAX_CONTEXT_TOKENS' /tmp/donn-claude-strings.txt   # keys.go 里每个键都数一遍，0 必须解释
 node $S/scripts/key-context.mjs effortLevel alwaysThinkingEnabled
 
 # 官方文档抓 Markdown 原文再 grep，不用摘要
@@ -47,9 +47,9 @@ n=$(grep -n '^### `alwaysThinkingEnabled`' /tmp/donn-settings-ref.md | cut -d: -
 - `ENABLE_TOOL_SEARCH` 不设时的行为（网关后 v2.1.304+ 也 defer，更早的版本 upfront）和合法取值
 - `CLAUDE_CODE_AUTO_COMPACT_WINDOW` 取值范围（`100000..=1000000`）、`API_TIMEOUT_MS` 上限
 - 未在册键是否转正或消失
-- `keys::SHELL_OVERRIDE_KEYS`：有没有新的「换云厂商 / 盖模型」类 env 要加进启动剥除名单
+- `ManagedEnvKeys()` 的 shell override key：有没有新的「换云厂商 / 盖模型」类 env 要加进启动剥除名单
 
-改动位置：常量与注释在 `keys.rs`；写入层在 `render.rs`（层序见 `docs/ARCHITECTURE.md`，新键插入哪层要在真实落盘里核对）；新旋钮转 `add-global-knob`。
+改动位置：常量与注释在 `keys.go`；写入层在 `render.go`（层序见 `docs/ARCHITECTURE.md`，新键插入哪层要在真实落盘里核对）；新旋钮转 `add-global-knob`。
 
 ## 2. Anthropic 官方模型
 
@@ -63,12 +63,12 @@ rg -o 'claude-(fable|mythos|opus|sonnet|haiku)-[0-9a-z.-]*' /tmp/donn-claude-str
 - `presets/custom.toml`：只维护 `[[preset.model_choices]]`，不设 `[preset.models]`。当代模型加总览页「Legacy models (still available)」里的主力。
 - `presets/openrouter.toml`：`anthropic/*` 用 OpenRouter live 目录的 slug 与 context，过滤 `:batch` / `-fast` 变体。
 - `presets/official.toml`：OAuth 直连，不写模型槽。
-- 新档位：改 `keys.rs` 的 `ModelSlot`、`ALL`、`env_key`、`label` 与 `SlotMap` 字段，TUI 与 render 都迭代 `ModelSlot::ALL`；新 `ANTHROPIC_DEFAULT_<TIER>_MODEL` 先按第 1 节入册。
+- 新档位：改 `types.go` 的 `Slot`、`Slots` 与 `EnvKey`，TUI 与 render 都迭代 `Slots`；新 `ANTHROPIC_DEFAULT_<TIER>_MODEL` 先按第 1 节入册。
 - 退役：只删候选，不改用户 `profile.toml [intent.models]`。
 
 ## 3. 第三方渠道 preset
 
-只动 `crates/donn-core/src/preset/presets/<key>.toml`，一渠道一文件，文件名即 key；新渠道 = 一个新 TOML，`build.rs` 会自动收录。用户可在 `~/.donn/presets.d/` 放同 key 文件覆盖内置。
+只动 `internal/core/presets/<key>.toml`，一渠道一文件，文件名即 key；新渠道 = 一个新 TOML，`go:embed` 会自动收录。用户可在 `~/.donn/presets.d/` 放同 key 文件覆盖内置。
 
 模型 id 和窗口数字不手抄。来源是 pi 的模型目录：pi 自己刷新模型用的接口 `https://pi.dev/api/models`，加上刚进 npm 包、接口里还没有的 provider。脚本直接联网取，不依赖本机装没装 pi。
 
@@ -92,7 +92,7 @@ node $S/scripts/pi-sync.mjs --record       # 全部处理完，把线上目录�
 - `≠`：厂商文档公布了精确窗口就以厂商为准，并登记到 `vendor_windows`（写出处）；厂商只说「1M」这类约数就改成 pi 的数字。
 - 非 Claude 的候选一律要有 `max_context`：Claude Code 不认识第三方 id，不给就按它猜的窗口压缩。id 里带 `claude-` 的不设，官方文档写明对能解析成 Claude 模型的 id 该变量不生效。
 
-pi 答不了、只能看厂商文档的：`[preset.models]` 默认槽位该用哪个主力模型、`[1m]` 这类 Claude Code 专用 id（和裸 API id 不同时注释写清，如 Kimi `k3[1m]` / `k3`）、认证模式（`ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_API_KEY` 都要求时开 `auth_token_also_sets_api_key`）、`key_url`、flags。套餐总览页和 Claude Code 接入页都读，接入页可能落后一代。厂商退役 id 且自动路由时直接换新 id，用户钉住的旧 id 靠路由继续可用。preset 头部注释只留文档 URL 和不看就会踩的坑。
+pi 答不了、只能看厂商文档的：`[preset.models]` 默认槽位该用哪个主力模型、`[1m]` 这类 Claude Code 专用 id（和裸 API id 不同时注释写清，如 Kimi `k3[1m]` / `k3`）、认证模式（`ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_API_KEY` 都要求时开 `auth_token_also_sets_api_key`）、`key_url`、flags。套餐总览页和 Claude Code 接入页都读，接入页可能落后一代。厂商退役 id 且自动路由时直接换新 id，用户钉住的旧 id 靠路由继续可用。preset 注释只写配置行为和使用限制，来源记在 ledger。
 
 `pi-providers.json` 的 `presets_not_in_pi`（`siliconflow` 等）pi 里没有，只能对厂商目录。
 
@@ -105,7 +105,7 @@ Claude Code 只说 Anthropic Messages 协议。按序判定，查到即止：
 3. 能接但缺厂商接入文档（认证头、`key_url` 不确定）：登记 `pending`，不凭猜测建 preset。
 4. 原生没有就走网关：把它的主力模型加进 `vercel` / `openrouter` 候选。Cloudflare AI Gateway 和本地翻译代理用 `custom` preset，donn 不管理代理进程。
 
-新建 preset 后：文件名和 TOML 里的 `key` 必须一致（`build.rs` 会检查），`pi-providers.json` 登记映射，台账加一行。
+新建 preset 后：文件名和 TOML 里的 `key` 必须一致（加载时会检查），`pi-providers.json` 登记映射，台账加一行。
 
 ## 验收
 

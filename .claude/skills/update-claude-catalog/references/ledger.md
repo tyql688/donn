@@ -4,7 +4,7 @@
 
 | 对象 | 来源 | 上次核对 |
 | --- | --- | --- |
-| Claude Code 键（`keys.rs`） | claude 2.1.309 二进制 + env-vars / settings-reference / model-config / mcp 文档 | 2026-10-26 |
+| Claude Code 键（`keys.go`） | claude 2.1.309 二进制 + env-vars / settings-reference / model-config / mcp 文档 | 2026-10-26 |
 | 官方模型（`custom.toml`） | platform.claude.com 模型总览 + claude 2.1.309 二进制 | 2026-10-26 |
 | `deepseek` | api-docs.deepseek.com/quick_start/pricing + pi 目录 | 2026-09-21 |
 | `zai` / `zai-cn` | docs.z.ai/devpack/overview、devpack/tool/claude + pi 目录 | 2026-09-21 |
