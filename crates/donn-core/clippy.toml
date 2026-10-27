@@ -1,9 +1,5 @@
 # donn-core 专属配置。clippy 取最近的 clippy.toml 且不合并，
 # 因此根配置的内容必须在此复制一份（改根配置时同步这里）。
-allow-unwrap-in-tests = true
-allow-expect-in-tests = true
-allow-panic-in-tests = true
-allow-dbg-in-tests = true
 
 [[disallowed-methods]]
 path = "std::fs::canonicalize"

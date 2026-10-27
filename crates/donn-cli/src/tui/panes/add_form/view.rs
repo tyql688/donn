@@ -1,4 +1,4 @@
-//! Add 表单渲染：选渠道列表/详情 + 填表预览。状态与按键逻辑在父模块。
+//! Add 表单渲染：provider 选择列表和详情，加上填表预览。状态和按键逻辑在父模块。
 
 use donn_core::keys::{self, ModelSlot};
 use donn_core::{AuthMode, Isolation};
@@ -15,7 +15,7 @@ use crate::tui::i18n;
 use crate::tui::modals::model_pick;
 use crate::tui::theme::Theme;
 
-/// Add 时左栏：渠道列表。
+/// Add 时左栏：provider 列表。
 pub fn render_providers(form: &mut AddForm, core: &mut Core, f: &mut Frame, area: Rect) {
     let focused = core.focus == PaneId::Left;
     let theme = core.theme;
@@ -43,7 +43,7 @@ pub fn render_providers(form: &mut AddForm, core: &mut Core, f: &mut Frame, area
     );
 }
 
-/// Add 选渠道时右栏：当前渠道只读摘要。
+/// Add 选 provider 时右栏：当前 provider 只读摘要。
 pub fn render_provider_detail(form: &AddForm, core: &Core, f: &mut Frame, area: Rect) {
     let theme = &core.theme;
     let block = theme.pane_block(i18n::PROVIDER_PANE_TITLE, false);
@@ -109,7 +109,7 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
     let input_width = (inner.width as usize).saturating_sub(24);
     let mut lines: Vec<Line> = Vec::new();
 
-    // 头部：已选渠道（只读；esc 返回重选）
+    // 头部：已选 provider（只读；esc 返回重选）
     let provider = form.provider().clone();
     lines.push(Line::from(vec![
         Span::styled(pad(i18n::F_PROVIDER, 20), theme.dim()),
@@ -153,7 +153,7 @@ pub fn render(form: &mut AddForm, core: &Core, f: &mut Frame, area: Rect) {
                 let text = match form.effort.env_value() {
                     Some(level) => level.to_string(),
                     None => match form.provider().env.get(keys::EFFORT) {
-                        // Auto = 无 intent 覆盖；展示渠道默认，避免误读成 “follow global”
+                        // Auto = 没有 intent 覆盖；显示 provider 默认值，避免误读成「follow global」
                         Some(level) => format!("{level} {}", i18n::FROM_DEFAULT),
                         None => i18n::EFFORT_AUTO.to_string(),
                     },

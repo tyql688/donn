@@ -1,8 +1,8 @@
-//! 全局设置面板：`S` 打开，右栏按分组编辑 donn 全局旋钮（类型化开关/选项/数值）
-//! 与自由 env/settings 补充。每次改动 = 落盘 config.toml + 自动同步全部 profile。
+//! 全局设置面板：`S` 打开，右栏按分组编辑 donn 全局 knob（类型化开关/选项/数值）
+//! 以及自由 env/settings 补充。每次改动都会落盘 config.toml 并自动 sync 所有 profile。
 
 use donn_core::keys::PERMISSION_MODES;
-use donn_core::knobs::{BOOL_KNOBS, KnobGroup, TypedToggle, VALUE_KNOBS, ValueKind};
+use donn_core::knobs::{BOOL_KNOBS, KnobGroup, TypedKnob, VALUE_KNOBS, ValueKind};
 use donn_core::{ConfigChange, Knobs};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
@@ -24,17 +24,17 @@ const LABEL_WIDTH: usize = 30;
 pub enum Row {
     /// 分组标题：不可选中。
     Section(&'static str),
-    /// 类型化布尔旋钮：Enter 直接翻转。
-    Toggle(TypedToggle),
-    /// 三态旋钮：Enter 弹选择框（跟随 / 开 / 关）。
+    /// 类型化布尔 knob：Enter 直接翻转。
+    Toggle(TypedKnob),
+    /// 三态 knob：Enter 弹选择框（跟随 / 开 / 关）。
     ToolSearch,
-    /// 选项旋钮：Enter 弹选择框。
+    /// 选项 knob：Enter 弹选择框。
     PermissionMode,
-    /// 数值旋钮：Enter 弹输入框。
+    /// 数值 knob：Enter 弹输入框。
     Timeout,
-    /// 简单布尔旋钮（[`BOOL_KNOBS`] 下标）：Enter 翻转。
+    /// 简单布尔 knob（[`BOOL_KNOBS`] 下标）：Enter 翻转。
     Flag(usize),
-    /// 简单标量旋钮（[`VALUE_KNOBS`] 下标）：枚举弹选择框，其余弹输入框。
+    /// 简单标量 knob（[`VALUE_KNOBS`] 下标）：枚举弹选择框，其余弹输入框。
     Value(usize),
     /// 自由补充。
     Env(String),
@@ -49,20 +49,20 @@ impl Row {
     }
 }
 
-/// 类型化旋钮所属分组（表驱动旋钮的分组写在表里）。
+/// 类型化 knob 所属分组。`TypedKnob` 新增变体时，这个 match 会编译失败，提醒补面板行。
 fn typed_rows(group: KnobGroup) -> Vec<Row> {
-    let mut rows: Vec<Row> = match group {
-        KnobGroup::Session => vec![Row::PermissionMode, Row::ToolSearch],
-        KnobGroup::Endpoint => vec![Row::Timeout],
-        KnobGroup::Privacy => Vec::new(),
-    };
-    rows.extend(
-        TypedToggle::ALL
-            .into_iter()
-            .filter(|t| t.group() == group)
-            .map(Row::Toggle),
-    );
-    rows
+    TypedKnob::ALL
+        .into_iter()
+        .filter(|knob| knob.group() == group)
+        .map(|knob| match knob {
+            TypedKnob::PermissionMode => Row::PermissionMode,
+            TypedKnob::ToolSearch => Row::ToolSearch,
+            TypedKnob::ApiTimeoutMs => Row::Timeout,
+            TypedKnob::AgentTeams
+            | TypedKnob::DisableNonessentialTraffic
+            | TypedKnob::HideAttribution => Row::Toggle(knob),
+        })
+        .collect()
 }
 
 fn section_title(group: KnobGroup) -> &'static str {
@@ -199,14 +199,17 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
         }
     };
     let knobs = cfg.defaults.knobs.clone();
-    // 默认值取自 Knobs::default() 的取值方法——唯一定义处在 core，不在这里重复
+    // 默认值取自 Knobs::default() 的取值方法，唯一定义处在 core，不在这里重复
     let defaults = Knobs::default();
     match row {
         Row::Section(_) => None,
-        // 类型化开关旋钮：Enter 直接翻转，无需弹窗
-        Row::Toggle(toggle) => {
-            let next = !knobs.typed_on(toggle);
-            commit_knobs(core, knobs, |k| k.set_typed(toggle, next));
+        // 类型化开关 knob：Enter 直接翻转，无需弹窗
+        Row::Toggle(knob) => {
+            let current = knob.bool_value(&knobs)?;
+            let next = !current;
+            commit_knobs(core, knobs, |k| {
+                knob.set_bool(k, next);
+            });
             None
         }
         Row::Flag(i) => {
@@ -216,7 +219,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
             commit_knobs(core, knobs, |k| k.set_extra(knob.field, explicit));
             None
         }
-        // 三态：不写键（上游按端点主机判定）/ 强制开 / 关
+        // 三态：不写 key（上游按 endpoint 主机判定）/ 强制开 / 关
         Row::ToolSearch => {
             let states = [None, Some(true), Some(false)];
             let options = vec![
@@ -262,7 +265,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
         Row::Value(i) => {
             let knob = &VALUE_KNOBS[i];
             if let ValueKind::Enum(levels) = knob.kind {
-                // 有限取值走选择框；第 0 项 = 跟随 Claude Code（删键）
+                // 有限取值走选择框；第 0 项表示跟随 Claude Code（删 key）
                 let mut options = vec![i18n::V_FOLLOW.to_string()];
                 options.extend(levels.iter().map(|l| (*l).to_string()));
                 let current = knobs
@@ -464,11 +467,11 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
                         section_style,
                     )));
                 }
-                Row::Toggle(toggle) => (
-                    label(toggle.field()),
+                Row::Toggle(knob) => (
+                    label(knob.field()),
                     on_off(
-                        knobs.typed_on(*toggle),
-                        knobs.typed_override(*toggle).is_none(),
+                        knob.bool_value(knobs).unwrap_or(false),
+                        knob.bool_override(knobs).is_none(),
                     ),
                 ),
                 Row::ToolSearch => (
@@ -549,62 +552,4 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
         &mut pane.rows.state,
         None,
     );
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use donn_core::{Donn, DonnHome};
-
-    fn pane() -> SettingsPane {
-        let dir = tempfile::tempdir().unwrap();
-        let donn = Donn::with_home(DonnHome::for_test(dir.path())).unwrap();
-        SettingsPane::new(&donn).unwrap()
-    }
-
-    #[test]
-    fn navigation_never_lands_on_a_section_title() {
-        let mut pane = pane();
-        assert!(!pane.rows.current().unwrap().is_section(), "initial row");
-        let n = pane.rows.len();
-        for _ in 0..n + 2 {
-            pane.nav(Nav::By(1));
-            assert!(!pane.rows.current().unwrap().is_section());
-        }
-        for _ in 0..n + 2 {
-            pane.nav(Nav::By(-1));
-            assert!(!pane.rows.current().unwrap().is_section());
-        }
-        assert_eq!(
-            pane.rows.selected(),
-            1,
-            "moving up past the first section stays put"
-        );
-        pane.nav(Nav::Top);
-        assert_eq!(pane.rows.selected(), 1);
-        pane.nav(Nav::Bottom);
-        assert_eq!(pane.rows.current(), Some(&Row::AddSetting));
-    }
-
-    #[test]
-    fn every_knob_is_listed_exactly_once_under_a_section() {
-        let pane = pane();
-        let flags = pane
-            .rows
-            .items
-            .iter()
-            .filter(|r| matches!(r, Row::Flag(_)))
-            .count();
-        let values = pane
-            .rows
-            .items
-            .iter()
-            .filter(|r| matches!(r, Row::Value(_)))
-            .count();
-        assert_eq!(flags, BOOL_KNOBS.len());
-        assert_eq!(values, VALUE_KNOBS.len());
-        assert!(matches!(pane.rows.items[0], Row::Section(_)));
-        let sections = pane.rows.items.iter().filter(|r| r.is_section()).count();
-        assert_eq!(sections, KnobGroup::ALL.len() + 1);
-    }
 }

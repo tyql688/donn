@@ -489,7 +489,6 @@ dependencies = [
  "ratatui",
  "serde_json",
  "shlex 1.3.0",
- "tempfile",
  "tui-input",
  "unicode-truncate",
  "unicode-width",

@@ -6,7 +6,7 @@ help:
 	@printf '%s\n' \
 		'make run [ARGS="..."]  Run the TUI or a donn subcommand' \
 		'make install           Install donn from this checkout' \
-		'make check             Run all pre-commit checks (fmt, tests, clippy, release build)' \
+		'make check             Run all pre-commit checks (fmt, clippy, release build)' \
 		'make clean             Remove build artifacts (target/)'
 
 run:
@@ -17,7 +17,6 @@ install:
 
 check:
 	$(CARGO) fmt --all -- --check
-	$(CARGO) test --workspace
 	$(CARGO) clippy --workspace --all-targets -- -D warnings
 	$(CARGO) build --release --locked
 

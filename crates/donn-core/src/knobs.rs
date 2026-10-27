@@ -1,5 +1,5 @@
-//! 全局旋钮：donn 认识的 Claude Code 开关/选项。一键一值的放 [`BOOL_KNOBS`] / [`VALUE_KNOBS`]
-//! 表，带条件或要成对写键的是 [`Knobs`] 的类型化字段。每个旋钮写哪个键、什么时候写，
+//! 全局 knob：donn 认识的 Claude Code 开关和选项。一个 key 对应一个值的放 [`BOOL_KNOBS`] / [`VALUE_KNOBS`]
+//! 表，带条件或要成对写 key 的放 [`Knobs`] 的类型化字段。每个 knob 写哪个 key、什么时候写，
 //! 见 docs/GLOBAL-SETTINGS.md；落盘在 `config.toml [defaults.knobs]`（[`crate::config`]）。
 
 use std::collections::BTreeMap;
@@ -9,23 +9,23 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, Result};
 use crate::keys;
 
-/// 简单旋钮落到哪种 Claude Code 键。
+/// 简单 knob 落到哪种 Claude Code key。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KnobTarget {
-    /// settings.json `env` 内的键；布尔旋钮生效值与 Claude 默认不同时写 `"1"`。
+    /// settings.json `env` 里的 key；布尔 knob 的生效值与 Claude 默认不同时写 `"1"`。
     Env(&'static str),
-    /// settings.json 顶层字段；布尔旋钮写 `true`/`false`，标量原样写。
+    /// settings.json 顶层字段；布尔 knob 写 `true` / `false`，标量原样写。
     Setting(&'static str),
 }
 
-/// 设置面板的分组；顺序即面板顺序。
+/// 设置面板的分组；顺序就是面板顺序。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KnobGroup {
-    /// 会话与模型行为。
+    /// session 和 model 行为。
     Session,
-    /// 只对第三方端点有意义的项。
+    /// 只对第三方 endpoint 有意义的项。
     Endpoint,
-    /// 署名与 connectors。
+    /// 署名和 connectors。
     Privacy,
 }
 
@@ -33,12 +33,12 @@ impl KnobGroup {
     pub const ALL: [KnobGroup; 3] = [KnobGroup::Session, KnobGroup::Endpoint, KnobGroup::Privacy];
 }
 
-/// 一个布尔直接映射一个键、无特殊优先级的旋钮。`claude_default` 是键不存在时
-/// Claude Code 的行为——生效值与之相同就不写键（显式设成默认值则删掉 preset 写的同名键）。
-/// 新增此类旋钮 = 这里加一行 + [`crate::config::CONFIG_DOC`] 加一行 + CLI 层 `i18n::knob_label` 加行名。
+/// 一个布尔值直接映射一个 key、没有特殊优先级的 knob。`claude_default` 是 key 不存在时
+/// Claude Code 的行为；生效值与它相同时不写 key，显式设成默认值则删掉 preset 写的同名 key。
+/// 新增这类 knob 时，这里加一行，[`crate::config::CONFIG_DOC`] 加一行，CLI 层的 `i18n::knob_label` 加行名。
 #[derive(Debug, Clone, Copy)]
 pub struct BoolKnob {
-    /// config.toml `[defaults.knobs]` 键名。
+    /// config.toml `[defaults.knobs]` 里的 key 名。
     pub field: &'static str,
     pub group: KnobGroup,
     pub target: KnobTarget,
@@ -90,74 +90,191 @@ pub const BOOL_KNOBS: &[BoolKnob] = &[
     },
 ];
 
-/// 只在特定条件下写键、所以留在 [`Knobs`] 类型化字段里的布尔旋钮。表让面板与渲染
-/// 不必各自列举字段名；`on_when_unset` 是字段省略时的生效值。
+/// 留在 [`Knobs`] 类型化字段里的 knob。`ALL` 的顺序就是设置面板的分组内顺序；
+/// 布尔开关的字段省略值见 [`TypedKnob::on_when_unset`]。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TypedToggle {
+pub enum TypedKnob {
+    /// 默认 permission mode；写 `permissions.defaultMode` 和确认标记。
+    PermissionMode,
+    /// MCP tool search（env），三态：不设置就不写 key。
+    ToolSearch,
     /// agent teams：donn 产品默认开，写 [`keys::AGENT_TEAMS`]。
     AgentTeams,
-    /// 隐藏 Claude 署名：默认关，写 [`keys::ATTRIBUTION`]。
+    /// 第三方 endpoint 请求超时毫秒（env，仅配置了 endpoint 的 provider）。
+    ApiTimeoutMs,
+    /// 禁非必要网络流量：默认关，只对配置了 endpoint 的 profile 写 [`keys::NONESSENTIAL_TRAFFIC`]。
+    DisableNonessentialTraffic,
+    /// 隐藏 Claude 署名：默认关，写 `attribution`。
     HideAttribution,
-    /// 禁非必要网络流量：默认关，只对有端点的 profile 写 [`keys::NONESSENTIAL_TRAFFIC`]。
-    NonessentialTraffic,
 }
 
-impl TypedToggle {
-    pub const ALL: [TypedToggle; 3] = [
-        TypedToggle::AgentTeams,
-        TypedToggle::HideAttribution,
-        TypedToggle::NonessentialTraffic,
+impl TypedKnob {
+    /// 面板分组内的顺序：session、endpoint、privacy。
+    pub const ALL: [TypedKnob; 6] = [
+        TypedKnob::PermissionMode,
+        TypedKnob::ToolSearch,
+        TypedKnob::AgentTeams,
+        TypedKnob::ApiTimeoutMs,
+        TypedKnob::DisableNonessentialTraffic,
+        TypedKnob::HideAttribution,
     ];
 
     pub fn field(self) -> &'static str {
         match self {
-            TypedToggle::AgentTeams => "agent_teams",
-            TypedToggle::HideAttribution => "hide_attribution",
-            TypedToggle::NonessentialTraffic => "disable_nonessential_traffic",
+            TypedKnob::PermissionMode => "permission_mode",
+            TypedKnob::ToolSearch => "tool_search",
+            TypedKnob::AgentTeams => "agent_teams",
+            TypedKnob::ApiTimeoutMs => "api_timeout_ms",
+            TypedKnob::DisableNonessentialTraffic => "disable_nonessential_traffic",
+            TypedKnob::HideAttribution => "hide_attribution",
         }
-    }
-
-    pub fn on_when_unset(self) -> bool {
-        matches!(self, TypedToggle::AgentTeams)
-    }
-
-    /// 对应的 env 键；写 settings 顶层字段的旋钮（署名）返回 `None`。
-    pub fn env_key(self) -> Option<&'static str> {
-        match self {
-            TypedToggle::AgentTeams => Some(keys::AGENT_TEAMS),
-            TypedToggle::HideAttribution => None,
-            TypedToggle::NonessentialTraffic => Some(keys::NONESSENTIAL_TRAFFIC),
-        }
-    }
-
-    /// 只对配了端点的 profile 生效。
-    pub fn requires_endpoint(self) -> bool {
-        matches!(self, TypedToggle::NonessentialTraffic)
     }
 
     /// 设置面板分组。
     pub fn group(self) -> KnobGroup {
         match self {
-            TypedToggle::AgentTeams => KnobGroup::Session,
-            TypedToggle::HideAttribution => KnobGroup::Privacy,
-            TypedToggle::NonessentialTraffic => KnobGroup::Endpoint,
+            TypedKnob::PermissionMode | TypedKnob::ToolSearch | TypedKnob::AgentTeams => {
+                KnobGroup::Session
+            }
+            TypedKnob::ApiTimeoutMs | TypedKnob::DisableNonessentialTraffic => KnobGroup::Endpoint,
+            TypedKnob::HideAttribution => KnobGroup::Privacy,
         }
     }
 
-    fn slot(self, knobs: &mut Knobs) -> &mut Option<bool> {
+    /// 字段省略时的生效值；`None` = 省略时不写 key（tool search）或不是布尔 knob。
+    pub fn on_when_unset(self) -> Option<bool> {
         match self {
-            TypedToggle::AgentTeams => &mut knobs.agent_teams,
-            TypedToggle::HideAttribution => &mut knobs.hide_attribution,
-            TypedToggle::NonessentialTraffic => &mut knobs.disable_nonessential_traffic,
+            TypedKnob::AgentTeams => Some(true),
+            TypedKnob::ToolSearch | TypedKnob::PermissionMode | TypedKnob::ApiTimeoutMs => None,
+            TypedKnob::DisableNonessentialTraffic | TypedKnob::HideAttribution => Some(false),
         }
     }
 
-    fn read(self, knobs: &Knobs) -> Option<bool> {
+    /// 默认值写进 env 的布尔开关；tool search 和署名不在这条通路里。
+    pub fn default_env_key(self) -> Option<&'static str> {
         match self {
-            TypedToggle::AgentTeams => knobs.agent_teams,
-            TypedToggle::HideAttribution => knobs.hide_attribution,
-            TypedToggle::NonessentialTraffic => knobs.disable_nonessential_traffic,
+            TypedKnob::AgentTeams => Some(keys::AGENT_TEAMS),
+            TypedKnob::DisableNonessentialTraffic => Some(keys::NONESSENTIAL_TRAFFIC),
+            _ => None,
         }
+    }
+
+    /// 只对配置了 endpoint 的 profile 生效。
+    pub fn requires_endpoint(self) -> bool {
+        matches!(self, TypedKnob::DisableNonessentialTraffic)
+    }
+
+    /// 布尔 knob 的生效值；非布尔 knob 返回 `None`。`ToolSearch` 的 `None` 表示跟随上游。
+    pub fn bool_value(self, knobs: &Knobs) -> Option<bool> {
+        match self {
+            TypedKnob::ToolSearch => knobs.tool_search,
+            TypedKnob::AgentTeams => Some(knobs.agent_teams.unwrap_or(true)),
+            TypedKnob::DisableNonessentialTraffic => {
+                Some(knobs.disable_nonessential_traffic.unwrap_or(false))
+            }
+            TypedKnob::HideAttribution => Some(knobs.hide_attribution.unwrap_or(false)),
+            TypedKnob::PermissionMode | TypedKnob::ApiTimeoutMs => None,
+        }
+    }
+
+    /// 显式写入的值；`None` = 跟随省略时的默认。
+    pub fn bool_override(self, knobs: &Knobs) -> Option<bool> {
+        match self {
+            TypedKnob::ToolSearch => knobs.tool_search,
+            TypedKnob::AgentTeams => knobs.agent_teams,
+            TypedKnob::DisableNonessentialTraffic => knobs.disable_nonessential_traffic,
+            TypedKnob::HideAttribution => knobs.hide_attribution,
+            TypedKnob::PermissionMode | TypedKnob::ApiTimeoutMs => None,
+        }
+    }
+
+    fn bool_slot(self, knobs: &mut Knobs) -> Option<&mut Option<bool>> {
+        match self {
+            TypedKnob::ToolSearch => Some(&mut knobs.tool_search),
+            TypedKnob::AgentTeams => Some(&mut knobs.agent_teams),
+            TypedKnob::DisableNonessentialTraffic => Some(&mut knobs.disable_nonessential_traffic),
+            TypedKnob::HideAttribution => Some(&mut knobs.hide_attribution),
+            TypedKnob::PermissionMode | TypedKnob::ApiTimeoutMs => None,
+        }
+    }
+
+    /// 翻到 `next`；与省略时的值相同就回到省略，不给 provider 写多余的 key。
+    pub fn set_bool(self, knobs: &mut Knobs, next: bool) -> bool {
+        let Some(default) = self.on_when_unset() else {
+            return false;
+        };
+        let Some(slot) = self.bool_slot(knobs) else {
+            return false;
+        };
+        *slot = (next != default).then_some(next);
+        true
+    }
+
+    /// 只合并与 `base` 不同的字段；`current` 是落盘前重读的配置。
+    pub fn apply_if_changed(self, current: &mut Knobs, base: &Knobs, value: &Knobs) {
+        match self {
+            TypedKnob::PermissionMode => {
+                if value.permission_mode != base.permission_mode {
+                    current.permission_mode = value.permission_mode.clone();
+                }
+            }
+            TypedKnob::ToolSearch => {
+                if value.tool_search != base.tool_search {
+                    current.tool_search = value.tool_search;
+                }
+            }
+            TypedKnob::AgentTeams => {
+                if value.agent_teams != base.agent_teams {
+                    current.agent_teams = value.agent_teams;
+                }
+            }
+            TypedKnob::ApiTimeoutMs => {
+                if value.api_timeout_ms != base.api_timeout_ms {
+                    current.api_timeout_ms = value.api_timeout_ms;
+                }
+            }
+            TypedKnob::DisableNonessentialTraffic => {
+                if value.disable_nonessential_traffic != base.disable_nonessential_traffic {
+                    current.disable_nonessential_traffic = value.disable_nonessential_traffic;
+                }
+            }
+            TypedKnob::HideAttribution => {
+                if value.hide_attribution != base.hide_attribution {
+                    current.hide_attribution = value.hide_attribution;
+                }
+            }
+        }
+    }
+
+    /// 类型化字段的取值校验；每个需要校验的变体都在这里有一支。
+    pub fn validate(self, knobs: &Knobs) -> Result<()> {
+        match self {
+            TypedKnob::PermissionMode => {
+                if let Some(mode) = &knobs.permission_mode
+                    && !keys::PERMISSION_MODES.contains(&mode.as_str())
+                {
+                    return Err(Error::InvalidInput(format!(
+                        "invalid permission_mode `{mode}` (expected one of {:?})",
+                        keys::PERMISSION_MODES
+                    )));
+                }
+            }
+            TypedKnob::ApiTimeoutMs => {
+                if let Some(ms) = knobs.api_timeout_ms
+                    && ms > keys::API_TIMEOUT_MAX
+                {
+                    return Err(Error::InvalidInput(format!(
+                        "api_timeout_ms must be at most {} (values above overflow the upstream timer and fail immediately)",
+                        keys::API_TIMEOUT_MAX
+                    )));
+                }
+            }
+            TypedKnob::ToolSearch
+            | TypedKnob::AgentTeams
+            | TypedKnob::DisableNonessentialTraffic
+            | TypedKnob::HideAttribution => {}
+        }
+        Ok(())
     }
 }
 
@@ -166,11 +283,11 @@ pub enum ValueKind {
     Text,
     /// 非负整数。
     Number,
-    /// 有限取值；TUI 用选择框，非法存量值不写键。
+    /// 有限取值；TUI 用选择框，非法存量值不写 key。
     Enum(&'static [&'static str]),
 }
 
-/// 一个标量直接映射一个键的旋钮；未设置 = 不写键（跟随 Claude Code）。
+/// 一个标量直接映射一个 key 的 knob；不设置就不写 key（跟随 Claude Code）。
 #[derive(Debug, Clone, Copy)]
 pub struct ValueKnob {
     pub field: &'static str,
@@ -217,48 +334,39 @@ pub const VALUE_KNOBS: &[ValueKnob] = &[
     },
 ];
 
-/// 全局旋钮：donn 认识的 Claude Code 开关/选项，类型化定义（TUI 直接渲染成
-/// 开关/选择器）。`None` = 跟随默认；默认值见各 `*_on()` 取值方法。
+/// 全局 knob：donn 认识的 Claude Code 开关和选项，类型化定义，TUI 直接渲染成
+/// 开关或选择器。`None` = 跟随默认；默认值见各 `*_on()` 取值方法。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Knobs {
-    /// 实验特性 agent teams（env）。默认：开。
+    /// 实验特性 agent teams（env）。默认开。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_teams: Option<bool>,
-    /// MCP tool search（env），三态：不设 = 不写键，`true` / `false` 照写。见 [`keys::TOOL_SEARCH`]。
+    /// MCP tool search（env），三态：不设置就不写 key，`true` / `false` 照写。见 [`keys::TOOL_SEARCH`]。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_search: Option<bool>,
-    /// 默认权限模式；`None` = bypassPermissions。
+    /// 默认 permission mode；`None` = bypassPermissions。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permission_mode: Option<String>,
-    /// commit/PR 隐藏 Claude 署名（settings attribution 置空）。默认：关。
+    /// commit/PR 隐藏 Claude 署名（settings 的 attribution 置空）。默认关。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hide_attribution: Option<bool>,
-    /// 第三方端点请求超时毫秒（env，仅配了端点的渠道）。默认：600000。
+    /// 第三方 endpoint 请求超时毫秒（env，只对配置了 endpoint 的 provider）。默认 600000。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_timeout_ms: Option<u64>,
-    /// 禁非必要网络流量（env，仅配了端点的渠道）。默认：关。
+    /// 禁非必要网络流量（env，只对配置了 endpoint 的 provider）。默认关。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disable_nonessential_traffic: Option<bool>,
-    /// 简单旋钮（[`BOOL_KNOBS`] / [`VALUE_KNOBS`]）与未知键，按 config.toml 原样保留。
+    /// 简单 knob（[`BOOL_KNOBS`] / [`VALUE_KNOBS`]）和未知 key，按 config.toml 原样保留。
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
 }
 
-/// [`Knobs`] 类型化字段的 config.toml 键名，顺序同结构体定义。
-pub const TYPED_KNOB_FIELDS: [&str; 6] = [
-    "agent_teams",
-    "tool_search",
-    "permission_mode",
-    "hide_attribution",
-    "api_timeout_ms",
-    "disable_nonessential_traffic",
-];
-
-/// donn 认识的全部旋钮键名：类型化字段 + 两张表。
+/// donn 认识的全部 knob key 名：类型化字段加上两张表。
 pub fn knob_fields() -> impl Iterator<Item = &'static str> {
-    TYPED_KNOB_FIELDS
+    TypedKnob::ALL
         .into_iter()
+        .map(TypedKnob::field)
         .chain(BOOL_KNOBS.iter().map(|k| k.field))
         .chain(VALUE_KNOBS.iter().map(|k| k.field))
 }
@@ -273,22 +381,7 @@ impl Knobs {
         self.api_timeout_ms.unwrap_or(600_000)
     }
 
-    /// 类型化布尔旋钮的生效值。
-    pub fn typed_on(&self, toggle: TypedToggle) -> bool {
-        toggle.read(self).unwrap_or(toggle.on_when_unset())
-    }
-
-    /// 显式写入的值；`None` = 跟随省略时的默认。
-    pub fn typed_override(&self, toggle: TypedToggle) -> Option<bool> {
-        toggle.read(self)
-    }
-
-    /// 翻转到 `next`；与省略时的值相同就回到省略（不给 provider 写多余键）。
-    pub fn set_typed(&mut self, toggle: TypedToggle, next: bool) {
-        *toggle.slot(self) = (next != toggle.on_when_unset()).then_some(next);
-    }
-
-    /// 简单布尔旋钮的生效值（未设置 = Claude 默认）。
+    /// 简单布尔 knob 的生效值（不设置 = Claude 默认）。
     pub fn flag(&self, knob: &BoolKnob) -> bool {
         self.extra
             .get(knob.field)
@@ -296,7 +389,7 @@ impl Knobs {
             .unwrap_or(knob.claude_default)
     }
 
-    /// 简单标量旋钮的值；未设置 = `None`（加载时已校验类型）。
+    /// 简单标量 knob 的值；不设置 = `None`（加载时已经校验类型）。
     pub fn value(&self, knob: &ValueKnob) -> Option<&serde_json::Value> {
         self.extra.get(knob.field)
     }
@@ -305,24 +398,25 @@ impl Knobs {
         self.extra.contains_key(field)
     }
 
-    /// 取值校验：权限模式必须在枚举内，简单旋钮必须符合各自类型/枚举表；
-    /// api_timeout_ms 不得超上游 i32 上限（超出后请求立即失败）。未知键放行。
-    pub fn validate(&self) -> Result<()> {
-        if let Some(mode) = &self.permission_mode
-            && !keys::PERMISSION_MODES.contains(&mode.as_str())
-        {
-            return Err(Error::InvalidInput(format!(
-                "invalid permission_mode `{mode}` (expected one of {:?})",
-                keys::PERMISSION_MODES
-            )));
+    /// 只合并与 `base` 不同的字段；进 lock 后重读的配置作为 `self`。
+    pub fn apply_changes_from(&mut self, base: &Knobs, value: &Knobs) {
+        for knob in TypedKnob::ALL {
+            knob.apply_if_changed(self, base, value);
         }
-        if let Some(ms) = self.api_timeout_ms
-            && ms > keys::API_TIMEOUT_MAX
-        {
-            return Err(Error::InvalidInput(format!(
-                "api_timeout_ms must be at most {} (values above overflow the upstream timer and fail immediately)",
-                keys::API_TIMEOUT_MAX
-            )));
+        let keys: std::collections::BTreeSet<&String> =
+            base.extra.keys().chain(value.extra.keys()).collect();
+        for key in keys {
+            if value.extra.get(key) != base.extra.get(key) {
+                self.set_extra(key, value.extra.get(key).cloned());
+            }
+        }
+    }
+
+    /// 取值校验：类型化字段按各自的规则校验，简单 knob 必须符合各自的类型或枚举表。
+    /// 未知 key 放行。
+    pub fn validate(&self) -> Result<()> {
+        for knob in TypedKnob::ALL {
+            knob.validate(self)?;
         }
         for knob in BOOL_KNOBS {
             if let Some(value) = self.extra.get(knob.field)
@@ -352,7 +446,7 @@ impl Knobs {
         Ok(())
     }
 
-    /// 标量旋钮值的文本形式：字符串原样，数字/布尔用 JSON 文本（env 值与面板显示共用）。
+    /// 标量 knob 值的文本形式：字符串原样，数字和布尔用 JSON 文本（env 值和面板显示共用）。
     pub fn scalar_text(value: &serde_json::Value) -> String {
         match value {
             serde_json::Value::String(s) => s.clone(),
@@ -360,7 +454,7 @@ impl Knobs {
         }
     }
 
-    /// `None` = 回到跟随默认（删键）。
+    /// `None` = 回到跟随默认（删 key）。
     pub fn set_extra(&mut self, field: &str, value: Option<serde_json::Value>) {
         match value {
             Some(value) => {
@@ -370,34 +464,5 @@ impl Knobs {
                 self.extra.remove(field);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn typed_knob_fields_match_the_struct_and_no_field_name_repeats() {
-        let all_set = Knobs {
-            agent_teams: Some(true),
-            tool_search: Some(true),
-            permission_mode: Some("plan".into()),
-            hide_attribution: Some(true),
-            api_timeout_ms: Some(1),
-            disable_nonessential_traffic: Some(true),
-            extra: BTreeMap::new(),
-        };
-        let serialized = serde_json::to_value(&all_set).unwrap();
-        let fields: Vec<&str> = serialized
-            .as_object()
-            .unwrap()
-            .keys()
-            .map(String::as_str)
-            .collect();
-        assert_eq!(fields, TYPED_KNOB_FIELDS);
-
-        let unique: std::collections::BTreeSet<&str> = knob_fields().collect();
-        assert_eq!(unique.len(), knob_fields().count(), "duplicate knob field");
     }
 }

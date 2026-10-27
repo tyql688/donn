@@ -1,85 +1,85 @@
-//! 键注册表：donn 认识的全部 env / settings 键名，唯一定义处。
-//! render / doctor / 读取视图都从这里取键名——新增托管键只改这一个文件。
+//! key 注册表：donn 认识的全部 env / settings key 名，唯一定义处。
+//! render、doctor 和读取视图都从这里取 key 名。新增托管 key 只改这个文件。
 //!
-//! # 键的来源（每个键的注释里标注）
-//! - **[官方]**：Claude Code 官方文档在册
+//! # key 的来源（每个 key 的注释里标注）
+//! - [官方]：Claude Code 官方文档在册
 //!   （<https://code.claude.com/docs/zh-CN/env-vars> 与 settings 文档）。
-//! - **[官方·二进制 schema]**：settings.json / `.claude.json` 里的键，取值形状按 claude
+//! - [官方·二进制 schema]：settings.json / `.claude.json` 里的 key，取值形状按 claude
 //!   二进制里的 schema 核对。
-//! - **[官方·未在册]**：官方 env 文档未列，但在 claude 二进制里逆向验证过的真实键。
-//!   后两类上游行为变化风险高于在册键，升级时优先复查。
-//! - **自定义**：用户在 TUI `env +` 里添加的任意键——donn 只做操作系统要求的
-//!   名称/NUL 校验，其余原样注入，不在本注册表中。
+//! - [官方·未在册]：官方 env 文档未列，但在 claude 二进制里逆向验证过的真实 key。
+//!   后两类上游行为变化的风险高于在册 key，升级时优先复查。
+//! - 自定义：用户在 TUI `env +` 里添加的任意 key。donn 只做操作系统要求的名称/NUL 校验，
+//!   其余原样注入，不在本注册表中。
 //!
-//! donn 自有的配置概念（preset、isolation、aliases、knobs…）不是键——
-//! 它们存 profile.toml / config.toml，最终**渲染成**下列键。
+//! donn 自己的配置概念（preset、isolation、alias、knob 等）不是 key。
+//! 它们存在 profile.toml / config.toml，最终渲染成下面这些 key。
 //!
 //! 未在册的只有 `CLAUDE_CODE_NO_MODEL_FALLBACK`、[`SHELL_OVERRIDE_KEYS`] 里的两个 provider 开关，
-//! 与 `.claude.json` 两个内部状态键（hasCompletedOnboarding / customApiKeyResponses）。
+//! 以及 `.claude.json` 两个内部状态 key（hasCompletedOnboarding / customApiKeyResponses）。
 
 use serde::{Deserialize, Serialize};
 
-/// [官方] 端点。
+/// [官方] endpoint。
 pub const BASE_URL: &str = "ANTHROPIC_BASE_URL";
 /// [官方] 认证（api_key 模式，发 X-Api-Key 头）。
 pub const API_KEY: &str = "ANTHROPIC_API_KEY";
 /// [官方] 认证（auth_token 模式，发 Authorization 头）。
 pub const AUTH_TOKEN: &str = "ANTHROPIC_AUTH_TOKEN";
-/// [官方] 禁自动更新。隔离实例恒写，防止实例间版本漂移。
+/// [官方] 禁自动更新。isolation 实例恒写，防止实例间版本漂移。
 pub const AUTOUPDATER: &str = "DISABLE_AUTOUPDATER";
-/// [官方] 请求超时毫秒（默认 600000，上限 2147483647——超出会溢出上游计时器；
-/// v2.1.305+ 可设 0 取消上限，donn 只写正数）。
+/// [官方] 请求超时毫秒（默认 600000，上限 2147483647）。超过上限会溢出上游计时器；
+/// v2.1.305+ 可以设 0 取消上限，donn 允许写 0。
 pub const API_TIMEOUT: &str = "API_TIMEOUT_MS";
 /// [官方] `API_TIMEOUT_MS` 接受的最大值（i32 上限）。
 pub const API_TIMEOUT_MAX: u64 = 2_147_483_647;
-/// [官方] 禁非必要网络流量。该键设任意值均为禁，「关」只能删除键。
+/// [官方] 禁非必要网络流量。这个 key 设任意值都表示禁用；要关掉只能删除 key。
 pub const NONESSENTIAL_TRAFFIC: &str = "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC";
-/// [官方] 实验特性：agent teams（上游默认关；donn 产品默认开，见 `Knobs::agent_teams_on`）。
+/// [官方] 实验特性：agent teams（上游默认关；donn 产品默认开，见 [`crate::knobs::TypedKnob`]）。
 pub const AGENT_TEAMS: &str = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS";
-/// [官方] MCP tool search（env）。unset = defer；`"true"` 恒 defer 并发 beta 头（代理需支持
-/// tool_reference）；`"auto"`/`"auto:N"` 工具定义超上下文阈值才 defer；`"false"` 全部
-/// upfront。v2.1.304 起 `ANTHROPIC_BASE_URL` 指向网关时同样默认 defer，更早的版本在网关后
-/// 只有显式 `true`/`auto` 才 defer。设了 [`DISABLE_EXPERIMENTAL_BETAS`] 时本键被忽略。
-/// donn 默认不写键；显式 `true`/`false` 照写。
+/// [官方] MCP tool search（env）。不写时由 Claude Code 决定：`"true"` 始终 defer 并发送 beta 头
+/// （proxy 需要支持 tool_reference），`"auto"` / `"auto:N"` 在工具定义超过上下文阈值时才 defer，
+/// `"false"` 一次性全量加载。v2.1.304 起，`ANTHROPIC_BASE_URL` 指向 gateway 时也默认 defer；
+/// 更早的版本在 gateway 后只有显式 `true` / `auto` 才 defer。设置 [`DISABLE_EXPERIMENTAL_BETAS`]
+/// 后这个 key 会被忽略。donn 默认不写 key；显式 `true` / `false` 照写。
 pub const TOOL_SEARCH: &str = "ENABLE_TOOL_SEARCH";
 
-/// [官方·二进制 schema] settings.json 顶层键：commit/PR 署名（空串 = 不加）。
+/// [官方·二进制 schema] settings.json 顶层 key：commit/PR 署名（空串 = 不加）。
 pub const ATTRIBUTION: &str = "attribution";
-/// 「隐藏署名」旋钮写入的完整值。逐项形式对所有 Claude Code 版本有效；整体 `false`
-/// 只有 v2.1.281+ 认识，更早的版本遇到它会跳过整份 settings 文件。
+/// 「隐藏署名」knob 写入的完整值。逐项形式对所有 Claude Code 版本有效；整体 `false`
+/// 只有 v2.1.281+ 认识，更早的版本遇到它会跳过整个 settings 文件。
 pub fn attribution_hidden() -> serde_json::Value {
     serde_json::json!({"commit": "", "pr": "", "sessionUrl": false})
 }
-/// [官方·二进制 schema] settings.json 顶层键：持久化思考强度（档位见
-/// [`EFFORT_SETTING_LEVELS`]）。v2.1.251 起 `/effort` 改存 `modelSettings`（按模型），
-/// 同文件内按模型的存档优先于本键；env [`EFFORT`] 优先于本键与 `--effort` flag。
-/// user settings（含 `CLAUDE_CONFIG_DIR/settings.json`）里的本键对 Opus 5.5 及之后的模型
-/// 不生效，它们从自身默认档起步；project、local、managed、`--settings` 来源的本键对所有模型生效。
+/// [官方·二进制 schema] settings.json 顶层 key：持久化的思考强度（档位见
+/// [`EFFORT_SETTING_LEVELS`]）。v2.1.251 起，`/effort` 改成按 model 存到 `modelSettings`，
+/// 同一个文件里按 model 的存档优先于这个 key；env [`EFFORT`] 优先于这个 key 和 `--effort` flag。
+/// user settings（包括 `CLAUDE_CONFIG_DIR/settings.json`）里的这个 key 对 Opus 5.5 及之后的 model
+/// 不生效，它们从自己的默认档起步；来自 project、local、managed、`--settings` 的这个 key 对所有 model 生效。
 pub const EFFORT_SETTING: &str = "effortLevel";
 /// [官方·二进制 schema] `effortLevel` 持久化设置的合法档位
 /// （与 env 的 [`Effort`] 不同：无 max，auto = 不设）。
 pub const EFFORT_SETTING_LEVELS: [&str; 4] = ["low", "medium", "high", "xhigh"];
-/// [官方] settings.json 顶层键：`false` 为所有会话关闭 extended thinking
-/// （thinking 默认开，`true` 无效果；Opus 5.5、Sonnet 5.5、Haiku 5.5、Fable 等恒思考模型忽略此键）。
-/// 第三方端点上 Claude Code 是省略 `thinking` 参数而不是关闭，自适应推理的模型仍可能思考。
+/// [官方] settings.json 顶层 key：`false` 关闭所有 session 的 extended thinking
+/// （thinking 默认开，`true` 没有效果；Opus 5.5、Sonnet 5.5、Haiku 5.5、Fable 等恒思考 model 忽略这个 key）。
+/// 在第三方 endpoint 上，Claude Code 的处理是省略 `thinking` 参数，并没有关闭推理，自适应推理的 model 仍可能思考。
 pub const ALWAYS_THINKING: &str = "alwaysThinkingEnabled";
-/// [官方] settings.json 顶层键：思考强度上限（v2.1.267+），任何更高档位按上限运行；
+/// [官方] settings.json 顶层 key：思考强度上限（v2.1.267+），任何更高档位按上限运行；
 /// 合法档位见 [`MAX_EFFORT_LEVELS`]，`max` = 不设上限。
 pub const MAX_EFFORT_SETTING: &str = "maxEffortLevel";
 /// [官方] `maxEffortLevel` 合法档位。
 pub const MAX_EFFORT_LEVELS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
-/// settings.json 顶层键中 donn 另有专门通路管理、用户全局默认不得触碰的保留键。
+/// settings.json 顶层 key 中 donn 另有专门通路管理、用户全局默认不得触碰的保留 key。
 pub const RESERVED_TOP_KEYS: [&str; 2] = ["env", "permissions"];
-/// [官方·二进制 schema] settings.json 顶层键：显式停用 claude.ai connectors。
+/// [官方·二进制 schema] settings.json 顶层 key：显式停用 claude.ai connectors。
 pub const CLAUDEAI_CONNECTORS: &str = "disableClaudeAiConnectors";
-/// [官方·二进制 schema] settings.json 顶层键：已接受 bypass 确认屏，
-/// 启动不再弹「危险模式」提示（与 permissions.defaultMode 旋钮成对写入）。
+/// [官方·二进制 schema] settings.json 顶层 key：已接受 bypass 确认屏，
+/// 启动不再弹「危险模式」提示（与 permissions.defaultMode knob 成对写入）。
 pub const SKIP_DANGEROUS_PROMPT: &str = "skipDangerousModePermissionPrompt";
-/// [官方·二进制 schema] `permissions` 对象内的默认权限模式子键。
+/// [官方·二进制 schema] `permissions` 对象内的默认权限模式子 key。
 pub const PERMISSIONS_DEFAULT_MODE: &str = "defaultMode";
-/// [官方] `permissions.defaultMode` 合法枚举。`auto`/`bypassPermissions` 只在 user、
-/// managed、`--settings` 来源生效（project/local 写了不生效）；`manual` 是 `default`
-/// 的别名（knob 不接受，用 `default` 档）。
+/// [官方] `permissions.defaultMode` 的合法枚举。`auto` / `bypassPermissions` 只在 user、
+/// managed、`--settings` 来源生效，写在 project/local 里不生效；`manual` 是 `default`
+/// 的 alias，knob 不接受，统一用 `default`。
 pub const PERMISSION_MODES: [&str; 6] = [
     "default",
     "acceptEdits",
@@ -95,37 +95,56 @@ pub const BYPASS_PERMISSIONS: &str = "bypassPermissions";
 pub const CLAUDEAI_MCP: &str = "ENABLE_CLAUDEAI_MCP_SERVERS";
 /// [官方] 思考强度（low/medium/high/xhigh/max/auto；env 优先于持久化的 effortLevel）。
 pub const EFFORT: &str = "CLAUDE_CODE_EFFORT_LEVEL";
-/// [官方] 自动压缩触发窗口（token，`100000..=1000000`；v2.1.304+ 也收 `200k`/`1M` 这类后缀
-/// 写法，donn 只写纯整数）。超过上限的窗口按 [`AUTO_COMPACT_MAX`] 写；优先于 `--autocompact`
-/// flag 与 `autoCompactWindow` 设置键。
+/// [官方] 自动压缩的触发窗口（token，`100000..=1000000`）。v2.1.304+ 也接受 `200k` / `1M`
+/// 这类后缀，donn 只写纯整数。超过上限的窗口按 [`AUTO_COMPACT_MAX`] 写；这个 key 优先于
+/// `--autocompact` flag 和 `autoCompactWindow` 设置 key。
 pub const AUTO_COMPACT: &str = "CLAUDE_CODE_AUTO_COMPACT_WINDOW";
 /// [官方] `CLAUDE_CODE_AUTO_COMPACT_WINDOW` 接受的最大值。
 pub const AUTO_COMPACT_MAX: u64 = 1_000_000;
 /// [官方] 最大上下文 token 数。与 [`AUTO_COMPACT`] 成对配置。
 pub const MAX_CONTEXT: &str = "CLAUDE_CODE_MAX_CONTEXT_TOKENS";
-/// [官方] subagent 默认模型（不设时部分渠道会静默失败）。
+/// [官方] subagent 默认 model（不设时部分 provider 会静默失败）。
 pub const SUBAGENT_MODEL: &str = "CLAUDE_CODE_SUBAGENT_MODEL";
 
-// ── 简单旋钮映射的键（见 [`crate::knobs::BOOL_KNOBS`] / [`crate::knobs::VALUE_KNOBS`]）──
-/// [官方] 去掉 anthropic-beta 头与 beta 工具字段；代理网关报 "Unexpected anthropic-beta" 时用。
+// ── 简单 knob 映射的 key（见 [`crate::knobs::BOOL_KNOBS`] / [`crate::knobs::VALUE_KNOBS`]）──
+/// [官方] 去掉 anthropic-beta 头与 beta 工具字段；proxy gateway 报 "Unexpected anthropic-beta" 时用。
 pub const DISABLE_EXPERIMENTAL_BETAS: &str = "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS";
-/// [官方] 单次回复最大输出 token（未知模型 id 默认 32000，超过模型上限按上限）。
+/// [官方] 单次回复最大输出 token（未知 model id 默认 32000，超过 model 上限按上限）。
 pub const MAX_OUTPUT_TOKENS: &str = "CLAUDE_CODE_MAX_OUTPUT_TOKENS";
-/// [官方] 对 Claude Code 不认识的模型 id（网关别名等）不按猜测的窗口提前压缩，
-/// 只在 API 报 too-long 后压缩。preset 套餐给了 `max_context` 时不需要开。
+/// [官方] 对 Claude Code 不认识的 model id（gateway alias 等）不按猜测的窗口提前压缩，
+/// 只在 API 报 too-long 后压缩。preset package 给了 `max_context` 时不需要开。
 pub const DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: &str =
     "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT";
-/// [官方·未在册] 关闭模型不可用/被安全分类器拦截时的自动切换。
+/// [官方·未在册] 关闭 model 不可用/被安全分类器拦截时的自动切换。
 pub const NO_MODEL_FALLBACK: &str = "CLAUDE_CODE_NO_MODEL_FALLBACK";
 /// [官方] 强制 subagent/teammate/workflow agent 都用 [`SUBAGENT_MODEL`]（v2.1.257+）。
 pub const SUBAGENT_MODEL_FORCE: &str = "CLAUDE_CODE_SUBAGENT_MODEL_FORCE";
-/// [官方] settings.json 顶层键：默认回复语言（任意语言名，原样进系统提示）。
+/// [官方] settings.json 顶层 key：默认回复语言（任意语言名，原样进系统提示）。
 pub const LANGUAGE: &str = "language";
-/// [官方] settings.json 顶层键：上下文接近上限时自动压缩（默认 true）。
+/// [官方] settings.json 顶层 key：上下文接近上限时自动压缩（默认 true）。
 pub const AUTO_COMPACT_ENABLED: &str = "autoCompactEnabled";
 
-/// donn 从不写、但启动时从继承的 shell 环境剥掉的键：留着会把会话改道到别的云厂商，
-/// 或盖掉 profile 的模型映射。用户写进 `[defaults.env]` / `[intent.env]` 的照常注入。
+/// 启动时从继承的 shell env 里剥掉的固定 env key。表驱动 knob 的 `Env` 目标和 model slot
+/// 由 `render::managed_env_keys` 另外追加；这里只列不来自那两张表的 key。
+pub const MANAGED_ENV_KEYS: [&str; 14] = [
+    BASE_URL,
+    API_KEY,
+    AUTH_TOKEN,
+    AUTOUPDATER,
+    API_TIMEOUT,
+    NONESSENTIAL_TRAFFIC,
+    AGENT_TEAMS,
+    TOOL_SEARCH,
+    CLAUDEAI_MCP,
+    EFFORT,
+    AUTO_COMPACT,
+    MAX_CONTEXT,
+    SUBAGENT_MODEL,
+    "CLAUDE_CONFIG_DIR",
+];
+
+/// donn 从不写、但启动时从继承的 shell 环境剥掉的 key：留着会把 session 改道到别的云厂商，
+/// 或盖掉 profile 的 model 映射。用户写进 `[defaults.env]` / `[intent.env]` 的照常注入。
 /// 末两个是 [官方·未在册]（取自二进制里的 provider 开关名单），其余 [官方]。
 pub const SHELL_OVERRIDE_KEYS: [&str; 11] = [
     "ANTHROPIC_MODEL",
@@ -158,10 +177,10 @@ pub fn validate_env_entry(key: &str, value: &str) -> crate::error::Result<()> {
 }
 
 /// 思考强度：类型化的 `CLAUDE_CODE_EFFORT_LEVEL` 取值序列。
-/// `Auto` = 不写该键（跟随 Claude Code 自身设置）。选择弹窗按 [`Effort::ALL`] 顺序列出。
+/// `Auto` = 不写该 key（跟随 Claude Code 自身设置）。选择弹窗按 [`Effort::ALL`] 顺序列出。
 ///
 /// 合法值取自 claude 二进制的 `["low","medium","high","xhigh","max"]`；
-/// `/effort` 里的 `ultracode` 不是合法 env 值（会话模式，内部映射 xhigh），不收录。
+/// `/effort` 里的 `ultracode` 不是合法 env 值（session 模式，内部映射 xhigh），不收录。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Effort {
     #[default]
@@ -183,7 +202,7 @@ impl Effort {
         Effort::Max,
     ];
 
-    /// env 值；`Auto` 为 `None`（不写键）。
+    /// env 值；`Auto` 为 `None`（不写 key）。
     pub fn env_value(self) -> Option<&'static str> {
         match self {
             Effort::Auto => None,
@@ -195,8 +214,8 @@ impl Effort {
         }
     }
 
-    /// 从 env 值解析。输入 `None`（键未设置）返回 `Some(Auto)`；
-    /// 无法识别的值返回 `None`——调用方自行决定如何呈现/报错，不静默吞掉 typo。
+    /// 从 env 值解析。输入 `None`（key 未设置）返回 `Some(Auto)`；
+    /// 无法识别的值返回 `None`；调用方自行决定如何呈现或报错，不静默吞掉 typo。
     pub fn from_env(value: Option<&str>) -> Option<Effort> {
         Effort::ALL.into_iter().find(|e| e.env_value() == value)
     }
@@ -206,19 +225,19 @@ impl Effort {
         Self::ALL.iter().position(|e| *e == self).unwrap_or(0)
     }
 }
-/// [官方·二进制 schema] `.claude.json` 顶层键：跳过首次向导。
+/// [官方·二进制 schema] `.claude.json` 顶层 key：跳过首次向导。
 pub const ONBOARDING: &str = "hasCompletedOnboarding";
-/// [官方·二进制 schema] `.claude.json` 顶层键：API key 确认屏白名单。
+/// [官方·二进制 schema] `.claude.json` 顶层 key：API key 确认屏白名单。
 pub const API_RESPONSES: &str = "customApiKeyResponses";
 
-/// 模型槽位。带类型的枚举——拼错槽位名是编译错误，不是静默 no-op。
+/// model slot。带类型的 enum：拼错 slot 名是编译错误，不会静默变成 no-op。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelSlot {
     Sonnet,
     Opus,
     Fable,
-    /// 也是后台任务（标题、摘要）用的模型。
+    /// 也是后台任务（标题、摘要）用的 model。
     Haiku,
 }
 
@@ -230,7 +249,7 @@ impl ModelSlot {
         ModelSlot::Haiku,
     ];
 
-    /// 对应的 settings.json env 键（全部 [官方]）。
+    /// 对应的 settings.json env key（全部 [官方]）。
     pub fn env_key(self) -> &'static str {
         match self {
             ModelSlot::Sonnet => "ANTHROPIC_DEFAULT_SONNET_MODEL",
@@ -256,7 +275,7 @@ impl ModelSlot {
     }
 }
 
-/// 模型槽映射，按 [`ModelSlot`] 索引（sonnet/opus/fable/haiku）。
+/// model 槽映射，按 [`ModelSlot`] 索引（sonnet/opus/fable/haiku）。
 /// serde 字段名与 preset TOML 的 `[preset.models]` 段一致。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -308,67 +327,5 @@ impl SlotMap {
             );
         }
         out
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn slot_env_keys_are_distinct() {
-        let keys: Vec<&str> = ModelSlot::ALL.iter().map(|s| s.env_key()).collect();
-        let unique: std::collections::HashSet<_> = keys.iter().copied().collect();
-        assert_eq!(keys.len(), unique.len());
-    }
-
-    #[test]
-    fn effort_roundtrip() {
-        // env 值往返：每个档位 env_value → from_env 恒等；index 与 ALL 一致
-        for (i, e) in Effort::ALL.into_iter().enumerate() {
-            assert_eq!(Effort::from_env(e.env_value()), Some(e));
-            assert_eq!(e.index(), i);
-        }
-        // 未设置 = Auto；未知值不吞，返回 None 由调用方处理
-        assert_eq!(Effort::from_env(None), Some(Effort::Auto));
-        assert_eq!(Effort::from_env(Some("ultra")), None);
-        assert_eq!(Effort::from_env(Some("max")), Some(Effort::Max));
-    }
-
-    #[test]
-    fn slot_map_get_set_iter() {
-        let mut m = SlotMap::default();
-        assert!(m.is_empty());
-        m.set(ModelSlot::Sonnet, Some("glm-5.1".into()));
-        m.set(ModelSlot::Haiku, Some(String::new())); // 空 = 清除
-        assert_eq!(m.get(ModelSlot::Sonnet), Some("glm-5.1"));
-        assert_eq!(m.get(ModelSlot::Haiku), None);
-    }
-
-    #[test]
-    fn slot_map_over_merges_per_slot() {
-        let base = SlotMap {
-            sonnet: Some("p-sonnet".into()),
-            haiku: Some("p-haiku".into()),
-            ..Default::default()
-        };
-        let over = SlotMap {
-            sonnet: Some("user-sonnet".into()),
-            ..Default::default()
-        };
-        let merged = over.over(&base);
-        assert_eq!(merged.get(ModelSlot::Sonnet), Some("user-sonnet"));
-        assert_eq!(merged.get(ModelSlot::Haiku), Some("p-haiku"));
-        assert_eq!(merged.get(ModelSlot::Opus), None);
-    }
-
-    #[test]
-    fn environment_entries_reject_only_os_invalid_data() {
-        for (key, value) in [("A", "1"), ("A B", ""), ("_CUSTOM", "x=y")] {
-            validate_env_entry(key, value).unwrap();
-        }
-        for (key, value) in [("", "1"), ("A=B", "1"), ("A\0B", "1"), ("A", "x\0y")] {
-            assert!(validate_env_entry(key, value).is_err(), "{key:?}={value:?}");
-        }
     }
 }

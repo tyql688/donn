@@ -1,4 +1,4 @@
-//! ratatui dashboard：常驻多面板主界面，全部配置能力所在。
+//! Ratatui dashboard：常驻多面板主界面，所有配置能力都在这里。
 //!
 //! 布局：左 profiles ｜右 detail ｜底部 doctor 抽屉｜状态栏。
 //! 弹窗栈叠加在面板之上，栈顶独占键盘。
@@ -53,7 +53,7 @@ pub fn run() -> i32 {
     let _ = restore_terminal(&mut terminal);
 
     match result {
-        // enter 启动：恢复终端后 exec——TUI 进程被替换，不做进程托管
+        // enter 启动：恢复终端后 exec；TUI 进程被替换，不做进程托管
         Ok(LoopCmd::Launch(name)) => crate::commands::run::launch(&app.core.donn, &name, &[]),
         Ok(_) => 0,
         Err(e) => {
@@ -172,7 +172,7 @@ fn render(app: &mut App, f: &mut ratatui::Frame) {
     let [left, right] =
         Layout::horizontal([Constraint::Length(38), Constraint::Min(30)]).areas(panes_area);
 
-    // Add：左栏渠道列表；右栏选渠道详情 / 填表
+    // Add：左栏 provider 列表；右栏选 provider 详情 / 填表
     if let Some(mut form) = app.core.add.take() {
         panes::add_form::view::render_providers(&mut form, &mut app.core, f, left);
         match form.stage() {
@@ -210,7 +210,7 @@ fn render(app: &mut App, f: &mut ratatui::Frame) {
     app.modals = modals;
 }
 
-/// TUI 挂起 → $EDITOR 编辑 settings.json → 返回后校验 JSON + 漂移检出。
+/// TUI 挂起，用 `$EDITOR` 编辑 settings.json，返回后校验 JSON 并检出 drift。
 fn edit_in_editor(terminal: &mut Term, core: &mut Core, name: &str) -> io::Result<()> {
     let path = core.donn.home().settings_file(name);
 

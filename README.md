@@ -1,22 +1,22 @@
 # donn
 
-单二进制的 Claude Code profile 管理器，带完整终端 UI。它为官方 Claude 与 Kimi、MiniMax、Z.ai、OpenRouter、DeepSeek 等 Anthropic 兼容渠道维护相互隔离的配置。
+管理 Claude Code profile 的单二进制工具，带 TUI。每个 profile 有自己的配置目录、model 映射和 API key，可以在官方 Claude 与 Kimi、MiniMax、Z.ai、OpenRouter、DeepSeek 等 Anthropic 兼容 provider 之间切换。
 
 ```bash
-donn        # 打开终端 dashboard
-kimi        # 用创建时生成的 profile 别名启动 Claude
+donn        # 打开 TUI dashboard
+kimi        # 用创建 profile 时生成的 alias 启动 Claude
 ```
 
-## 特性
+## 功能
 
-- 完整的终端界面：profile 列表和详情、搜渠道、新建表单、可搜索的模型选择器、全局设置、Doctor 体检；该选的地方是选择框，该确认的地方有确认框
-- 内置 23 个渠道；想加渠道或改内置渠道，往 `~/.donn/presets.d/` 放一个 TOML 就行
-- 全局设置：权限、思考强度、thinking、回复语言、输出上限、第三方端点兼容、模型回退等，改一次对所有 profile 生效；值和 Claude Code 默认一样时什么都不写
-- 两种隔离方式：`full`（默认）每个 profile 有自己的 Claude 配置目录和会话；`shared` 继续用你 `~/.claude` 里的会话和文件，只在这次启动里换渠道、模型和全局设置
-- 删除 profile 时可以选：保留会话（以后同名重建还能接着用），或者整个删掉
-- API key 只放在 profile 自己的 `settings.json` 里，新文件权限 `0600`；不进日志、不进 `profile.toml`、不进报错信息
-- 有人手改了 donn 管的键，donn 看得出来，下次启动前自动改回去
-- 除了界面，还有适合脚本用的 `run`、`list`、`doctor` 命令
+- TUI 覆盖 profile 列表和详情、provider 搜索、新建表单、可搜索的 model picker、全局设置和 Doctor 体检。有限选项用选择框，破坏性操作用确认框。
+- 内置 23 个 provider。要加 provider 或改内置数据，往 `~/.donn/presets.d/` 放一个 TOML 文件。
+- 全局设置包含 permission mode、effort、thinking、response language、max output tokens、第三方 endpoint 兼容和 model fallback 等。改一次对所有 profile 生效。大多数 knob 的值等于 Claude Code 默认值时不写对应 key；个别例外（例如 api_timeout_ms 恒写生效值）见 docs/GLOBAL-SETTINGS.md。
+- 两种 isolation：`full`（默认）给每个 profile 独立的 Claude 配置目录和 session；`shared` 继续用 `~/.claude` 里的 session 和文件，只在启动时换 provider、model 和全局设置。
+- `full` 模式下删除 profile 时可以选择保留 session，以后同名重建还能接着用；也可以整个删掉。
+- API key 只放在 profile 自己的 `settings.json`，新文件权限 `0600`，不会出现在日志、`profile.toml` 或错误信息里。
+- 手改 donn 管理的 key 会形成 drift。donn 能检出，下次启动前按 `profile.toml` 改回去。
+- 除 TUI 外，还有 `run`、`list`、`doctor` 三个命令，适合脚本调用。
 
 ## 从当前源码安装
 
@@ -26,7 +26,7 @@ kimi        # 用创建时生成的 profile 别名启动 Claude
 cargo install --path crates/donn-cli --locked
 ```
 
-本地开发可直接运行 `cargo run -p donn-cli --`。
+本地开发直接运行 `cargo run -p donn-cli --`。
 
 Makefile 目标：
 
@@ -34,16 +34,16 @@ Makefile 目标：
 make install                 # 从当前源码安装 donn
 make run                     # 不安装，直接打开 TUI
 make run ARGS="doctor"       # 从源码运行子命令
-make check                   # 格式、测试、Clippy、release 构建
+make check                   # 格式、Clippy、release 构建
 make clean                   # 删除 target/ 下的构建产物
 ```
 
 ## 快速上手
 
 1. 运行 `donn`。
-2. 按 `a`，搜索渠道并按 Enter。
-3. 填 profile 名与 key。渠道、模型、effort、权限和隔离方式都有真正的选择/搜索弹窗；模型也允许直接输入任意 ID。
-4. 创建后用生成的别名，或 `donn run <name>` 启动。
+2. 按 `a`，搜索 provider，按 Enter 选中。
+3. 填 profile 名和 API key。provider、model、effort、permission 和 isolation 都有选择弹窗；model 也可以直接输入任意 ID。
+4. 创建后运行生成的 alias，或者用 `donn run <name>` 启动。
 
 常用按键：
 
@@ -51,22 +51,22 @@ make clean                   # 删除 target/ 下的构建产物
 |---|---|
 | `a` | 新建 profile |
 | `e` / `Tab` | 聚焦 profile 详情 |
-| `Enter` | 列表中启动；详情/设置中编辑当前行 |
+| `Enter` | 列表中启动；详情或设置中编辑当前行 |
 | `S` | 全局设置 |
 | `D` | Doctor 体检 |
 | `s` | 同步当前 profile |
-| `d` | 删除，并选择是否保留会话 |
-| `o` | 打开渠道取 key 页面 |
+| `d` | 删除，并选择是否保留 session |
+| `o` | 打开 provider 的取 key 页面 |
 | `y` | 复制启动命令、路径或 profile env 值 |
-| 鼠标点链接 | 右键复制；左键用浏览器打开——链接在列表行里时，第一下只是选中该行，再点才打开。屏幕上完整显示的 http(s) 链接都可以点 |
-| `Ctrl-t` | 显示/隐藏 API key（详情焦点下） |
+| 鼠标点链接 | 右键复制；左键用浏览器打开。链接在列表行里时，第一次点击只选中该行，再点才打开。屏幕上完整显示的 http(s) 链接都可以点 |
+| `Ctrl-t` | 显示或隐藏 API key（详情焦点下） |
 | `?` | 完整快捷键帮助 |
 
 ## 命令
 
 ```bash
 donn                         # 交互式 dashboard
-donn run <name> -- <args>    # 先同步再 exec Claude；参数与退出码透传
+donn run <name> -- <args>    # 先 sync 再 exec Claude；参数和退出码透传
 donn list                    # 紧凑 profile 表格
 donn doctor                  # 有任一失败项就返回非 0
 ```
@@ -81,18 +81,18 @@ donn doctor                  # 有任一失败项就返回非 0
 ├── presets.d/
 └── profiles/<name>/
     ├── profile.toml
-    ├── shared-settings.json   # 仅 shared 隔离：--settings overlay
+    ├── shared-settings.json   # 仅 shared isolation：--settings overlay
     └── claude/
         ├── settings.json
         └── .claude.json
 ```
 
-`~/.donn/config.toml` 自带说明：第一次打开 TUI 会生成带注释的模板，在 TUI 里改设置不会弄丢这些注释。全局设置一改，立刻同步到所有 profile。同一项在多处都设了的话：profile 自己的设置优先于全局设置，全局设置优先于渠道 preset。
+`~/.donn/config.toml` 自带说明。第一次打开 TUI 会生成带注释的模板，在 TUI 里改设置不会弄丢这些注释。全局设置一改，立刻同步到所有 profile。同一项在多处设置时，优先级是 profile 自己的设置 > 全局设置 > provider preset。
 
-两种隔离方式下，donn 都不会写你的 `~/.claude/`。
+两种 isolation 下，donn 都不会写你的 `~/.claude/`。
 
 ## 开发
 
-改代码先看 [CLAUDE.md](CLAUDE.md)：里面有代码地图、验证命令，也写明了每份文档各管什么（[架构](docs/ARCHITECTURE.md)、[硬规则](docs/RULES.md)、[全局设置对照表](docs/GLOBAL-SETTINGS.md)）。
+改代码先看 [CLAUDE.md](CLAUDE.md)。里面有代码地图、验证命令，也写明了每份文档负责什么：[架构](docs/ARCHITECTURE.md)、[硬规则](docs/RULES.md)、[全局设置对照表](docs/GLOBAL-SETTINGS.md)。
 
 License: MIT

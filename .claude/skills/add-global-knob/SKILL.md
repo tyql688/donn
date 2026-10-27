@@ -21,13 +21,13 @@ when_to_use: 触发词 - 全局设置、全局配置、旋钮、设置面板、�
 3. `crates/donn-cli/src/tui/i18n.rs` 的 `knob_label` 加行名（宽度小于 30）。
 4. `docs/GLOBAL-SETTINGS.md` 对应分组加一行（字段、行名、键、取值、Claude 默认、写入规则）。
 
-render、合并、校验、TUI 行与测试按表生效。表驱动旋钮什么时候写键、什么时候删键，见 `docs/GLOBAL-SETTINGS.md` 的通用规则。
+render、合并、校验和 TUI 行按表生效。表驱动旋钮什么时候写 key、什么时候删 key，见 `docs/GLOBAL-SETTINGS.md` 的通用规则。
 
 ## 类型化字段
 
 需要两遍优先级、只在有 `base_url` 时注入、或配对写多个键的旋钮：
 
-- `knobs.rs`：`Knobs` 加 `Option<T>` 字段与生效值方法（派生反序列化，不做旧字段名迁移：改名的旧键会落到 `extra` 并由 doctor 报为 unknown）；键名登记进 `TYPED_KNOB_FIELDS`（模板、对照表、行名的测试都从它取字段）；`Knobs::validate` 加取值校验。
+- `knobs.rs`：`Knobs` 加 `Option<T>` 字段与生效值方法（派生反序列化，不做旧字段名迁移：改名的旧键会落到 `extra` 并由 doctor 报为 unknown）；变体登记进 `TypedKnob` 和 `TypedKnob::ALL`（模板、对照表、面板行和校验都从它取字段）；在 `TypedKnob::validate` 加取值校验。
 - `config.rs`：`CONFIG_DOC` 加行。
 - `render.rs`：env 类显式值在 `preset.env` 之后再压一次；依赖 `base_url` 的两遍都守条件；settings 自由默认可覆盖 settings 类旋钮，donn 常量最后写。
 - `ops/config.rs`：`apply_knob_changes` 只合并与 `base` 不同的字段；值变化时才校验。
@@ -46,4 +46,4 @@ render、合并、校验、TUI 行与测试按表生效。表驱动旋钮什么�
 
 `make check`，再按 `docs/RULES.md` 的验收一节做真实检查。
 
-测试覆盖默认值、显式值、拨回默认、模板行、config 往返与 render 结果。再用 `/tmp` 独立 `DONN_HOME` 打开真实 TUI：改该行后 `config.toml` 出现字段、所有 profile 同步；拨回默认后字段消失。
+用临时目录里的独立 `DONN_HOME` 打开真实 TUI：改该行后 `config.toml` 出现字段、所有 profile 同步；拨回默认后字段消失。

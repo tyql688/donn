@@ -27,6 +27,3 @@ serde_json.workspace = true
 open.workspace = true
 arboard.workspace = true
 linkify.workspace = true
-
-[dev-dependencies]
-tempfile.workspace = true

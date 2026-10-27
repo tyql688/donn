@@ -1,4 +1,4 @@
-//! 业务弹窗：渠道选择、模型选择、帮助页。通用 select/confirm/prompt 在 components/modal.rs。
+//! 业务弹窗：provider 选择、model 选择、帮助页。通用 select/confirm/prompt 在 components/modal.rs。
 //! Add 是面板模式（panes/add_form/），不是弹窗。
 
 pub mod help;

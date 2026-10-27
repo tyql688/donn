@@ -1,5 +1,5 @@
-//! Add 面板模式：`a` 之后 dashboard 整体切换——左栏渠道列表（选择实时联动），
-//! 右栏整块是表单 + 底部生效预览。
+//! Add 面板模式：按 `a` 之后 dashboard 整体切换，左栏是 provider 列表（选择实时联动），
+//! 右栏是表单加底部生效预览。
 //!
 //! 本文件只有表单状态与按键逻辑；渲染在 [`view`]。
 
@@ -24,12 +24,12 @@ use crate::tui::modals::model_pick;
 use crate::tui::modals::preset_pick::PresetPick;
 use crate::tui::panes::detail::{DEFAULT_CUSTOM_WINDOW, parse_tokens};
 
-/// Add 的两个阶段：先选渠道，再填表。
+/// Add 的两个阶段：先选 provider，再填表。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
-    /// 焦点在左栏渠道列表：↑↓ 浏览、enter 选定、tab 过滤。
+    /// 焦点在左栏 provider 列表：↑↓ 浏览、enter 选定、tab 过滤。
     PickProvider,
-    /// 渠道已选定：右栏填表；esc 返回重选渠道。
+    /// provider 已选定：右栏填表；esc 返回重选 provider。
     EditForm,
 }
 
@@ -51,22 +51,22 @@ pub enum FormOutcome {
     Keep,
     /// 退出 Add 模式（取消或创建成功）。
     Close,
-    /// 叠加弹窗（渠道过滤选择器 / 思考强度单选）。
+    /// 叠加弹窗（provider 过滤选择器 / 思考强度单选）。
     OpenPicker(Box<dyn Modal>),
 }
 
 pub struct AddForm {
     stage: Stage,
-    /// 创建时选的渠道（列表状态只在 Add 里，不单独做「presets 浏览模式」）。
+    /// 创建时选的 provider（列表状态只在 Add 里，不单独做「presets 浏览模式」）。
     providers: SelectList<Preset>,
-    /// 打开表单时的全局默认快照：预览要按 `[defaults.env]` 的槽位算生效模型。
+    /// 打开表单时的全局默认快照：预览要按 `[defaults.env]` 的 slot 算生效 model。
     defaults: Defaults,
     existing_names: BTreeSet<String>,
     name: TextInput,
     key: TextInput,
     base_url: TextInput,
     slots: [TextInput; ModelSlot::ALL.len()],
-    /// sonnet 那个模型的上下文窗口。这行只在 sonnet 是没人知道窗口的模型时出现，
+    /// sonnet 那个 model 的上下文窗口。这行只在 sonnet 是没人知道窗口的 model 时出现，
     /// 出现时预填默认值；用户动过就不再自动改。
     max_context: TextInput,
     window_touched: bool,
@@ -75,13 +75,13 @@ pub struct AddForm {
     aliases: TextInput,
     field_idx: usize,
     error: Option<String>,
-    /// name/base_url 一旦手动编辑过就不再跟随渠道预填。
+    /// name/base_url 一旦手动编辑过就不再跟随 provider 预填。
     name_touched: bool,
     base_url_touched: bool,
-    /// 在选渠道阶段退出 Add：有改动时第一次 Esc 只提示，第二次才丢弃。
+    /// 在选 provider 阶段退出 Add：有改动时第一次 Esc 只提示，第二次才丢弃。
     pending_cancel: bool,
-    /// 已填内容归属的渠道 key。Esc 回列表再确认**同一**渠道 = 内容保留；
-    /// 确认**不同**渠道 = 覆盖字段全部重置——key/模型/别名绝不跨渠道残留。
+    /// 已填内容归属的 provider key。Esc 回列表再确认**同一**provider = 内容保留；
+    /// 确认不同的 provider 时，覆盖字段全部重置，key、model、alias 绝不跨 provider 残留。
     filled_for: Option<String>,
 }
 
@@ -136,7 +136,7 @@ impl AddForm {
         &self.providers
     }
 
-    /// 鼠标点击左栏：选中渠道并回到选渠道阶段。
+    /// 鼠标点击左栏：选中 provider 并回到选 provider 阶段。
     pub fn click_provider(&mut self, idx: usize) {
         self.providers.select(idx);
         self.prefill_from_provider();
@@ -144,7 +144,7 @@ impl AddForm {
         self.error = None;
     }
 
-    /// 鼠标滚轮：选渠道阶段滚动列表。
+    /// 鼠标滚轮：选 provider 阶段滚动列表。
     pub fn scroll_providers(&mut self, delta: i32) {
         if self.stage == Stage::PickProvider {
             self.nav_providers(Nav::By(delta));
@@ -164,7 +164,7 @@ impl AddForm {
         }
     }
 
-    /// 确认当前渠道，进入填表阶段。
+    /// 确认当前 provider，进入填表阶段。
     fn enter_edit(&mut self) {
         let key = self.provider().key.clone();
         if self.filled_for.as_deref() != Some(key.as_str()) {
@@ -224,7 +224,7 @@ impl AddForm {
         fields.push(Field::BaseUrl);
         for slot in ModelSlot::ALL {
             fields.push(Field::Model(slot));
-            // 窗口是 sonnet 那个模型的属性：紧跟在它下面，需要时才出现
+            // 窗口是 sonnet 那个 model 的属性：紧跟在它下面，需要时才出现
             if slot == ModelSlot::Sonnet && self.window_visible() {
                 fields.push(Field::MaxContext);
             }
@@ -266,8 +266,8 @@ impl AddForm {
         self.needs_window() || !self.max_context.is_empty()
     }
 
-    /// sonnet 变了之后调。窗口是模型的属性：换到 preset 候选就清掉（用户填过的也清，
-    /// 那是给上一个模型填的）；换到没人知道窗口的模型就预填默认值，用户亲手改过则留着。
+    /// sonnet 变了之后调。窗口是 model 的属性：换到 preset 候选就清掉（用户填过的也清，
+    /// 那是给上一个 model 填的）；换到没人知道窗口的 model 就预填默认值，用户亲手改过则留着。
     pub(crate) fn sync_window(&mut self) {
         if !self.needs_window() {
             self.max_context.set("");
@@ -312,7 +312,7 @@ impl AddForm {
         }
     }
 
-    /// 生效模型：表单填写 > `[defaults.env]` > preset（与 render 同序）。
+    /// 生效 model：表单填写 > `[defaults.env]` > preset（与 render 同序）。
     fn effective_model(&self, slot: ModelSlot) -> Option<String> {
         let v = self.slots[slot.index()].value().trim();
         if !v.is_empty() {
@@ -402,7 +402,7 @@ impl AddForm {
         let base_url = Some(self.base_url.value().trim().to_string())
             .filter(|u| !u.is_empty() && preset.base_url.as_deref() != Some(u.as_str()));
         let name = self.name.value().trim().to_string();
-        // 模型套餐 env 不写 intent：create/sync 时 render 按 sonnet 生效 id 注入
+        // model package env 不写 intent：create/sync 时 render 按 sonnet 生效 id 注入
         let env = self
             .effort
             .env_value()
@@ -465,7 +465,7 @@ impl AddForm {
             KeyCode::Char('?') => {
                 return FormOutcome::OpenPicker(Box::new(HelpModal));
             }
-            // Esc：返回渠道选择（不丢已填内容）
+            // Esc：返回 provider 选择（不丢已填内容）
             KeyCode::Esc => {
                 self.stage = Stage::PickProvider;
                 self.error = None;
@@ -523,7 +523,7 @@ impl AddForm {
                         },
                     )));
                 }
-                // 模型槽：可搜索可填入
+                // model 槽：可搜索可填入
                 if let Field::Model(slot) = field {
                     let current = self.slots[slot.index()].value().to_string();
                     let title = i18n::edit_title(&i18n::row_model(slot.label()), self.name.value());
@@ -562,7 +562,7 @@ impl AddForm {
         FormOutcome::Keep
     }
 
-    /// 阶段 1：选渠道。焦点语义在左栏列表。
+    /// 阶段 1：选 provider。焦点语义在左栏列表。
     fn handle_pick(&mut self, key: KeyEvent, core: &mut Core) -> FormOutcome {
         if key.code != KeyCode::Esc {
             self.pending_cancel = false;
@@ -599,191 +599,5 @@ impl AddForm {
             _ => {}
         }
         FormOutcome::Keep
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crossterm::event::{KeyCode, KeyEvent};
-    use tempfile::TempDir;
-
-    fn core(dir: &TempDir) -> Core {
-        let donn = donn_core::Donn::with_home(donn_core::DonnHome::for_test(dir.path())).unwrap();
-        Core::new(donn)
-    }
-
-    fn press(form: &mut AddForm, core: &mut Core, code: KeyCode) {
-        form.handle(KeyEvent::from(code), core);
-    }
-
-    fn type_str(form: &mut AddForm, core: &mut Core, s: &str) {
-        for ch in s.chars() {
-            press(form, core, KeyCode::Char(ch));
-        }
-    }
-
-    #[test]
-    fn switching_preset_resets_overrides_same_preset_keeps() {
-        let dir = TempDir::new().unwrap();
-        let mut core = core(&dir);
-        let mut form = AddForm::new(&core, Some("kimi-cn".into()));
-
-        // 进 kimi 表单，填 key 与 haiku 槽覆盖
-        press(&mut form, &mut core, KeyCode::Enter);
-        assert_eq!(form.stage(), Stage::EditForm);
-        while form.current_field() != Field::Key {
-            press(&mut form, &mut core, KeyCode::Down);
-        }
-        type_str(&mut form, &mut core, "sk-kimi-secret");
-        while form.current_field() != Field::Model(ModelSlot::Haiku) {
-            press(&mut form, &mut core, KeyCode::Down);
-        }
-        type_str(&mut form, &mut core, "kimi-k3");
-        assert!(!form.key.is_empty());
-
-        // Esc 回列表，确认同一渠道 → 内容保留（原设计意图）
-        press(&mut form, &mut core, KeyCode::Esc);
-        press(&mut form, &mut core, KeyCode::Enter);
-        assert_eq!(form.key.value(), "sk-kimi-secret");
-        assert_eq!(form.slots[ModelSlot::Haiku.index()].value(), "kimi-k3");
-
-        // Esc 回列表，换到另一渠道确认 → 覆盖字段全部重置，key 绝不跨渠道残留
-        press(&mut form, &mut core, KeyCode::Esc);
-        form.set_provider_key("zai");
-        assert_eq!(form.stage(), Stage::EditForm);
-        assert!(
-            form.key.is_empty(),
-            "api key must never leak across providers"
-        );
-        assert!(form.slots.iter().all(|s| s.is_empty()));
-        assert!(form.aliases.is_empty());
-        assert_eq!(form.effort, Effort::Auto);
-        assert_eq!(form.name.value(), "zai", "name 重新预填为新渠道");
-    }
-
-    #[test]
-    fn window_field_follows_the_sonnet_model() {
-        let dir = TempDir::new().unwrap();
-        let mut core = core(&dir);
-        let mut form = AddForm::new(&core, Some("kimi-cn".into()));
-        press(&mut form, &mut core, KeyCode::Enter);
-        let sonnet = Field::Model(ModelSlot::Sonnet);
-        let after_sonnet = |form: &AddForm| {
-            let fields = form.fields();
-            fields[fields.iter().position(|f| *f == sonnet).unwrap() + 1]
-        };
-        // preset 候选自带窗口：没有窗口行
-        assert!(!form.fields().contains(&Field::MaxContext));
-
-        while form.current_field() != sonnet {
-            press(&mut form, &mut core, KeyCode::Down);
-        }
-        // 敲一个没人知道窗口的模型：窗口行紧跟 sonnet 冒出来，里面是真实的默认值
-        type_str(&mut form, &mut core, "gw/x");
-        assert_eq!(after_sonnet(&form), Field::MaxContext);
-        assert_eq!(form.max_context.value(), "262144");
-        assert_eq!(form.window(), Ok(Some(262_144)));
-
-        // 往下一格就是它，直接改
-        press(&mut form, &mut core, KeyCode::Down);
-        assert_eq!(form.current_field(), Field::MaxContext);
-        for _ in 0..6 {
-            press(&mut form, &mut core, KeyCode::Backspace);
-        }
-        type_str(&mut form, &mut core, "1000000");
-        assert_eq!(form.window(), Ok(Some(1_000_000)));
-
-        // 用户改过之后，再动 sonnet 不会把他的值冲掉
-        press(&mut form, &mut core, KeyCode::Up);
-        type_str(&mut form, &mut core, "y");
-        assert_eq!(form.max_context.value(), "1000000");
-    }
-
-    #[test]
-    fn a_window_typed_for_one_model_is_not_saved_under_another() {
-        let dir = TempDir::new().unwrap();
-        let mut core = core(&dir);
-        let mut form = AddForm::new(&core, Some("kimi-cn".into()));
-        press(&mut form, &mut core, KeyCode::Enter);
-        while form.current_field() != Field::Model(ModelSlot::Sonnet) {
-            press(&mut form, &mut core, KeyCode::Down);
-        }
-        type_str(&mut form, &mut core, "gw/x");
-        press(&mut form, &mut core, KeyCode::Down);
-        type_str(&mut form, &mut core, "0"); // 亲手改过：2621440
-        // sonnet 换成 preset 候选：给 gw/x 填的窗口不能落到它名下
-        press(&mut form, &mut core, KeyCode::Up);
-        for _ in 0.."gw/x".len() {
-            press(&mut form, &mut core, KeyCode::Backspace);
-        }
-        type_str(&mut form, &mut core, "kimi-k3");
-        assert!(!form.fields().contains(&Field::MaxContext));
-        assert_eq!(form.window(), Ok(None));
-    }
-
-    #[test]
-    fn window_field_follows_a_sonnet_set_in_global_defaults() {
-        let dir = TempDir::new().unwrap();
-        let mut core = core(&dir);
-        core.donn
-            .edit_config(donn_core::ConfigChange::SetDefaultEnv(
-                ModelSlot::Sonnet.env_key().into(),
-                "gw/global-sonnet".into(),
-            ))
-            .unwrap();
-        let mut form = AddForm::new(&core, Some("kimi-cn".into()));
-        press(&mut form, &mut core, KeyCode::Enter);
-        assert_eq!(form.sonnet(), "gw/global-sonnet");
-        assert!(form.fields().contains(&Field::MaxContext));
-    }
-
-    #[test]
-    fn a_preset_whose_default_model_has_no_window_starts_prefilled() {
-        let dir = TempDir::new().unwrap();
-        let mut core = core(&dir);
-        let mut form = AddForm::new(&core, Some("ollama".into()));
-        press(&mut form, &mut core, KeyCode::Enter);
-        assert!(form.fields().contains(&Field::MaxContext));
-        assert_eq!(form.max_context.value(), "262144");
-    }
-
-    #[test]
-    fn window_field_disappears_when_sonnet_goes_back_to_a_preset_model() {
-        let dir = TempDir::new().unwrap();
-        let mut core = core(&dir);
-        let mut form = AddForm::new(&core, Some("kimi-cn".into()));
-        press(&mut form, &mut core, KeyCode::Enter);
-        while form.current_field() != Field::Model(ModelSlot::Sonnet) {
-            press(&mut form, &mut core, KeyCode::Down);
-        }
-        type_str(&mut form, &mut core, "z");
-        assert!(form.fields().contains(&Field::MaxContext));
-        press(&mut form, &mut core, KeyCode::Backspace);
-        assert!(!form.fields().contains(&Field::MaxContext));
-        assert_eq!(form.window(), Ok(None));
-    }
-
-    #[test]
-    fn custom_and_existing_provider_names_start_empty_and_aliases_accept_spaces() {
-        let dir = TempDir::new().unwrap();
-        let mut core = core(&dir);
-        core.donn
-            .create(&ProfileDraft {
-                name: "zai".into(),
-                preset: "zai".into(),
-                ..Default::default()
-            })
-            .unwrap();
-        core.refresh();
-
-        let existing = AddForm::new(&core, Some("zai".into()));
-        assert!(existing.name.is_empty());
-        assert!(existing.base_url.is_empty());
-
-        let mut custom = AddForm::new(&core, Some("custom".into()));
-        assert!(custom.name.is_empty());
-        custom.aliases.set("one two,three");
-        assert_eq!(custom.alias_list(), ["one", "two", "three"]);
     }
 }

@@ -1,4 +1,4 @@
-//! Theme：全部样式的唯一出口。渲染代码不得内联颜色/边框——改观感只改这里。
+//! Theme：所有样式的唯一出口。渲染代码不得内联颜色或边框；改观感只改这里。
 
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Line;

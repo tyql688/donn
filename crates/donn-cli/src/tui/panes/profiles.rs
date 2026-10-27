@@ -1,4 +1,4 @@
-//! 左面板（Profiles 模式）：profile 列表（ratatui List，滚动/高亮原生处理）。
+//! 左面板（Profiles 模式）：profile 列表（ratatui List，滚动和高亮原生处理）。
 
 use donn_core::KeyState;
 use ratatui::Frame;
@@ -41,7 +41,10 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
                 Span::styled(i18n::BADGE_BROKEN, theme.err())
             } else {
                 match &card.key {
-                    KeyState::Present { tail4 } => Span::styled(format!("···{tail4}"), theme.ok()),
+                    KeyState::Present { tail4: Some(tail4) } => {
+                        Span::styled(format!("···{tail4}"), theme.ok())
+                    }
+                    KeyState::Present { tail4: None } => Span::styled("···***", theme.ok()),
                     KeyState::Absent => Span::styled(i18n::BADGE_NO_KEY, theme.err()),
                     KeyState::NotNeeded => Span::styled(i18n::BADGE_OAUTH, theme.dim()),
                 }

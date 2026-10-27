@@ -1,4 +1,4 @@
-//! `?` 帮助速查表：内容与 keymap 同源。
+//! `?` 帮助速查表：内容和 keymap 同源。
 
 use crossterm::event::KeyEvent;
 use ratatui::Frame;

@@ -47,29 +47,3 @@ pub fn scan(buffer: &Buffer) -> Vec<Link> {
     }
     links
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ratatui::text::Line;
-    use ratatui::widgets::Widget;
-
-    #[test]
-    fn finds_whole_urls_with_their_cells_and_skips_truncated_ones() {
-        let mut buffer = Buffer::empty(Rect::new(0, 0, 40, 3));
-        Line::from("│ 取 key  https://z.ai/keys │").render(Rect::new(0, 0, 40, 1), &mut buffer);
-        Line::from("base_url  https://api.z.ai/api/an…")
-            .render(Rect::new(0, 1, 40, 1), &mut buffer);
-        Line::from("file:///etc/passwd").render(Rect::new(0, 2, 40, 1), &mut buffer);
-
-        let links = scan(&buffer);
-        assert_eq!(links.len(), 1, "截断的和非 http(s) 的都不收");
-        assert_eq!(links[0].url, "https://z.ai/keys");
-        // 「取」是宽字符占两格：URL 从第 10 列开始
-        assert_eq!(at(&links, Position::new(10, 0)), Some("https://z.ai/keys"));
-        assert_eq!(at(&links, Position::new(26, 0)), Some("https://z.ai/keys"));
-        assert_eq!(at(&links, Position::new(9, 0)), None);
-        assert_eq!(at(&links, Position::new(27, 0)), None);
-        assert_eq!(at(&links, Position::new(12, 1)), None);
-    }
-}

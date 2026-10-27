@@ -1,4 +1,4 @@
-//! 状态栏：类型化 severity 的消息 + 上下文键提示。
+//! 状态栏：带 severity 类型的消息和上下文按键提示。
 
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -41,7 +41,7 @@ impl Status {
         self.message = None;
     }
 
-    /// 渲染：有消息显示消息，否则显示键提示（`键 动作` 对）。
+    /// 渲染：有消息显示消息，否则显示键提示（` 键 动作 ` 对）。
     pub fn render(&self, f: &mut Frame, area: Rect, theme: &Theme, hints: &[(&str, &str)]) {
         let line = match &self.message {
             Some((text, severity)) => {

@@ -1,4 +1,4 @@
-//! `donn doctor`：CI/脚本可用，非 0 退出码表示有 ✗ 项。
+//! `donn doctor`：CI 和脚本可用，退出码非 0 表示有 ✗ 项。
 
 use super::open_donn;
 

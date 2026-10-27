@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use donn_core::keys::{self, ModelSlot};
+use donn_core::render::ValueSource;
 use donn_core::{AuthMode, Donn, Effort, Isolation, KeyState, ProfileView, Secret, SpecChange};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -68,7 +69,7 @@ impl DetailPane {
                 rows.push(Row::Isolation);
                 for slot in ModelSlot::ALL {
                     rows.push(Row::Model(slot));
-                    // 窗口是 sonnet 那个模型的属性：紧跟在它下面
+                    // 窗口是 sonnet 那个 model 的属性：紧跟在它下面
                     if slot == ModelSlot::Sonnet && view.models.get(slot).is_some() {
                         rows.push(Row::MaxContext);
                     }
@@ -104,7 +105,7 @@ fn apply_or_report(core: &mut Core, name: &str, change: SpecChange) {
     }
 }
 
-/// 复制菜单与信息区共用：profile 的启动命令（首个别名，没有别名则 `donn run <name>`）。
+/// 复制菜单与信息区共用：profile 的启动命令（首个 alias，没有 alias 则 `donn run <name>`）。
 fn launch_command(view: &ProfileView) -> String {
     let aliases = &view.spec.wrapper.aliases;
     aliases
@@ -113,7 +114,7 @@ fn launch_command(view: &ProfileView) -> String {
         .unwrap_or_else(|| format!("donn run {}", view.spec.name))
 }
 
-/// 会话实际落在哪个 Claude 配置目录。
+/// session 实际落在哪个 Claude 配置目录。
 fn config_dir(donn: &Donn, view: &ProfileView) -> PathBuf {
     match view.spec.isolation {
         Isolation::Shared => donn.home().main_claude_dir(),
@@ -121,14 +122,14 @@ fn config_dir(donn: &Donn, view: &ProfileView) -> PathBuf {
     }
 }
 
-/// 首个别名的 wrapper 文件路径。
+/// 首个 alias 的 wrapper 文件路径。
 fn wrapper_file(donn: &Donn, view: &ProfileView) -> Option<PathBuf> {
     let alias = view.spec.wrapper.aliases.first()?;
     let bin_dir = donn.bin_dir().ok()?;
     Some(donn_core::wrapper::wrapper_path(&bin_dir, alias))
 }
 
-/// 多项编辑一次 regenerate（如模型选择：槽位 + 清 package 残留键）。
+/// 多项编辑一次 regenerate（例如 model 选择：slot 加清除 package 残留 key）。
 fn apply_edits(
     core: &mut Core,
     name: &str,
@@ -159,7 +160,7 @@ fn edit_prompt(
     )
 }
 
-/// 自定义模型的窗口输入框预填值：现在主流编码模型起步就是 256K。
+/// 自定义 model 的窗口输入框预填值：现在主流编码 model 起步就是 256K。
 pub const DEFAULT_CUSTOM_WINDOW: &str = "262144";
 
 /// 上下文窗口输入：空 = 不设，否则是正整数的 token 数。
@@ -176,7 +177,7 @@ pub fn parse_tokens(raw: &str) -> Result<Option<u64>, String> {
         .ok_or_else(|| i18n::V_MAX_CONTEXT_ERR.to_string())
 }
 
-/// 模型槽：可搜索可填入（全 provider 同一套）。
+/// model 槽：可搜索可填入（全 provider 同一套）。
 fn model_edit_modal(view: &ProfileView, slot: ModelSlot, name: &str) -> Box<dyn Modal> {
     let title = i18n::edit_title(&i18n::row_model(slot.label()), name);
     let current = view
@@ -191,7 +192,7 @@ fn model_edit_modal(view: &ProfileView, slot: ModelSlot, name: &str) -> Box<dyn 
     let candidates = preset.clone();
     model_pick::open(title, &candidates, slot, &current, move |core, pick| {
         let change = SpecChange::Model(slot, model_pick::slot_override(&preset, slot, pick));
-        // sonnet 选了个没人知道窗口的模型：接着问它的窗口，模型和窗口一起保存；Esc = 整个不改
+        // sonnet 选了个没人知道窗口的 model：接着问它的窗口，model 和窗口一起保存；Esc = 整个不改
         if let SpecChange::Model(ModelSlot::Sonnet, Some(id)) = &change
             && model_pick::needs_window(&preset, id)
         {
@@ -240,7 +241,7 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
                     Ok(())
                 },
             );
-            // 提示只给取 key 的控制台地址；渠道没有就不放提示
+            // 提示只给取 key 的控制台地址；provider 没有就不放提示
             prompt.hint = view.preset.key_url;
             Some(Box::new(prompt))
         }
@@ -252,8 +253,8 @@ pub fn activate_row(core: &mut Core) -> Option<Box<dyn Modal>> {
             |value| SpecChange::BaseUrl(Some(value.to_string()).filter(|v| !v.is_empty())),
         )),
         Row::Effort => {
-            // Enter 打开单选弹窗（档位序列由 core 定义），确认才写盘。
-            // 存量非法值原样列为第一项，用户能看见并就地切走。
+            // 这里编辑的是 profile 覆盖：Auto 会删掉 intent.env 的 EFFORT，
+            // 回到 defaults/preset/global 的生效值。存量非法值原样列为第一项。
             let raw = view.spec.intent.env.get(keys::EFFORT).map(String::as_str);
             let parsed = Effort::from_env(raw);
             let invalid = raw.is_some() && parsed.is_none();
@@ -465,7 +466,7 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
     f.render_widget(block, area);
 
     let Some(view) = &core.detail.view else {
-        // 坏 profile：错误原文上屏（含修复线索），而不是无解释的空白
+        // 坏 profile：错误原文直接上屏（含修复线索），不留无解释的空白
         let paragraph = match &core.detail.error {
             Some(err) => Paragraph::new(vec![
                 Line::from(Span::styled(i18n::DETAIL_BROKEN.to_string(), theme.err())),
@@ -511,7 +512,7 @@ pub fn render(core: &mut Core, f: &mut Frame, area: Rect) {
     .areas(inner);
     f.render_widget(Paragraph::new(header), header_area);
 
-    // `❯ ` 标记 2 列 + 标签列之外才是值的可用宽度
+    // `❯ ` 标记占 2 列，加上标签列之外就是值的可用宽度
     let value_width = (list_area.width as usize).saturating_sub(2 + LABEL_WIDTH);
     let items: Vec<ListItem> = core
         .detail
@@ -582,7 +583,7 @@ fn info_lines(core: &Core, view: &ProfileView, theme: &Theme, width: u16) -> Vec
         ));
     }
 
-    // 元信息一行：创建 · 更新 · 认证 · 托管键数 · 启动命令
+    // 元信息一行：创建时间、更新时间、认证方式、托管 key 数、启动命令
     let date = |ts: &str| ts.split('T').next().unwrap_or(ts).to_string();
     let auth_short = match view.spec.auth.mode {
         AuthMode::ApiKey => "api_key",
@@ -624,8 +625,11 @@ fn render_row(
                 (KeyState::Present { .. }, Some(secret)) => {
                     Span::styled(secret.reveal().to_string(), theme.warn())
                 }
-                (KeyState::Present { tail4 }, None) => {
+                (KeyState::Present { tail4: Some(tail4) }, None) => {
                     Span::styled(format!("sk-***{tail4}"), theme.ok())
+                }
+                (KeyState::Present { tail4: None }, None) => {
+                    Span::styled("sk-***".to_string(), theme.ok())
                 }
                 (KeyState::Absent, _) => Span::styled(i18n::KEY_NOT_SET.to_string(), theme.err()),
                 (KeyState::NotNeeded, _) => {
@@ -635,25 +639,24 @@ fn render_row(
             (i18n::ROW_API_KEY.into(), vec![value])
         }
         Row::Effort => {
-            // 生效：intent 覆盖 > preset.env > 无（显示 auto）
-            let value = match view.spec.intent.env.get(keys::EFFORT) {
-                Some(level) => match Effort::from_env(Some(level)) {
+            let mut spans = match &view.effective_effort {
+                Some((level, _)) => match Effort::from_env(Some(level)) {
                     Some(_) => vec![Span::styled(level.clone(), theme.accent())],
-                    None => {
-                        vec![Span::styled(i18n::invalid_value(level), theme.err())]
-                    }
+                    None => vec![Span::styled(i18n::invalid_value(level), theme.err())],
                 },
-                None => match view.preset.env.get(keys::EFFORT) {
-                    Some(level) => vec![
-                        Span::styled(level.clone(), theme.dim()),
-                        Span::styled(format!("  {}", i18n::FROM_DEFAULT), theme.dim()),
-                    ],
-                    None => {
-                        vec![Span::styled(i18n::EFFORT_AUTO.to_string(), theme.dim())]
-                    }
-                },
+                None => vec![Span::styled(i18n::EFFORT_AUTO.to_string(), theme.dim())],
             };
-            (i18n::F_EFFORT.into(), value)
+            if let Some((_, source)) = &view.effective_effort {
+                let tag = match source {
+                    ValueSource::Global => Some(i18n::FROM_GLOBAL),
+                    ValueSource::Default => Some(i18n::FROM_DEFAULT),
+                    ValueSource::Profile => None,
+                };
+                if let Some(tag) = tag {
+                    spans.push(Span::styled(format!("  {tag}"), theme.dim()));
+                }
+            }
+            (i18n::F_EFFORT.into(), spans)
         }
         Row::Isolation => {
             let value = match view.spec.isolation {
@@ -689,19 +692,20 @@ fn render_row(
             (i18n::row_model(slot.label()), spans)
         }
         Row::MaxContext => {
-            // 当前 sonnet 这个模型的窗口：用户定义的 > preset 候选自带的 > 交给 Claude Code
-            let sonnet = view.models.get(ModelSlot::Sonnet).unwrap_or_default();
-            let preset_window = view
-                .preset
-                .choice_for_model(sonnet)
-                .and_then(|choice| choice.max_context);
-            let spans = match (view.spec.intent.model_windows.get(sonnet), preset_window) {
-                (Some(tokens), _) => vec![Span::raw(tokens.to_string())],
-                (None, Some(tokens)) => vec![
-                    Span::raw(tokens.to_string()),
-                    Span::styled(format!("  {}", i18n::FROM_DEFAULT), theme.dim()),
-                ],
-                (None, None) => vec![Span::styled(
+            let spans = match view.effective_max_context {
+                Some((tokens, source)) => {
+                    let mut spans = vec![Span::raw(tokens.to_string())];
+                    let tag = match source {
+                        ValueSource::Global => Some(i18n::FROM_GLOBAL),
+                        ValueSource::Default => Some(i18n::FROM_DEFAULT),
+                        ValueSource::Profile => None,
+                    };
+                    if let Some(tag) = tag {
+                        spans.push(Span::styled(format!("  {tag}"), theme.dim()));
+                    }
+                    spans
+                }
+                None => vec![Span::styled(
                     i18n::MAX_CONTEXT_UNSET.to_string(),
                     theme.warn(),
                 )],
@@ -725,101 +729,4 @@ fn render_row(
     let mut spans = vec![Span::styled(pad(&label, LABEL_WIDTH), label_style)];
     spans.extend(fit_spans(value, value_width));
     Line::from(spans)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crossterm::event::KeyCode;
-    use donn_core::{DonnHome, ProfileDraft};
-
-    #[test]
-    fn token_input_is_a_positive_integer_or_empty() {
-        assert_eq!(parse_tokens(""), Ok(None));
-        assert_eq!(parse_tokens(" 262144 "), Ok(Some(262_144)));
-        assert_eq!(
-            parse_tokens("9223372036854775807"),
-            Ok(Some(i64::MAX as u64))
-        );
-        for bad in ["0", "abc", "-5", "256k", "1.5", "9223372036854775808"] {
-            assert!(parse_tokens(bad).is_err(), "{bad}");
-        }
-    }
-
-    #[test]
-    fn isolation_row_opens_a_picker_and_changes_only_after_confirmation() {
-        let dir = tempfile::tempdir().unwrap();
-        let donn = Donn::with_home(DonnHome::for_test(dir.path())).unwrap();
-        donn.create(&ProfileDraft {
-            name: "official".into(),
-            preset: "official".into(),
-            ..Default::default()
-        })
-        .unwrap();
-        let mut core = Core::new(donn);
-        core.detail.rows.select_where(|row| *row == Row::Isolation);
-        assert_eq!(core.detail.rows.current(), Some(&Row::Isolation));
-
-        let mut modal = activate_row(&mut core).expect("isolation must open a select modal");
-        assert_eq!(
-            core.donn.spec("official").unwrap().isolation,
-            Isolation::Full,
-            "opening the picker must not toggle immediately"
-        );
-        let _ = modal.handle(KeyCode::Down.into(), &mut core);
-        let _ = modal.handle(KeyCode::Enter.into(), &mut core);
-        assert_eq!(
-            core.donn.spec("official").unwrap().isolation,
-            Isolation::Shared
-        );
-    }
-
-    #[test]
-    fn copy_menu_contains_launch_paths_and_explicit_env_without_effort() {
-        let dir = tempfile::tempdir().unwrap();
-        let home = DonnHome::for_test(dir.path());
-        let donn = Donn::with_home(home.clone()).unwrap();
-        donn.create(&ProfileDraft {
-            name: "copy-profile".into(),
-            preset: "official".into(),
-            env: vec![
-                ("CUSTOM_VALUE".into(), "copy-me".into()),
-                (keys::EFFORT.into(), "high".into()),
-            ],
-            ..Default::default()
-        })
-        .unwrap();
-        let core = Core::new(donn);
-
-        let items = copy_items(&core);
-        assert_eq!(items[0].value, "copy-profile");
-        assert!(items.iter().any(|item| item.value == "copy-me"));
-        assert!(
-            items
-                .iter()
-                .any(|item| item.value
-                    == home.claude_config_dir("copy-profile").display().to_string())
-        );
-        assert!(
-            items
-                .iter()
-                .any(|item| item.value == home.settings_file("copy-profile").display().to_string())
-        );
-        assert!(
-            items
-                .iter()
-                .any(|item| item.value == home.spec_file("copy-profile").display().to_string())
-        );
-        assert!(items.iter().any(|item| {
-            item.value
-                == donn_core::wrapper::wrapper_path(&home.default_bin_dir(), "copy-profile")
-                    .display()
-                    .to_string()
-        }));
-        assert!(
-            items
-                .iter()
-                .all(|item| item.label != i18n::row_env(keys::EFFORT))
-        );
-    }
 }

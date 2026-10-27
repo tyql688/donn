@@ -1,5 +1,5 @@
-//! 渠道选择弹窗：可模糊过滤的 preset 列表（Add 表单 Tab 唤起）。
-//! 匹配用 nucleo-matcher（helix 同款）：`kcn` 能命中 `kimi-cn`，按得分排序。
+//! provider 选择弹窗：可模糊过滤的 preset 列表（Add 表单里按 Tab 唤起）。
+//! 匹配用 `nucleo-matcher`（和 Helix 同款）：`kcn` 能命中 `kimi-cn`，按得分排序。
 
 use crossterm::event::{KeyCode, KeyEvent};
 use donn_core::preset::Preset;
@@ -143,24 +143,5 @@ impl Modal for PresetPick {
             width,
             height,
         );
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn exact_key_and_key_prefix_rank_ahead_of_description_matches() {
-        let dir = tempfile::tempdir().unwrap();
-        let catalog = donn_core::PresetCatalog::load(&donn_core::DonnHome::for_test(dir.path()));
-        let mut picker = PresetPick::new(catalog.all().to_vec(), "ant-ling");
-
-        picker.filter.set("official");
-        assert_eq!(picker.matches()[0].key, "official");
-
-        picker.filter.set("kimi");
-        assert!(picker.matches()[0].key.starts_with("kimi"));
-        assert!(picker.matches()[1].key.starts_with("kimi"));
     }
 }

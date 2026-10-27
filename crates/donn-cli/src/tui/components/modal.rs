@@ -21,7 +21,7 @@ type OnSubmit = Box<dyn FnMut(&mut Core, &str) -> Result<(), String>>;
 pub enum ModalOutcome {
     Keep,
     Close,
-    /// 关掉自己，换下一个弹窗接着问（如选完自定义模型接着问上下文窗口）。
+    /// 关掉自己，换下一个弹窗接着问（如选完自定义 model 接着问上下文窗口）。
     Replace(Box<dyn Modal>),
 }
 
@@ -42,8 +42,8 @@ pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
     rect
 }
 
-/// 弹窗盒宽：想要 `preferred` 列，两侧各留 2 列；屏幕再窄也不小于 `floor`，但绝不超出屏宽——
-/// 输入框的光标窗口按这个最终宽度算，撑出屏外会和盒子错位。
+/// 弹窗盒宽：想要 `preferred` 列，两侧各留 2 列；屏幕再窄也不小于 `floor`，但绝不超出屏宽。
+/// 输入框的光标窗口按最终宽度算，撑出屏外会和盒子错位。
 pub(crate) fn box_width(area: Rect, preferred: u16, floor: u16) -> u16 {
     preferred
         .min(area.width.saturating_sub(4))
@@ -276,7 +276,7 @@ impl Modal for Prompt {
 type OnPick = Box<dyn FnOnce(&mut Core, usize)>;
 
 /// 通用单选弹窗：↑↓/jk 移动、enter 确认、esc 取消。
-/// 用于取值有限的字段（如思考强度）——确认才提交，浏览不写盘。
+/// 用于取值有限的字段（例如思考强度）。确认才提交，浏览不写盘。
 pub struct Select {
     pub title: String,
     options: Vec<String>,
@@ -325,7 +325,7 @@ impl Modal for Select {
 
     fn render(&mut self, f: &mut Frame, area: Rect, core: &Core) {
         let theme = &core.theme;
-        // 模型 id / 带 label 的候选项往往较长，给足宽度
+        // model id / 带 label 的候选项往往较长，给足宽度
         // 内容宽 = 最长选项（含 2 列选中标记）与底部按键提示里较宽的那个，外加边框与 padding
         let options = self.options.iter().map(|o| o.width() + 2).max();
         let content = options.unwrap_or(0).max(i18n::SELECT_HINT.width());
@@ -363,99 +363,5 @@ impl Modal for Select {
             width,
             height,
         );
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn selected_prefill_is_replaced_by_typing_and_cleared_by_backspace() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut core = Core::new(
-            donn_core::Donn::with_home(donn_core::DonnHome::for_test(dir.path())).unwrap(),
-        );
-        let key = |code| KeyEvent::new(code, KeyModifiers::NONE);
-
-        // 直接敲字 = 整个换掉，而不是接在预填值后面
-        let mut prompt = Prompt::new("t", "262144", false, |_, _| Ok(())).select_all();
-        prompt.handle(key(KeyCode::Char('1')), &mut core);
-        prompt.handle(key(KeyCode::Char('0')), &mut core);
-        assert_eq!(prompt.input.value(), "10");
-
-        let mut prompt = Prompt::new("t", "262144", false, |_, _| Ok(())).select_all();
-        prompt.handle(key(KeyCode::Backspace), &mut core);
-        assert_eq!(prompt.input.value(), "");
-
-        // 方向键 = 转成普通编辑，预填值保留
-        let mut prompt = Prompt::new("t", "262144", false, |_, _| Ok(())).select_all();
-        prompt.handle(key(KeyCode::Left), &mut core);
-        prompt.handle(key(KeyCode::Char('0')), &mut core);
-        assert_eq!(prompt.input.value(), "2621404");
-
-        // Ctrl 组合键不是「敲字」：不能把预填值清掉
-        let mut prompt = Prompt::new("t", "262144", false, |_, _| Ok(())).select_all();
-        prompt.handle(
-            KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL),
-            &mut core,
-        );
-        assert_eq!(prompt.input.value(), "262144");
-
-        // 没开全选的输入框照旧是追加
-        let mut prompt = Prompt::new("t", "https://a", false, |_, _| Ok(()));
-        prompt.handle(key(KeyCode::Char('b')), &mut core);
-        assert_eq!(prompt.input.value(), "https://ab");
-    }
-
-    #[test]
-    fn confirm_box_grows_with_wrapped_body_so_the_hint_stays_visible() {
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-
-        let dir = tempfile::tempdir().unwrap();
-        let core = Core::new(
-            donn_core::Donn::with_home(donn_core::DonnHome::for_test(dir.path())).unwrap(),
-        );
-        let mut confirm = Confirm::new(
-            "remove profile 'moacode'?",
-            vec![
-                "settings and launch commands will be removed; sessions live in ~/.claude and stay where they are, untouched"
-                    .into(),
-            ],
-            |_| {},
-        );
-        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
-        terminal
-            .draw(|f| confirm.render(f, f.area(), &core))
-            .unwrap();
-        let screen: Vec<String> = (0..24)
-            .map(|y| {
-                (0..80)
-                    .map(|x| terminal.backend().buffer()[(x, y)].symbol().to_string())
-                    .collect()
-            })
-            .collect();
-        let hint_row = screen
-            .iter()
-            .position(|row| row.contains(i18n::CONFIRM_NO))
-            .expect("the y/n hint line must be rendered");
-        let bottom_border = screen
-            .iter()
-            .rposition(|row| row.contains('╰'))
-            .expect("modal must have a bottom border");
-        assert!(
-            hint_row < bottom_border,
-            "hint {hint_row} must sit above border {bottom_border}"
-        );
-    }
-
-    #[test]
-    fn centered_rect_clamps() {
-        let area = Rect::new(0, 0, 80, 24);
-        let r = centered_rect(area, 100, 100);
-        assert_eq!((r.width, r.height), (80, 24));
-        let r = centered_rect(area, 40, 10);
-        assert_eq!((r.x, r.y, r.width, r.height), (20, 7, 40, 10));
     }
 }

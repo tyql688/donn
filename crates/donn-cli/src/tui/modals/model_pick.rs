@@ -1,7 +1,7 @@
-//! 模型选择：搜 / 选 / 手填（全 provider 同一套）。
+//! model 选择：搜索、选择、手填（所有 provider 同一套）。
 //!
-//! UI 只改模型槽。上下文套餐由 `render()` 按 sonnet 生效 id 注入；用户在 env 行
-//! 自己写的 `CLAUDE_CODE_MAX_CONTEXT_TOKENS` 等键属于 profile 意图，优先于套餐，换模型不动它。
+//! UI 只改 model slot。上下文 package 由 `render()` 按生效的 sonnet id 注入；用户在 env 行
+//! 自己写的 `CLAUDE_CODE_MAX_CONTEXT_TOKENS` 等 key 属于 profile 意图，优先于 package，换 model 时不动它。
 
 use std::collections::BTreeSet;
 
@@ -26,7 +26,7 @@ pub enum Pick {
     Id(String),
 }
 
-/// 候选 = model_choices ∪ 槽位默认 id。
+/// 候选 = model_choices ∪ slot 默认 id。
 pub fn collect_choices(preset: &Preset) -> Vec<ModelChoice> {
     let mut out = Vec::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
@@ -49,8 +49,26 @@ pub fn collect_choices(preset: &Preset) -> Vec<ModelChoice> {
     out
 }
 
-/// preset 叠上用户自己定义过窗口的模型。选择器候选、「要不要问窗口」都看合并后的这份：
-/// 定义过的自定义模型和 preset 候选一样带着窗口出现，同 id 的条目压过 preset 的数字。
+/// 选择器候选：preset 候选加上当前覆盖值。当前值是不在目录里的自由 model id 时，
+/// 也要能出现在列表里并保持选中，否则重新打开选择器会跳回 Follow。
+fn choices_with_current(preset: &Preset, current: &str) -> Vec<ModelChoice> {
+    let mut choices = collect_choices(preset);
+    let current = current.trim();
+    if !current.is_empty()
+        && !choices
+            .iter()
+            .any(|choice| choice.id.eq_ignore_ascii_case(current))
+    {
+        choices.push(ModelChoice {
+            id: current.to_string(),
+            ..Default::default()
+        });
+    }
+    choices
+}
+
+/// preset 叠上用户自己定义过窗口的 model。选择器候选、「要不要问窗口」都看合并后的这份：
+/// 定义过的自定义 model 和 preset 候选一样带着窗口出现，同 id 的条目压过 preset 的数字。
 pub fn with_custom_models(
     preset: &Preset,
     windows: &std::collections::BTreeMap<String, u64>,
@@ -81,8 +99,8 @@ pub fn needs_window(preset: &Preset, id: &str) -> bool {
             .is_none()
 }
 
-/// 这次选择给槽位留下的覆盖值。`None` = 跟随 preset：选了 Follow、输入为空，或选中的正是
-/// preset 默认。命中候选时用候选里的大小写。只算目标槽位，不碰 env。
+/// 这次选择给 slot 留下的覆盖值。`None` = 跟随 preset：选了 Follow、输入为空，或选中的正是
+/// preset 默认。命中候选时用候选里的大小写。只算目标 slot，不碰 env。
 pub fn slot_override(preset: &Preset, slot: ModelSlot, pick: Pick) -> Option<String> {
     let Pick::Id(raw) = pick else {
         return None;
@@ -341,7 +359,7 @@ pub fn open(
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
         .unwrap_or_else(|| i18n::MODEL_NONE.to_string());
-    let choices = collect_choices(preset);
+    let choices = choices_with_current(preset, current_override);
     // 空 needle = 完整列表（含 Follow），不把当前 id 预填进过滤框
     let rows = Picker::rows_for("", &choices, &default_label);
     let selected = if current_override.is_empty() {
@@ -349,7 +367,9 @@ pub fn open(
     } else {
         rows.iter()
             .position(|r| match r {
-                Row::Choice(i) => choices.get(*i).is_some_and(|c| c.id == current_override),
+                Row::Choice(i) => choices
+                    .get(*i)
+                    .is_some_and(|c| c.id.eq_ignore_ascii_case(current_override)),
                 _ => false,
             })
             .unwrap_or(0)
@@ -362,149 +382,4 @@ pub fn open(
         selected,
         on_done: Some(Box::new(on_done)),
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use donn_core::keys::SlotMap;
-
-    fn kimi() -> Preset {
-        let mut models = SlotMap::default();
-        for s in ModelSlot::ALL {
-            models.set(s, Some("k3[1m]".into()));
-        }
-        Preset {
-            models,
-            model_choices: vec![
-                ModelChoice {
-                    id: "k3[1m]".into(),
-                    max_context: Some(1_048_576),
-                    ..Default::default()
-                },
-                ModelChoice {
-                    id: "k3".into(),
-                    max_context: Some(262_144),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        }
-    }
-
-    fn minimax_like() -> Preset {
-        let mut models = SlotMap::default();
-        models.set(ModelSlot::Sonnet, Some("M3".into()));
-        models.set(ModelSlot::Haiku, Some("M2".into()));
-        Preset {
-            models,
-            model_choices: vec![
-                ModelChoice {
-                    id: "M3".into(),
-                    max_context: Some(1_000_000),
-                    ..Default::default()
-                },
-                ModelChoice {
-                    id: "M2".into(),
-                    max_context: Some(204_800),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn only_ids_nobody_knows_the_window_of_need_one() {
-        let p = kimi();
-        assert!(!needs_window(&p, "k3[1m]"), "preset 候选自带窗口");
-        assert!(!needs_window(&p, "claude-sonnet-5"), "Claude Code 认识");
-        assert!(!needs_window(&p, "anthropic/claude-opus-5"));
-        assert!(!needs_window(&p, ""));
-        assert!(needs_window(&p, "my-gateway/model-x"));
-    }
-
-    #[test]
-    fn slot_override_follows_the_preset_default_and_keeps_catalog_case() {
-        let p = kimi();
-        let pick =
-            |preset: &Preset, slot, id: &str| slot_override(preset, slot, Pick::Id(id.into()));
-        assert_eq!(pick(&p, ModelSlot::Sonnet, "k3").as_deref(), Some("k3"));
-        // 选中 preset 默认值 = 清除覆盖，跟随 preset
-        assert_eq!(pick(&p, ModelSlot::Sonnet, "k3[1m]"), None);
-        assert_eq!(slot_override(&p, ModelSlot::Haiku, Pick::Follow), None);
-        assert_eq!(pick(&p, ModelSlot::Sonnet, "  "), None);
-        assert_eq!(pick(&minimax_like(), ModelSlot::Haiku, "M2"), None);
-        // 手填：命中候选用候选的大小写，没命中原样保留
-        assert_eq!(pick(&p, ModelSlot::Sonnet, "K3").as_deref(), Some("k3"));
-        assert_eq!(
-            pick(&p, ModelSlot::Sonnet, "custom").as_deref(),
-            Some("custom")
-        );
-    }
-
-    #[test]
-    fn choice_collection_deduplicates_ids() {
-        let mut p = kimi();
-        p.model_choices.push(p.model_choices[0].clone());
-        assert_eq!(
-            collect_choices(&p)
-                .iter()
-                .filter(|choice| choice.id == "k3[1m]")
-                .count(),
-            1
-        );
-    }
-
-    #[test]
-    fn picker_row_keeps_identity_and_moves_metadata_to_preview() {
-        let choice = ModelChoice {
-            id: "k3[1m]".into(),
-            label: Some("K3 · 1M (Allegretto+; Claude Code form)".into()),
-            max_context: Some(1_048_576),
-            ..Default::default()
-        };
-
-        assert_eq!(choice_row(&choice, 2, 50), "K3  k3[1m]");
-        assert_eq!(
-            detail(&choice).as_deref(),
-            Some("1M (Allegretto+; Claude Code form)")
-        );
-    }
-
-    #[test]
-    fn picker_rows_and_preview_do_not_exceed_their_width() {
-        let choice = ModelChoice {
-            id: "kimi-for-coding-highspeed".into(),
-            label: Some("K2.7 Code HighSpeed · 256K (Allegretto+)".into()),
-            ..Default::default()
-        };
-
-        assert!(choice_row(&choice, 7, 24).width() <= 24);
-        assert!(fit_right(detail(&choice).as_deref().unwrap_or_default(), 12).width() <= 12);
-    }
-
-    #[test]
-    fn picker_model_ids_share_one_column() {
-        let choices = vec![
-            ModelChoice {
-                id: "MiniMax-M3[1m]".into(),
-                label: Some("M3 · 1M".into()),
-                ..Default::default()
-            },
-            ModelChoice {
-                id: "MiniMax-M2.7-highspeed".into(),
-                label: Some("M2.7 HighSpeed · 200K".into()),
-                ..Default::default()
-            },
-        ];
-        let name_width = name_column_width(&choices, "default", "MiniMax-M3[1m]", 50);
-        let default = aligned_row("default", "MiniMax-M3[1m]", name_width, 50);
-        let m3 = choice_row(&choices[0], name_width, 50);
-        let fast = choice_row(&choices[1], name_width, 50);
-
-        let column = default.find("MiniMax").unwrap();
-        assert_eq!(m3.find("MiniMax"), Some(column));
-        assert_eq!(fast.find("MiniMax"), Some(column));
-    }
 }

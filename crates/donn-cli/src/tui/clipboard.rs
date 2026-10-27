@@ -1,4 +1,4 @@
-//! Cross-platform text clipboard kept alive for the TUI session.
+//! 跨平台文本剪贴板，在 TUI session 期间保持存活。
 
 #[derive(Default)]
 pub struct Clipboard {

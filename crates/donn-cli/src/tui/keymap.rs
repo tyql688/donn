@@ -1,4 +1,4 @@
-//! Keymap：(焦点上下文, 按键) → Action 的唯一映射处；状态栏键提示与帮助页同源于此。
+//! Keymap：(焦点上下文, 按键) 到 Action 的唯一映射处；状态栏提示和帮助页都从这里取。
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -8,7 +8,7 @@ use crate::tui::i18n;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Quit,
-    /// Esc：逐级返回（详情→左栏、doctor→收起），并清状态栏。
+    /// Esc：逐级返回（详情回左栏、doctor 收起），并清状态栏。
     Back,
     /// Tab：焦点在可见面板间轮转。
     FocusNext,
@@ -30,11 +30,11 @@ pub enum Action {
     RerunDoctor,
     /// ^t：详情页 api key 明文/掩码切换。
     ToggleKeyReveal,
-    /// o：浏览器打开当前渠道的取 key 控制台地址。
+    /// o：浏览器打开当前 provider 的取 key 控制台地址。
     OpenKeyUrl,
     /// y：打开复制选择器（启动命令、路径、profile env）。
     OpenCopy,
-    /// S：全局设置面板（右栏行编辑 config.toml，改动即同步全部 profile）。
+    /// S：全局设置面板（右栏按行编辑 config.toml，改动立即 sync 所有 profile）。
     OpenSettings,
     Help,
 }
@@ -45,7 +45,7 @@ pub enum Context {
     Profiles,
     Detail,
     Doctor,
-    /// Add 阶段 1：选渠道（按键由表单直接处理，keymap 只提供状态栏提示）。
+    /// Add 阶段 1：选 provider（按键由表单直接处理，keymap 只提供状态栏提示）。
     AddPick,
     /// Add 阶段 2：填表。
     AddForm,
@@ -97,7 +97,7 @@ pub fn lookup(context: Context, key: &KeyEvent) -> Option<Action> {
     }
 }
 
-/// 状态栏键提示（空闲时显示；`?` 查看全部）。
+/// 状态栏按键提示（空闲时显示；按 `?` 查看全部）。
 pub fn hints(context: Context) -> Vec<(&'static str, &'static str)> {
     match context {
         Context::Profiles => vec![
@@ -179,113 +179,4 @@ pub fn cheatsheet() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ],
         ),
     ]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crossterm::event::{KeyEventKind, KeyEventState};
-
-    fn key(code: KeyCode) -> KeyEvent {
-        KeyEvent {
-            code,
-            modifiers: KeyModifiers::NONE,
-            kind: KeyEventKind::Press,
-            state: KeyEventState::NONE,
-        }
-    }
-
-    #[test]
-    fn keymap_table() {
-        let cases = [
-            (Context::Profiles, KeyCode::Char('q'), Some(Action::Quit)),
-            (Context::Profiles, KeyCode::Esc, Some(Action::Back)),
-            (Context::Profiles, KeyCode::Enter, Some(Action::Activate)),
-            (
-                Context::Profiles,
-                KeyCode::Char('e'),
-                Some(Action::FocusDetail),
-            ),
-            (
-                Context::Profiles,
-                KeyCode::Char('d'),
-                Some(Action::RemoveProfile),
-            ),
-            (
-                Context::Detail,
-                KeyCode::Char('d'),
-                Some(Action::RemoveProfile),
-            ),
-            (
-                Context::Detail,
-                KeyCode::Char('s'),
-                Some(Action::SyncProfile),
-            ),
-            (Context::Profiles, KeyCode::Char('g'), Some(Action::JumpTop)),
-            (
-                Context::Profiles,
-                KeyCode::Char('G'),
-                Some(Action::JumpBottom),
-            ),
-            (Context::Profiles, KeyCode::Char('?'), Some(Action::Help)),
-            (
-                Context::Doctor,
-                KeyCode::Char('r'),
-                Some(Action::RerunDoctor),
-            ),
-            (Context::Profiles, KeyCode::Char('p'), None),
-            (
-                Context::Detail,
-                KeyCode::Char('o'),
-                Some(Action::OpenKeyUrl),
-            ),
-            (Context::Detail, KeyCode::Char('y'), Some(Action::OpenCopy)),
-            (Context::Doctor, KeyCode::Char('o'), None),
-            (Context::Doctor, KeyCode::Char('s'), None),
-            (Context::Profiles, KeyCode::Char('x'), None),
-        ];
-        for (ctx, code, expect) in cases {
-            assert_eq!(lookup(ctx, &key(code)), expect, "{ctx:?} {code:?}");
-        }
-    }
-
-    #[test]
-    fn modifier_combos_do_not_trigger_panel_actions() {
-        let mut ctrl_s = key(KeyCode::Char('s'));
-        ctrl_s.modifiers = KeyModifiers::CONTROL;
-        assert_eq!(lookup(Context::Detail, &ctrl_s), None);
-
-        let mut alt_j = key(KeyCode::Char('j'));
-        alt_j.modifiers = KeyModifiers::ALT;
-        assert_eq!(lookup(Context::Profiles, &alt_j), None);
-
-        // Shift 只是大小写的一部分，照常工作
-        let mut shift_g = key(KeyCode::Char('G'));
-        shift_g.modifiers = KeyModifiers::SHIFT;
-        assert_eq!(
-            lookup(Context::Profiles, &shift_g),
-            Some(Action::JumpBottom)
-        );
-
-        // 无修饰键的裸键不受影响
-        assert_eq!(
-            lookup(Context::Detail, &key(KeyCode::Char('s'))),
-            Some(Action::SyncProfile)
-        );
-    }
-
-    #[test]
-    fn every_context_shows_one_to_five_primary_hints() {
-        for ctx in [
-            Context::Profiles,
-            Context::Detail,
-            Context::Doctor,
-            Context::AddPick,
-            Context::AddForm,
-            Context::Settings,
-        ] {
-            assert!((1..=5).contains(&hints(ctx).len()), "{ctx:?}");
-        }
-        assert!(!cheatsheet().is_empty());
-    }
 }

@@ -49,7 +49,7 @@ n=$(grep -n '^### `alwaysThinkingEnabled`' /tmp/donn-settings-ref.md | cut -d: -
 - 未在册键是否转正或消失
 - `keys::SHELL_OVERRIDE_KEYS`：有没有新的「换云厂商 / 盖模型」类 env 要加进启动剥除名单
 
-改动位置：常量与注释在 `keys.rs`；写入层在 `render.rs`（层序见 `docs/ARCHITECTURE.md`，新键插入哪层要用测试锁定）；新旋钮转 `add-global-knob`。
+改动位置：常量与注释在 `keys.rs`；写入层在 `render.rs`（层序见 `docs/ARCHITECTURE.md`，新键插入哪层要在真实落盘里核对）；新旋钮转 `add-global-knob`。
 
 ## 2. Anthropic 官方模型
 
@@ -68,7 +68,7 @@ rg -o 'claude-(fable|mythos|opus|sonnet|haiku)-[0-9a-z.-]*' /tmp/donn-claude-str
 
 ## 3. 第三方渠道 preset
 
-只动 `crates/donn-core/src/preset/presets/<key>.toml`，一渠道一文件，文件名即 key；新渠道 = 一个新 TOML，加上 `preset/mod.rs` 的 `BUILTIN_PRESETS` 里一个名字。用户可在 `~/.donn/presets.d/` 放同 key 文件覆盖内置。
+只动 `crates/donn-core/src/preset/presets/<key>.toml`，一渠道一文件，文件名即 key；新渠道 = 一个新 TOML，`build.rs` 会自动收录。用户可在 `~/.donn/presets.d/` 放同 key 文件覆盖内置。
 
 模型 id 和窗口数字不手抄。来源是 pi 的模型目录：pi 自己刷新模型用的接口 `https://pi.dev/api/models`，加上刚进 npm 包、接口里还没有的 provider。脚本直接联网取，不依赖本机装没装 pi。
 
@@ -90,7 +90,7 @@ node $S/scripts/pi-sync.mjs --record       # 全部处理完，把线上目录�
 - 厂商直连和订阅渠道：`+` 的都加，用 `--emit` 的输出贴进 TOML。宁多勿少，选择器带搜索。确实不该收的（别名、没核实端点是否提供的）在 `pi-providers.json` 给该 provider 登记 `ignore` 正则和 `ignore_reason`，不要留着不管。
 - 网关渠道（`pi-providers.json` 里 `gateway: true`）：目录上百个，只挑主力编码模型，其余用户自由输入。脚本只看 `api` 为 `anthropic-messages` 的模型，同一网关上走 OpenAI 协议的 Claude Code 接不了。`openrouter`、`huggingface` 再对一遍各自的 live 目录（`https://openrouter.ai/api/v1/models`、`https://router.huggingface.co/v1/models`），下架的 slug 要删。
 - `≠`：厂商文档公布了精确窗口就以厂商为准，并登记到 `vendor_windows`（写出处）；厂商只说「1M」这类约数就改成 pi 的数字。
-- 非 Claude 的候选一律要有 `max_context`（有测试把关）：Claude Code 不认识第三方 id，不给就按它猜的窗口压缩。id 里带 `claude-` 的不设，官方文档写明对能解析成 Claude 模型的 id 该变量不生效。
+- 非 Claude 的候选一律要有 `max_context`：Claude Code 不认识第三方 id，不给就按它猜的窗口压缩。id 里带 `claude-` 的不设，官方文档写明对能解析成 Claude 模型的 id 该变量不生效。
 
 pi 答不了、只能看厂商文档的：`[preset.models]` 默认槽位该用哪个主力模型、`[1m]` 这类 Claude Code 专用 id（和裸 API id 不同时注释写清，如 Kimi `k3[1m]` / `k3`）、认证模式（`ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_API_KEY` 都要求时开 `auth_token_also_sets_api_key`）、`key_url`、flags。套餐总览页和 Claude Code 接入页都读，接入页可能落后一代。厂商退役 id 且自动路由时直接换新 id，用户钉住的旧 id 靠路由继续可用。preset 头部注释只留文档 URL 和不看就会踩的坑。
 
@@ -105,7 +105,7 @@ Claude Code 只说 Anthropic Messages 协议。按序判定，查到即止：
 3. 能接但缺厂商接入文档（认证头、`key_url` 不确定）：登记 `pending`，不凭猜测建 preset。
 4. 原生没有就走网关：把它的主力模型加进 `vercel` / `openrouter` 候选。Cloudflare AI Gateway 和本地翻译代理用 `custom` preset，donn 不管理代理进程。
 
-新建 preset 后：`preset/mod.rs` 的 `BUILTIN_PRESETS` 按字典序加 key（漏了或文件名与 key 对不上，测试会报），`pi-providers.json` 登记映射，台账加一行。
+新建 preset 后：文件名和 TOML 里的 `key` 必须一致（`build.rs` 会检查），`pi-providers.json` 登记映射，台账加一行。
 
 ## 验收
 

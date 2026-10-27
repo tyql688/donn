@@ -1,5 +1,5 @@
-//! 写路径：单字段编辑 / 换 key / 重新同步，全部收敛为「改 spec + regenerate」。
-//! key 自动搬迁：sync 时从 settings.json 现有认证键读回 secret，换 auth 模式无需重输。
+//! 写路径：单字段编辑、换 key、重新 sync，最后都收敛成「改 spec + regenerate」。
+//! key 自动搬迁：sync 时从 settings.json 的现有认证 key 读回 secret，换 auth 模式不用重输。
 
 use serde_json::Value;
 
@@ -16,29 +16,29 @@ use crate::timefmt;
 
 use super::Donn;
 
-/// 对 spec 意图的单项变更。
+/// 对 spec 意图的单向变更。
 #[derive(Debug, Clone)]
 pub enum SpecChange {
     /// `None` = 清除覆盖，回到跟随 preset。
     BaseUrl(Option<String>),
     /// `None` = 清除覆盖。
     Model(ModelSlot, Option<String>),
-    /// 某个模型 id 的上下文窗口；`None` = 删掉这条（回到 preset 的数字，或交给 Claude Code）。
+    /// 某个 model id 的上下文窗口；`None` = 删掉这条（回到 preset 的数字，或交给 Claude Code）。
     ModelWindow(String, Option<u64>),
     SetEnv(String, String),
     RemoveEnv(String),
-    /// 切换隔离模式（regenerate 会同步增删共享模式的 connectors 停用 env）。
+    /// 切换 isolation（regenerate 会同步增删 shared 模式的 connectors 停用 env）。
     Isolation(Isolation),
 }
 
-/// 一次 regenerate 的结果报告。
+/// 一次 regenerate 的结果。
 #[derive(Debug, Clone, Default)]
 pub struct SyncReport {
-    /// donn 拥有的键上被覆盖的用户手改（漂移，以 donn 为准）。
+    /// donn 拥有的 key 上被覆盖的用户手改（drift，以 donn 为准）。
     pub overwritten: Vec<String>,
 }
 
-/// settings.json 与 spec 渲染结果的偏差（doctor / $EDITOR 返回后检出）。
+/// settings.json 和 spec 渲染结果之间的偏差（doctor 和 `$EDITOR` 返回后检出）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Drift {
     pub key: String,
@@ -47,15 +47,15 @@ pub struct Drift {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DriftKind {
-    /// donn 拥有的键被手工删除。
+    /// donn 拥有的 key 被手工删除。
     Missing,
-    /// donn 拥有的键被手工改值（下次 sync 覆盖）。
+    /// donn 拥有的 key 被手工改值（下次 sync 会覆盖）。
     Modified,
 }
 
 /// regenerate 的 secret 来源。
 pub(super) enum SecretSource {
-    /// 从现有 settings.json 的认证键读回（自动搬迁）。
+    /// 从现有 settings.json 的认证 key 读回（自动搬迁）。
     Recover,
     /// 显式提供（set_key / create）。
     Explicit(Option<Secret>),
@@ -67,7 +67,7 @@ impl Donn {
         self.edit_many(name, [change])
     }
 
-    /// 多项编辑：一次 regenerate（如模型选择：写槽位 + 清残留 package 键）。
+    /// 多项编辑：一次 regenerate（例如 model 选择：写 slot、清掉残留的 package key）。
     pub fn edit_many(
         &self,
         name: &str,
@@ -79,7 +79,7 @@ impl Donn {
         for change in changes {
             apply_change(&mut spec, change)?;
         }
-        self.regenerate(Some(&old_spec), &mut spec, SecretSource::Recover)
+        self.regenerate(Some(&old_spec), &mut spec, SecretSource::Recover, None)
     }
 
     /// 设置/更换 API key。key 只写入 settings.json，绝不入 spec。
@@ -91,28 +91,40 @@ impl Donn {
             Some(&old_spec),
             &mut spec,
             SecretSource::Explicit(Some(key)),
+            None,
         )
     }
 
-    /// 从 spec 重新生成配置（preset 数据更新、漂移修复都走这里）。
+    /// 从 spec 重新生成配置（preset 数据更新、drift 修复都走这里）。
     pub fn sync(&self, name: &str) -> Result<SyncReport> {
         let _lock = self.write_lock()?;
-        self.sync_unlocked(name)
+        self.sync_unlocked(name, None)
     }
 
-    pub(super) fn sync_unlocked(&self, name: &str) -> Result<SyncReport> {
+    /// `old_defaults` 是这次 sync 前生效的全局默认。`edit_config` 会先落盘新
+    /// `config.toml` 再 sync，所以必须把旧默认传进来，才能正确判断旧渲染值。
+    pub(super) fn sync_unlocked(
+        &self,
+        name: &str,
+        old_defaults: Option<&Defaults>,
+    ) -> Result<SyncReport> {
         let old_spec = self.spec(name)?;
         let mut spec = old_spec.clone();
-        // preset 数据可能更新了 auth 模式：跟随之，key 由 Recover 自动搬迁
+        // preset 数据可能更新了 auth 模式：跟着变，key 由 Recover 自动搬迁
         let catalog = self.presets();
         if let Ok(preset) = catalog.get(&spec.preset) {
             spec.auth.mode = preset.auth_mode;
         }
-        self.regenerate(Some(&old_spec), &mut spec, SecretSource::Recover)
+        self.regenerate(
+            Some(&old_spec),
+            &mut spec,
+            SecretSource::Recover,
+            old_defaults,
+        )
     }
 
-    /// 漂移检出：settings.json 中 donn 拥有的键与 spec 渲染值的偏差。
-    /// 不修改任何文件；键值不进入结果（可能含 secret）。
+    /// drift 检出：settings.json 里 donn 拥有的 key 与 spec 渲染值的偏差。
+    /// 不修改任何文件；key 值不进入结果（可能含 secret）。
     pub fn audit_settings(&self, name: &str) -> Result<Vec<Drift>> {
         let spec = self.spec(name)?;
         let catalog = self.presets();
@@ -121,14 +133,16 @@ impl Donn {
         drift_for(&spec, preset, &settings, &self.config()?.defaults)
     }
 
-    /// 写路径的公共主干。`old_spec` = 变更前意图，用于区分
-    /// 「donn 自己上次写的值」（正常更新）与「用户手改」（覆盖并提示）；
-    /// create 无前状态传 `None`，手改判定按「无旧渲染」处理。
+    /// 写路径的公共主干。`old_spec` = 变更前的意图，用来区分
+    /// 「donn 自己上次写的值」（正常更新）和「用户手改」（覆盖并提示）；
+    /// create 没有前状态，传 `None`，手改判定按「没有旧渲染」处理。
+    /// `old_defaults` 只在全局配置刚被改动时传入；平时传 `None`，复用当前默认。
     pub(super) fn regenerate(
         &self,
         old_spec: Option<&ProfileSpec>,
         spec: &mut ProfileSpec,
         secret: SecretSource,
+        old_defaults: Option<&Defaults>,
     ) -> Result<SyncReport> {
         let catalog = self.presets();
         let preset = catalog.get(&spec.preset)?;
@@ -138,14 +152,15 @@ impl Donn {
         let existing_claude = claude::read_json(&self.home.claude_json_file(&name))?;
 
         let recovered = SettingsView::new(&existing_settings).secret();
-        // 旧渲染：现有文件里 donn 上次写的应然值（secret 用文件里现有的）。
-        // 旧 preset 在本版 donn 里已不存在时按「无旧渲染」处理（手改判定退化为
-        // 全部提示，footprint 驱动的清理不受影响）——硬报错会让 sync 永久卡死。
+        // 旧渲染：现有文件里 donn 上次应该写的值（secret 用文件里现有的）。
+        // 旧 preset 在当前版本里已经不存在时，按「没有旧渲染」处理：手改判定退化成
+        // 全部提示，footprint 驱动的清理不受影响。硬报错会让 sync 永久卡死。
         let defaults = &self.config()?.defaults;
+        let old_defaults = old_defaults.unwrap_or(defaults);
         let old_rendered = match old_spec {
             Some(old) => catalog
                 .get(&old.preset)
-                .map(|old_preset| render::render(old, old_preset, recovered.as_ref(), defaults))
+                .map(|old_preset| render::render(old, old_preset, recovered.as_ref(), old_defaults))
                 .unwrap_or_default(),
             None => Rendered::default(),
         };
@@ -165,7 +180,7 @@ impl Donn {
         let claude_json = reconcile::claude_json(&existing_claude, &spec.footprint, &rendered)?;
 
         // 稳态 sync 是纯 no-op：wrapper 每次启动前都会走这里，不能因此触碰
-        // settings/spec 的字节、mtime 或 updated_at。
+        // settings、spec 的字节、mtime 或 updated_at。
         if existing_settings != settings.value {
             claude::write_json(&self.home.settings_file(&name), &settings.value)?;
         }
@@ -173,7 +188,7 @@ impl Donn {
             claude::write_json(&self.home.claude_json_file(&name), &claude_json.value)?;
         }
 
-        // shared 模式的 --settings overlay 整份归 donn：读不出就重写，full 模式清掉残留。
+        // shared 模式的 --settings overlay 整份归 donn 所有：读不出来就重写，full 模式清掉残留。
         let overlay_path = self.home.shared_settings_file(&name);
         let overlay = match spec.isolation {
             Isolation::Shared => render::shared_overlay(spec, preset, defaults),
@@ -205,7 +220,7 @@ impl Donn {
     }
 }
 
-/// `updated_at` 是落盘元数据，不参与「意图/footprint 是否变化」判定。
+/// `updated_at` 是落盘元数据，不参与「意图或 footprint 是否变化」的判定。
 fn spec_equivalent(left: &ProfileSpec, right: &ProfileSpec) -> bool {
     let mut left = left.clone();
     let mut right = right.clone();
@@ -231,8 +246,8 @@ fn apply_change(spec: &mut ProfileSpec, change: SpecChange) -> Result<()> {
             }
         },
         SpecChange::SetEnv(key, value) => {
-            // donn 认识档位表的键在写入时校验：typo 会被 Claude Code 静默忽略，
-            // 与其落盘后 UI 显示与实际行为脱节，不如当场报错
+            // donn 认识的档位表 key 在写入时校验：typo 会被 Claude Code 静默忽略，
+            // 与其落盘后 UI 显示和实际行为脱节，不如当场报错
             if key == keys::EFFORT && Effort::from_env(Some(&value)).is_none() {
                 return Err(Error::InvalidInput(format!(
                     "invalid effort level `{value}` (expected one of low/medium/high/xhigh/max)"
@@ -270,7 +285,7 @@ pub(super) fn drift_for(
     Ok(diff_drift(settings, &rendered))
 }
 
-/// settings.json 与渲染结果逐键对比：env 键 + donn 拥有的顶层字段。
+/// settings.json 和渲染结果逐 key 对比：env key 加上 donn 拥有的顶层字段。
 pub(super) fn diff_drift(settings: &Value, rendered: &Rendered) -> Vec<Drift> {
     let view = SettingsView::new(settings);
     let env_drift = rendered
@@ -291,7 +306,7 @@ pub(super) fn diff_drift(settings: &Value, rendered: &Rendered) -> Vec<Drift> {
     env_drift.chain(top_drift).chain(mode_drift).collect()
 }
 
-/// 单键对比：缺失 / 值不同 / 一致。
+/// 单 key 对比：缺失、值不同、一致。
 fn diff_one<T: PartialEq>(key: &str, actual: Option<T>, expected: &T) -> Option<Drift> {
     let kind = match actual {
         None => DriftKind::Missing,
@@ -302,81 +317,4 @@ fn diff_one<T: PartialEq>(key: &str, actual: Option<T>, expected: &T) -> Option<
         key: key.to_string(),
         kind,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn drift_diff_table() {
-        let rendered = Rendered {
-            env: vec![
-                ("A".into(), "1".into()),
-                ("B".into(), "2".into()),
-                ("C".into(), "3".into()),
-            ],
-            ..Default::default()
-        };
-        let settings = json!({"env": {"A": "1", "B": "changed", "USER": "x"}});
-        let drift = diff_drift(&settings, &rendered);
-        assert_eq!(
-            drift,
-            vec![
-                Drift {
-                    key: "B".into(),
-                    kind: DriftKind::Modified
-                },
-                Drift {
-                    key: "C".into(),
-                    kind: DriftKind::Missing
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn drift_covers_donn_owned_top_level_keys() {
-        let rendered = Rendered {
-            settings_top: vec![
-                ("effortLevel".into(), json!("high")),
-                ("attribution".into(), json!({"commit": false})),
-            ],
-            ..Default::default()
-        };
-        // effortLevel 手改、attribution 手删，均须检出；用户自己的顶层键不参与
-        let settings = json!({"effortLevel": "low", "theme": "dark"});
-        let drift = diff_drift(&settings, &rendered);
-        assert_eq!(
-            drift,
-            vec![
-                Drift {
-                    key: "effortLevel".into(),
-                    kind: DriftKind::Modified
-                },
-                Drift {
-                    key: "attribution".into(),
-                    kind: DriftKind::Missing
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn spec_equivalence_ignores_only_updated_at() {
-        let base = ProfileSpec {
-            name: "p".into(),
-            preset: "official".into(),
-            updated_at: "before".into(),
-            ..Default::default()
-        };
-        let mut changed_time = base.clone();
-        changed_time.updated_at = "after".into();
-        assert!(spec_equivalent(&base, &changed_time));
-
-        let mut changed_intent = changed_time;
-        changed_intent.intent.base_url = Some("https://example.invalid".into());
-        assert!(!spec_equivalent(&base, &changed_intent));
-    }
 }

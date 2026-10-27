@@ -11,7 +11,7 @@ pub fn execute(name: &str, args: &[String]) -> i32 {
     }
 }
 
-/// sync → 启动计划 → exec claude。TUI 的 Enter 启动也走这里。
+/// sync、准备启动计划、exec claude。TUI 里按 Enter 启动也走这里。
 pub fn launch(donn: &Donn, name: &str, args: &[String]) -> i32 {
     // 启动前自愈手改漂移和版本升级后的渲染变化。失败不阻塞启动：
     // 已有落盘配置仍可能完全可用。

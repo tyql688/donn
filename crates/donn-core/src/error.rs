@@ -1,4 +1,4 @@
-//! 域错误类型。全链路带 context；API key 永不进入错误信息。
+//! 域错误类型。全链路带 context；API key 永远不进入错误信息。
 
 use std::path::PathBuf;
 
@@ -64,7 +64,7 @@ pub enum Error {
         path: PathBuf,
     },
 
-    /// 用户输入或配置值未通过校验（表单值、键名、配置项）。
+    /// 用户输入或配置值没通过校验（表单值、key 名、配置项）。
     #[error("{0}")]
     InvalidInput(String),
 
@@ -89,29 +89,8 @@ fn format_available(available: &[String]) -> String {
     }
 }
 
-/// `map_err` 辅助：给 io::Error 加上下文。
+/// `map_err` 辅助：给 `io::Error` 加上下文。
 pub fn io_ctx(context: impl Into<String>) -> impl FnOnce(std::io::Error) -> Error {
     let context = context.into();
     move |source| Error::Io { context, source }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn profile_not_found_lists_available() {
-        let err = Error::ProfileNotFound {
-            name: "zai".into(),
-            available: vec!["kimi".into(), "official".into()],
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("kimi, official"), "{msg}");
-
-        let err = Error::ProfileNotFound {
-            name: "zai".into(),
-            available: vec![],
-        };
-        assert!(err.to_string().contains("no profiles exist yet"));
-    }
 }

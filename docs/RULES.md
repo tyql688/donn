@@ -1,17 +1,17 @@
 # 硬规则
 
-下面每一条都是门禁。违反任何一条的改动不能合并，不存在「这次先这样」的例外。
+下面每一条都是门禁。违反任何一条的改动不能合并，没有「这次先这样」的例外。
 
 ## 边界
 
-1. `donn-core` 是不能依赖终端界面的纯业务库。CLI 命令和 TUI 只能通过 `Donn` 这个 facade 读写配置状态，不自己拼 JSON、不自己算该写哪些键。
-2. 写用户文件必须走 `fsx` 提供的原子写和权限设置。读 JSON 时必须保留未知字段：不能整个反序列化成结构体再写回去，那样会丢掉别人写的配置。
-3. donn 只增删 `profile.toml [footprint]` 里声明过的键。其它字段一律不碰，即使用户把同一个文件搞得乱七八糟。
-4. 永远不写 `~/.claude/`，永远不给 Claude 二进制打补丁。测试和手工验收都在 `/tmp` 下用独立的 `HOME` 和 `DONN_HOME`，不读写真实的 `~/.donn` 或 `~/.claude`。
+1. `donn-core` 是不能依赖终端界面的纯业务库。CLI 命令和 TUI 只能通过 `Donn` 这个 facade 读写配置状态，不自己拼 JSON，也不自己算该写哪些 key。
+2. 写用户文件必须走 `fsx` 提供的原子写和权限设置。读 JSON 时必须保留未知字段：不能整个反序列化成 struct 再写回去，那样会丢掉别人写的配置。
+3. donn 只增删 `profile.toml [footprint]` 里声明过的 key。其它字段一律不碰，即使用户把同一个文件搞得乱七八糟。
+4. 永远不写 `~/.claude/`，永远不给 Claude 二进制打补丁。手工验收用临时目录里的独立 `HOME` 和 `DONN_HOME`，不读写真实的 `~/.donn` 或 `~/.claude`。
 5. API key 不进日志、不进 `profile.toml`、不进错误信息。程序里只以 `Secret` 类型传递，明文只在两处出现：生成 settings 文件时，以及用户主动按快捷键明示查看时。
-6. 新增一个渠道就是新增一个 `crates/donn-core/src/preset/presets/<key>.toml`。业务代码里不允许出现按渠道名分支的逻辑；某个渠道的特殊行为用 preset 的 flags 或字段表达。
+6. 新增一个 provider 就是新增一个 `crates/donn-core/src/preset/presets/<key>.toml`。业务代码里不允许出现按 provider 名分支的逻辑；某个 provider 的特殊行为用 preset 的 flags 或字段表达。
 7. `~/.donn` 下的文件格式是对外承诺。改格式要先设计迁移方案，保证已经存在的文件能被直接读取。
-8. profile 的文件坏掉时，任何界面或命令都不能变成死胡同：列表里必须能看到它、Doctor 必须能诊断它、删除必须能删掉它，并且删除默认保留会话目录。
+8. profile 的文件坏掉时，任何界面或命令都不能变成死胡同：列表里必须能看到它、Doctor 必须能诊断它、删除必须能删掉它，并且删除默认保留 session 目录。
 9. 启动前的 sync 是尽力而为：失败了要给出明确告警，然后继续用现有配置启动，不能因此拒绝启动。配置没有变化时，稳态 sync 不得改动文件字节、mtime 或 `updated_at`。
 10. 界面里的有限选项必须用明确的 `Select` 控件或可搜索的 picker，不能为了少写代码退化成按 Enter 循环切换。模糊搜索用 `nucleo-matcher`，文本输入编辑用 `tui-input`，打开网址用 `open`，不重复实现已有的成熟库。
 
@@ -19,35 +19,36 @@
 
 同一个事实只有一个权威位置，改动时改那里：
 
-- Claude Code 的键名、枚举取值、模型槽位：`crates/donn-core/src/keys.rs`。
-- 全局旋钮的字段、默认值和分组：`crates/donn-core/src/knobs.rs`；面向用户的配置模板：`crates/donn-core/src/config.rs` 里的 `CONFIG_DOC`。
-- preset 的数据结构、内置清单、模型套餐：`crates/donn-core/src/preset/mod.rs` 和 `preset/presets/*.toml`。
-- 按键到动作的映射：`crates/donn-cli/src/tui/keymap.rs`。
+- Claude Code 的 key 名、枚举取值、model slot：`crates/donn-core/src/keys.rs`。
+- 全局 knob 的字段、默认值和分组：`crates/donn-core/src/knobs.rs`；面向用户的配置模板：`crates/donn-core/src/config.rs` 里的 `CONFIG_DOC`。
+- preset 的数据结构、内置清单、model package：`crates/donn-core/src/preset/mod.rs` 和 `preset/presets/*.toml`。
+- 按键到 action 的映射：`crates/donn-cli/src/tui/keymap.rs`。
 - 通用弹窗、选择、输入框的行为：`crates/donn-cli/src/tui/components/modal.rs`。
 
 ## 界面展示
 
 - 表单里展示的是生效值，不是内部存储技巧。某个覆盖为空、正在跟随 preset 时，也要把这个默认值显示出来并标注 `(default)`，但提交时不能因此把它写成显式覆盖。
-- 结构化的集合按行、按列展示，不能把候选项用分隔符拼成一大段文字。模型列表以短名称和真实 ID 为主，套餐和上下文窗口只放在当前选中项的详情里。
+- 结构化的集合按行、按列展示，不能把候选项用分隔符拼成一大段文字。model 列表以短名称和真实 ID 为主，package 和上下文窗口只放在当前选中项的详情里。
 - 所有列宽、填充和省略都按终端显示宽度计算，必须正确处理中日韩字符和窄终端。内容不允许越过面板或弹窗的边界。
 - 状态栏在任何一个上下文里最多展示 5 个当前可用的主要操作。低频快捷键留在 `?` 帮助页，不要在每个分区重复罗列。
 - 操作行和输入字段要有明显不同的视觉语义。操作行只高亮文字本身，不能借用字段标签的留白画成一个大按钮。
-- TUI 改动除了跑单元测试，还必须在真实 PTY 里、至少一个常规尺寸和一个窄尺寸下走到对应界面看一眼。只看静态渲染结果不算验收。
+- TUI 改动必须在真实 PTY 里、至少一个常规尺寸和一个窄尺寸下走到对应界面看一眼。只看静态渲染结果不算验收。
 
 ## 变更时要守住的语义
 
 - 用户自定义的 env 只做操作系统无法表示内容的校验：变量名不能为空、不能含 `=` 或 NUL，值不能含 NUL；报错信息里不能带上可能是 secret 的值。
 - `auth_token` 模式下要写一个空的 `ANTHROPIC_API_KEY`，用来屏蔽从 shell 继承下来的游离 key。这是认证优先级的边界，不能省。
-- 启动时要从继承的 shell 环境里剥掉 donn 会写的所有 env 键，以及 `keys::SHELL_OVERRIDE_KEYS`（`ANTHROPIC_MODEL`、`CLAUDE_CODE_USE_BEDROCK` 这类会改道到别的云厂商或盖掉模型映射的键）。profile 的身份、路由和模型只能来自 donn 的配置。
-- 旋钮写入哪个键、什么条件下写，以 `docs/GLOBAL-SETTINGS.md` 的表为准；改语义时那张表和对应测试要一起改。
-- 模型套餐跟着最终生效的 Sonnet 槽位走。编辑单个槽位只改那一个槽，不能把非统一的 preset 扇出成全槽同一个值。
+- 启动时要从继承的 shell env 里剥掉 donn 会写的所有 env key，以及 `keys::SHELL_OVERRIDE_KEYS`（`ANTHROPIC_MODEL`、`CLAUDE_CODE_USE_BEDROCK` 这类会改道到别的云厂商或盖掉 model 映射的 key）。profile 的身份、路由和 model 只能来自 donn 的配置。
+- knob 写入哪个 key、什么条件下写，以 `docs/GLOBAL-SETTINGS.md` 的表为准；改语义时那张表要一起改。
+- model package 跟着最终生效的 Sonnet slot 走。编辑单个 slot 只改那一个 slot，不能把非统一的 preset 扇出成全 slot 同一个值。
 - 删除 wrapper 时只能删严格识别为 donn 生成、并且确实指向目标 profile 的文件。
 
 ## 验收
 
-提交前 `make check` 必须通过。它依次跑格式检查、全部测试、Clippy（警告即错误）和 release 构建。
+提交前 `make check` 必须通过。它依次跑格式检查、Clippy（warning 即 error）和 release 构建。
 
-测试通过不等于验收通过：
+构建通过不等于验收通过：
+
 - 涉及落盘逻辑的改动，要对照真实生成的文件看一眼。
 - 涉及 TUI 的改动，要在真实 PTY 里打开对应的搜索框、选择框、输入框和确认框走一遍。
-- 涉及启动流程的改动，要用一个假的 Claude 程序验证环境变量、命令行参数和退出码都正确传递。
+- 涉及启动流程的改动，要用一个假的 Claude 程序验证 env、命令行参数和退出码都正确传递。

@@ -1,6 +1,6 @@
-//! 删除 profile：别名 wrapper + profile 目录。
-//! full 模式可选保留会话（只删身份，claude/ 会话数据原地不动）。
-//! 运行中会话检出则拒绝（force 跳过）。
+//! 删除 profile：alias wrapper 加 profile 目录。
+//! full 模式可以选择保留 session，只删身份，`claude/` 里的 session 数据原地不动。
+//! 检出运行中的 session 就拒绝，force 跳过。
 
 use std::path::Path;
 
@@ -12,9 +12,9 @@ use crate::wrapper;
 use super::Donn;
 
 impl Donn {
-    /// `keep_sessions`：full 模式下只删身份（spec、含 key 的 settings.json/.claude.json、
-    /// 别名），`claude/` 里的会话数据原地保留——同名重建 profile 自动接上。
-    /// shared 模式会话本就在 ~/.claude，该参数无效果（目录整删）。
+    /// `keep_sessions`：full 模式下只删身份（spec、含 key 的 settings.json 和 .claude.json、
+    /// alias），`claude/` 里的 session 数据原地保留，同名重建 profile 会自动接上。
+    /// shared 模式的 session 本就在 `~/.claude`，这个参数没有效果（整个目录删掉）。
     pub fn remove(&self, name: &str, force: bool, keep_sessions: bool) -> Result<()> {
         let _lock = self.write_lock()?;
         let spec = match self.spec(name) {
@@ -34,15 +34,15 @@ impl Donn {
         for alias in &aliases {
             match wrapper::remove(&bin_dir, alias, name) {
                 Ok(()) => {}
-                // spec 可能被手改或 wrapper 被别的 profile 接管；一律保留目标文件。
+                // spec 可能被手改，或者 wrapper 被别的 profile 接管；一律保留目标文件。
                 Err(
                     Error::NotOwnedByDonn(_) | Error::AliasInUse { .. } | Error::AliasConflict(..),
                 ) => {}
                 Err(e) => return Err(e),
             }
         }
-        // spec 不可读时 isolation 未知：按 full 处理最保守，只清身份文件，
-        // 留下会话目录不会破坏用户数据。
+        // spec 读不出来时 isolation 未知：按 full 处理最保守，只清 identity 文件，
+        // 留下 session 目录不会破坏用户数据。
         if keep_sessions
             && spec
                 .as_ref()
@@ -61,7 +61,7 @@ impl Donn {
     }
 }
 
-/// spec 不可读时，以 bin 目录里 wrapper 的实际启动目标为准回收别名。
+/// spec 读不出来时，以 bin 目录里 wrapper 的实际启动目标为准回收 alias。
 fn wrappers_targeting(bin_dir: &Path, name: &str) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(bin_dir) else {
         return Vec::new();

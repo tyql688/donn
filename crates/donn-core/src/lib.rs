@@ -1,9 +1,9 @@
-//! donn-core：零 UI 依赖的纯业务逻辑库。不能破的边界在 docs/RULES.md。
+//! donn-core：不依赖 UI 的纯业务逻辑库。不能破的边界在 docs/RULES.md。
 //!
-//! 领域模型：**Spec → Render → Reconcile**。
+//! domain model：Spec → Render → Reconcile。
 //! [`spec::ProfileSpec`]（profile.toml）是 donn 意图的唯一来源；
-//! [`render`] 由它生成 donn 拥有的配置内容；[`reconcile`] 把内容合并进
-//! settings.json / .claude.json，未知字段原样穿透。UI 只调 [`ops::Donn`]。
+//! [`render`] 由它生成 donn 管理的配置内容；[`reconcile`] 把内容合并进
+//! settings.json / .claude.json，未知字段原样穿透。UI 只调用 [`ops::Donn`]。
 
 pub mod claude;
 pub mod config;

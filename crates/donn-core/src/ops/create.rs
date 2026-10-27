@@ -1,4 +1,4 @@
-//! 创建 profile：校验 → render/reconcile 落盘 → wrapper。中途失败整体回滚。
+//! 创建 profile：校验、render/reconcile 落盘、生成 wrapper。中途失败整体回滚。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -22,16 +22,16 @@ pub struct ProfileDraft {
     pub name: String,
     pub preset: String,
     pub key: Option<Secret>,
-    /// 覆盖 preset base_url（custom preset 必填）。
+    /// 覆盖 preset 的 `base_url`（custom preset 必填）。
     pub base_url: Option<String>,
-    /// 模型槽位覆盖。
+    /// model slot 覆盖。
     pub models: SlotMap,
-    /// 自定义模型的上下文窗口：模型 id → token。
+    /// 自定义 model 的上下文窗口：model id 对应 token。
     pub model_windows: BTreeMap<String, u64>,
-    /// 附加 env（覆盖 preset.env 同名键）。
+    /// 附加 env（覆盖 `preset.env` 的同名 key）。
     pub env: Vec<(String, String)>,
     pub isolation: Isolation,
-    /// 命令别名；空则默认 `[name]`。
+    /// 命令 alias；空则默认用 `[name]`。
     pub aliases: Vec<String>,
 }
 
@@ -66,15 +66,15 @@ impl Donn {
         }
 
         let profile_dir = self.home.profile_dir(&draft.name);
-        // 同名目录可能是上次「保留会话」删除留下的：回滚绝不整删已有目录，身份文件
-        // 恢复到创建前的样子（原来有的写回原字节，原来没有的删掉）
+        // 同名目录可能是上次「保留 session」删除留下的。回滚绝不整删已有目录：
+        // identity 文件恢复到创建前的样子，原来有的写回原字节，原来没有的删掉。
         let dir_preexisted = profile_dir.exists();
         let mut before = Vec::new();
         for file in self.home.identity_files(&draft.name) {
             let original = match std::fs::read(&file) {
                 Ok(bytes) => Some(bytes),
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-                // 在但读不了：没法保证回滚得回去，干脆不开始
+                // 文件存在但读不了：没法保证回滚得回去，干脆不开始
                 Err(e) => return Err(io_ctx(format!("failed to read {}", file.display()))(e)),
             };
             before.push((original, file));
@@ -129,7 +129,12 @@ impl Donn {
             ..Default::default()
         };
 
-        self.regenerate(None, &mut spec, SecretSource::Explicit(draft.key.clone()))?;
+        self.regenerate(
+            None,
+            &mut spec,
+            SecretSource::Explicit(draft.key.clone()),
+            None,
+        )?;
 
         // wrapper 在创建成功时自动生成
         let mut wrapper_paths = Vec::new();

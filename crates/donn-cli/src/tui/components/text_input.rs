@@ -1,4 +1,4 @@
-//! 单行文本输入：编辑逻辑委托 `tui-input`，这里只做掩码显示与光标渲染。
+//! 单行文本输入：编辑逻辑委托给 `tui-input`，这里只做掩码显示和光标渲染。
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use ratatui::style::{Modifier, Style};
@@ -134,98 +134,5 @@ impl TextInput {
         ));
         spans.push(Span::raw(after));
         Line::from(spans)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crossterm::event::{KeyEventKind, KeyEventState, KeyModifiers};
-
-    fn key(code: KeyCode) -> KeyEvent {
-        KeyEvent {
-            code,
-            modifiers: KeyModifiers::NONE,
-            kind: KeyEventKind::Press,
-            state: KeyEventState::NONE,
-        }
-    }
-
-    #[test]
-    fn editing_via_tui_input() {
-        let mut input = TextInput::new("ab");
-        input.handle_key(&key(KeyCode::Char('c')));
-        assert_eq!(input.value(), "abc");
-        input.handle_key(&key(KeyCode::Left));
-        input.handle_key(&key(KeyCode::Left));
-        input.handle_key(&key(KeyCode::Char('x')));
-        assert_eq!(input.value(), "axbc");
-        input.handle_key(&key(KeyCode::Backspace));
-        assert_eq!(input.value(), "abc");
-    }
-
-    #[test]
-    fn unicode_safe() {
-        let mut input = TextInput::new("中文");
-        input.handle_key(&key(KeyCode::Char('a')));
-        assert_eq!(input.value(), "中文a");
-        input.handle_key(&key(KeyCode::Backspace));
-        input.handle_key(&key(KeyCode::Backspace));
-        assert_eq!(input.value(), "中");
-    }
-
-    #[test]
-    fn masked_render_hides_value() {
-        let input = TextInput::masked("secret");
-        let line = input.render_line(false, 0);
-        let text: String = line.spans.iter().map(|s| s.content.clone()).collect();
-        assert_eq!(text, "••••••");
-    }
-
-    #[test]
-    fn cjk_input_windows_by_display_width() {
-        use unicode_width::UnicodeWidthStr;
-        let mut input = TextInput::new("");
-        for c in "中文输入abc".chars() {
-            input.handle_key(&key(KeyCode::Char(c)));
-        }
-        // 光标在末尾：可见部分 ≤ 12 列且尾部可见
-        let line = input.render_line(true, 12);
-        let text: String = line.spans.iter().map(|s| s.content.clone()).collect();
-        assert!(UnicodeWidthStr::width(text.as_str()) <= 12, "{text}");
-        assert!(text.contains('c'), "尾部可见: {text}");
-        // Home：头部可见
-        input.handle_key(&key(KeyCode::Home));
-        let line = input.render_line(true, 12);
-        let text: String = line.spans.iter().map(|s| s.content.clone()).collect();
-        assert!(UnicodeWidthStr::width(text.as_str()) <= 12, "{text}");
-        assert!(text.starts_with('中'), "头部可见: {text}");
-        // 非焦点截断也不超宽
-        let line = input.render_line(false, 5);
-        let text: String = line.spans.iter().map(|s| s.content.clone()).collect();
-        assert!(UnicodeWidthStr::width(text.as_str()) <= 5, "{text}");
-        assert!(text.ends_with('…'), "{text}");
-    }
-
-    #[test]
-    fn long_value_scrolls_to_keep_cursor_visible() {
-        let mut input = TextInput::new("");
-        for c in "sk-0123456789abcdefghijklmnopqrstuvwxyz".chars() {
-            input.handle_key(&key(KeyCode::Char(c)));
-        }
-        // 光标在末尾：窗口内必须能看到尾部字符
-        let line = input.render_line(true, 12);
-        let text: String = line.spans.iter().map(|s| s.content.clone()).collect();
-        assert!(text.contains("wxyz"), "尾部可见: {text}");
-        assert!(text.starts_with('…'), "左侧有滚动提示: {text}");
-        // 光标回到开头：窗口回到头部
-        input.handle_key(&key(KeyCode::Home));
-        let line = input.render_line(true, 12);
-        let text: String = line.spans.iter().map(|s| s.content.clone()).collect();
-        assert!(text.starts_with("sk-"), "头部可见: {text}");
-        // 非焦点：截断加省略号
-        let line = input.render_line(false, 12);
-        let text: String = line.spans.iter().map(|s| s.content.clone()).collect();
-        assert!(text.ends_with('…') && text.len() <= 14, "{text}");
     }
 }

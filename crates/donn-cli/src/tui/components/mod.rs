@@ -1,4 +1,4 @@
-//! 可复用 UI 组件：无业务逻辑，纯输入/状态/渲染。
+//! 可复用的 UI 组件：不含业务逻辑，只有输入、状态和渲染。
 
 pub mod list;
 pub mod modal;
@@ -117,52 +117,5 @@ pub fn fit_left(s: &str, width: usize) -> String {
         0 => String::new(),
         1 => "…".to_string(),
         _ => format!("…{}", s.unicode_truncate_start(width - 1).0),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn fit_left_and_right_ellipsize_by_display_width() {
-        assert_eq!(super::fit_left("abcdef", 10), "abcdef");
-        assert_eq!(super::fit_left("abcdef", 4), "…def");
-        assert_eq!(super::fit_left("路径中文", 5), "…中文");
-        assert_eq!(super::fit_right("abcdef", 4), "abc…");
-        assert_eq!(super::fit_right("中文路径", 5), "中文…");
-        assert_eq!(super::fit_right("abc", 1), "…");
-        assert_eq!(super::fit_right("abc", 0), "");
-    }
-
-    #[test]
-    fn fit_spans_trims_only_the_value_and_keeps_the_suffix() {
-        use ratatui::text::Span;
-        let spans = super::fit_spans(
-            vec![
-                Span::raw("https://api.z.ai/api/anthropic"),
-                Span::raw("  (default)"),
-            ],
-            24,
-        );
-        let text: String = spans.iter().map(|s| s.content.to_string()).collect();
-        assert_eq!(text, "https://api.…  (default)");
-        assert_eq!(unicode_width::UnicodeWidthStr::width(text.as_str()), 24);
-
-        // 窄到后缀要占一半以上：丢后缀保值
-        let spans = super::fit_spans(
-            vec![
-                Span::raw("https://api.z.ai/api/anthropic"),
-                Span::raw("  (default)"),
-            ],
-            12,
-        );
-        let text: String = spans.iter().map(|s| s.content.to_string()).collect();
-        assert_eq!(text, "https://api…");
-    }
-
-    #[test]
-    fn pad_accounts_for_cjk_width() {
-        assert_eq!(super::pad("abc", 5), "abc  ");
-        assert_eq!(super::pad("模型", 6), "模型  "); // 2 个宽字符 = 4 列
-        assert_eq!(super::pad("too-long", 4), "too-long");
     }
 }

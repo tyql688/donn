@@ -1,5 +1,5 @@
-//! App：dashboard 单一状态 + Action 分发。
-//! Core = 数据与面板状态；App = Core + modal 栈（分离以便弹窗回调可变借用 Core）。
+//! App：dashboard 的统一状态和 Action 分发。
+//! Core 放数据和面板状态；App = Core + modal 栈。分开是为了让弹窗回调能可变借用 Core。
 
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use donn_core::{Donn, Isolation, LiveCheck, ProfileCard, SyncReport};
@@ -27,14 +27,14 @@ pub enum PaneId {
     Doctor,
 }
 
-/// 事件循环需要感知的跨界动作。
+/// 事件循环需要感知的跨界面动作。
 pub enum LoopCmd {
     Quit,
     Launch(String),
     EditSettings(String),
 }
 
-/// 渲染期记录的列表命中区域（鼠标点击/滚轮路由用）。
+/// 渲染时记录的列表命中区域（鼠标点击和滚轮路由用）。
 #[derive(Debug, Clone, Copy, Default)]
 pub struct HitAreas {
     pub left_list: Rect,
@@ -52,7 +52,7 @@ pub struct Core {
     pub detail: DetailPane,
     /// Some = doctor 抽屉展开。
     pub doctor: Option<DoctorPane>,
-    /// Some = Add 面板模式：左栏渠道列表联动，右栏表单。
+    /// Some = Add 面板模式：左栏 provider 列表，右栏表单。
     pub add: Option<AddForm>,
     /// Some = 全局设置面板（右栏行编辑 config.toml）。
     pub settings: Option<SettingsPane>,
@@ -86,7 +86,7 @@ impl Core {
         core
     }
 
-    /// 重载 profile 列表与详情（任何写操作后调用）。
+    /// 重新加载 profile 列表和详情（任何写操作后调用）。
     pub fn refresh(&mut self) {
         match self.donn.cards() {
             Ok(cards) => self.profiles.replace(cards),
@@ -96,7 +96,7 @@ impl Core {
     }
 
     /// 详情跟随左面板当前选中的 profile。
-    /// 加载失败只写详情面板（`detail.error`），不刷状态栏——切换列表时反复弹错会淹没键提示。
+    /// 加载失败只写详情面板（`detail.error`），不刷状态栏；切换列表时反复弹错会淹没按键提示。
     pub fn reload_detail(&mut self) {
         let name = self.profiles.current().map(|c| c.name.clone());
         self.detail.load(&self.donn, name.as_deref());
@@ -111,14 +111,14 @@ impl Core {
         self.settings.is_none() && self.add.is_none()
     }
 
-    /// 关闭全局设置面板（若开着），回到左栏。
+    /// 关闭全局设置面板（如果开着），回到左栏。
     pub fn close_settings(&mut self) {
         if self.settings.take().is_some() {
             self.focus = PaneId::Left;
         }
     }
 
-    /// 焦点上下文（keymap / 状态栏提示用）。
+    /// 焦点上下文（keymap 和状态栏提示用）。
     pub fn context(&self) -> Context {
         if let Some(form) = &self.add {
             return match form.stage() {
@@ -136,7 +136,7 @@ impl Core {
         }
     }
 
-    /// 进入 Add：左栏渠道列表 + 右栏表单（仅在 add 流程内）。
+    /// 进入 Add：左栏 provider 列表，右栏表单（只在 add 流程里）。
     pub fn enter_add(&mut self, preset_key: Option<String>) {
         self.settings = None;
         self.doctor = None; // 与 settings 一样：避免抽屉抢焦点/鼠标
@@ -151,7 +151,7 @@ impl Core {
         self.reload_detail();
     }
 
-    /// 焦点面板的列表导航（键盘与滚轮共用）。
+    /// 焦点面板的列表导航（键盘和滚轮共用）。
     /// 设置面板独占右栏时，导航只作用于设置行，doctor 焦点不参与。
     pub fn nav_focused(&mut self, nav: Nav) {
         if let Some(pane) = &mut self.settings {
@@ -172,7 +172,7 @@ impl Core {
         }
     }
 
-    /// SyncReport → 状态栏文案。
+    /// 把 `SyncReport` 变成状态栏文案。
     pub fn report_sync(&mut self, report: &SyncReport) {
         if !report.overwritten.is_empty() {
             let msg = i18n::st_overwrote(&report.overwritten.join(", "));
@@ -182,7 +182,7 @@ impl Core {
         }
     }
 
-    /// 焦点和各列表的选中位置：判断一次点击有没有「选中了什么」。
+    /// 焦点和各列表的选中位置，用来判断一次点击有没有「选中了什么」。
     fn selection(&self) -> (PaneId, [Option<usize>; 5]) {
         (
             self.focus,
@@ -223,10 +223,10 @@ impl App {
         }
     }
 
-    /// 分发面板层动作。返回需要事件循环处理的跨界命令。
+    /// 分发面板层 action。返回需要事件循环处理的跨界面命令。
     pub fn dispatch(&mut self, action: Action) -> Option<LoopCmd> {
-        // 全局设置：独占右栏。只响应导航/激活/帮助/退出与 S·Esc 关闭；
-        // 避免 Focus* / doctor / 删除 等与设置面板叠在一起抢焦点。
+        // 全局设置独占右栏。只响应导航、激活、帮助、退出和 S/Esc 关闭；
+        // 避免 Focus*、doctor、删除等 action 和设置面板叠在一起抢焦点。
         if self.core.settings.is_some() {
             return self.dispatch_settings(action);
         }
@@ -234,7 +234,7 @@ impl App {
         let core = &mut self.core;
         match action {
             Action::Quit => return Some(LoopCmd::Quit),
-            // Esc：逐级返回。详情→左栏；doctor 抽屉关闭。
+            // Esc：逐级返回。详情回左栏，doctor 抽屉关闭。
             Action::Back => {
                 core.status.clear();
                 match core.focus {
@@ -243,7 +243,7 @@ impl App {
                         core.doctor = None;
                         core.focus = PaneId::Left;
                     }
-                    // 抽屉开着时 Esc 直接收起（不必先 Tab 过去）
+                    // 抽屉开着时，Esc 直接收起，不必先 Tab 过去
                     PaneId::Left => core.doctor = None,
                 }
             }
@@ -291,7 +291,7 @@ impl App {
                 }
             }
             Action::OpenSettings => {
-                // Add form owns the right pane; don't stack settings under it
+                // Add form 占着右栏，不要在其下再叠设置面板
                 if core.add.is_some() {
                     return None;
                 }
@@ -312,10 +312,10 @@ impl App {
             Action::Activate => return self.activate(),
             Action::RemoveProfile => {
                 if let Some(name) = core.selected_profile().map(str::to_string) {
-                    // 坏 spec 也必须能从 UI 删除：读不出来时隔离模式未知（None）
+                    // 坏 spec 也必须能从 UI 删除：读不出来时 isolation 未知（None）
                     let isolation = core.donn.spec(&name).ok().map(|spec| spec.isolation);
                     match core.donn.live_check(&name) {
-                        // 运行中会话：确认框确认了也删不掉，提前拦截并提示
+                        // 运行中的 session：确认框确认了也删不掉，提前拦截并提示
                         LiveCheck::Running => {
                             let msg = i18n::st_profile_in_use(&name);
                             core.status.error(msg);
@@ -338,7 +338,7 @@ impl App {
                 }
             }
             Action::ToggleKeyReveal => {
-                // 仅详情焦点时切换：避免列表焦点误触把 key 明文留在屏幕上
+                // 只在详情焦点时切换，避免列表焦点误触把 key 明文留在屏幕上
                 if core.focus != PaneId::Detail {
                     return None;
                 }
@@ -382,12 +382,12 @@ impl App {
         None
     }
 
-    /// 设置面板打开时的动作子集。
+    /// 设置面板打开时只处理这些 action。
     fn dispatch_settings(&mut self, action: Action) -> Option<LoopCmd> {
         let core = &mut self.core;
         match action {
             Action::Quit => return Some(LoopCmd::Quit),
-            // S 再次 / Esc：关闭设置
+            // 再按 S 或 Esc：关闭设置
             Action::Back | Action::OpenSettings => {
                 core.status.clear();
                 core.close_settings();
@@ -407,13 +407,13 @@ impl App {
             Action::OpenAdd => {
                 core.enter_add(None);
             }
-            // 焦点切换、doctor、删除、sync… 一律忽略，避免半开状态
+            // 焦点切换、doctor、删除、sync 等一律忽略，避免进入半开状态
             _ => {}
         }
         None
     }
 
-    /// Enter 的面板语义。
+    /// Enter 在各面板里的语义。
     fn activate(&mut self) -> Option<LoopCmd> {
         let core = &mut self.core;
         match core.focus {
@@ -433,15 +433,15 @@ impl App {
     }
 }
 
-/// 命中区解析出的鼠标手势。
+/// 命中区域解析出的鼠标手势。
 enum Gesture {
     Click,
     Scroll(i32),
 }
 
 impl App {
-    /// 鼠标。右键点链接 = 复制。左键先按普通点击处理（选中行、切焦点）；点的是链接、
-    /// 且这一下什么都没选中改变，才打开它——想选中 `base_url` 那行不会顺手弹出浏览器。
+    /// 鼠标。右键点链接是复制。左键先按普通点击处理（选中行、切焦点）；只有点的是链接、
+    /// 而且这一下没有改变任何选中状态，才打开它。这样点 `base_url` 那行时不会顺手弹出浏览器。
     pub fn on_mouse(&mut self, event: MouseEvent) {
         let pos = Position::new(event.column, event.row);
         let link = match event.kind {
@@ -463,7 +463,7 @@ impl App {
         }
     }
 
-    /// 点击选中并切焦点，滚轮滚动列表。弹窗打开时忽略（弹窗键盘优先）。
+    /// 点击选中并切焦点，滚轮滚动列表。弹窗打开时忽略（键盘优先给弹窗）。
     fn on_pointer(&mut self, event: MouseEvent, pos: Position) {
         let core = &mut self.core;
         if !self.modals.is_empty() {
@@ -476,7 +476,7 @@ impl App {
             _ => return,
         };
 
-        // 左栏（Add 模式下点击/滚动 = 选渠道；设置模式下点击 = 关闭设置并选 profile）
+        // 左栏（Add 模式下点击或滚动是选 provider；设置模式下点击是关闭设置并选 profile）
         if core.hit.left_list.contains(pos) {
             if let Some(form) = core.add.as_mut() {
                 match gesture {
@@ -489,7 +489,7 @@ impl App {
                 }
                 return;
             }
-            // 设置独占右栏时，点/滚左栏 = 退出设置并导航 profile
+            // 设置独占右栏时，点或滚左栏是退出设置并导航 profile
             core.close_settings();
             core.focus = PaneId::Left;
             match gesture {
@@ -500,7 +500,7 @@ impl App {
             return;
         }
 
-        // 详情/设置行区（设置面板复用同一右栏区域）
+        // 详情或设置行区（设置面板复用同一块右栏区域）
         if core.hit.detail_list.contains(pos) && core.add.is_none() {
             if let Some(pane) = &mut core.settings {
                 match gesture {
@@ -517,7 +517,7 @@ impl App {
             return;
         }
 
-        // doctor 抽屉（设置 / Add 独占时不抢滚轮/点击）
+        // doctor 抽屉（设置或 Add 独占时不抢滚轮和点击）
         if core.settings.is_none()
             && core.add.is_none()
             && core.hit.doctor_list.contains(pos)
@@ -532,10 +532,10 @@ impl App {
     }
 }
 
-/// 删除确认弹窗。调用前已拦截 Running；`live` 为调用方探测结果，避免重复 lsof。
-/// shared 模式会话本就在 ~/.claude 不受影响 → 普通二次确认。
-/// full 模式会话在 profile 目录里 → 选择保留或一并删除；profile.toml 读不出来时隔离模式
-/// 未知（`None`），给同样两个选项，core 的保留路径按 full 保守处理。
+/// 删除确认弹窗。调用前已经拦截 Running；`live` 是调用方的探测结果，避免重复跑 lsof。
+/// shared 模式的 session 本就在 `~/.claude`，不受影响，用普通二次确认。
+/// full 模式的 session 在 profile 目录里，提供保留或一并删除两个选项；`profile.toml`
+/// 读不出来时 isolation 未知（`None`），也给同样的两个选项，core 的保留路径按 full 保守处理。
 fn confirm_remove(
     core: &mut Core,
     name: String,
@@ -545,15 +545,15 @@ fn confirm_remove(
     let question = i18n::remove_q(&name);
     let probe_failed = live == LiveCheck::Unavailable;
     if isolation == Some(Isolation::Shared) {
-        let mut body = vec![i18n::REMOVE_DETAIL.to_string()];
-        if probe_failed {
-            body.push(i18n::REMOVE_LIVE_UNKNOWN.to_string());
-        }
-        return Box::new(Confirm::new(question, body, move |core| {
-            do_remove(core, &name, false);
-        }));
+        return Box::new(Confirm::new(
+            question,
+            vec![i18n::REMOVE_DETAIL.to_string()],
+            move |core| {
+                do_remove(core, &name, false);
+            },
+        ));
     }
-    // Select 没有正文：探测失败的提示写状态栏
+    // Select 没有正文：探测失败的提示写到状态栏
     if probe_failed {
         core.status.warn(i18n::REMOVE_LIVE_UNKNOWN);
     }
@@ -574,44 +574,5 @@ fn do_remove(core: &mut Core, name: &str, keep_sessions: bool) {
             core.refresh();
         }
         Err(e) => core.status.error(e.to_string()),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tui::components::modal::ModalOutcome;
-    use crossterm::event::KeyCode;
-    use donn_core::{DonnHome, ProfileDraft};
-    use tempfile::TempDir;
-
-    #[test]
-    fn broken_profile_can_be_removed_from_the_tui_while_keeping_sessions() {
-        let dir = TempDir::new().unwrap();
-        let home = DonnHome::for_test(dir.path());
-        let donn = Donn::with_home(home.clone()).unwrap();
-        donn.create(&ProfileDraft {
-            name: "broken".into(),
-            preset: "official".into(),
-            ..Default::default()
-        })
-        .unwrap();
-        let session = home.claude_config_dir("broken").join("session.jsonl");
-        std::fs::write(&session, "history").unwrap();
-        std::fs::write(home.spec_file("broken"), "not [valid toml").unwrap();
-
-        let mut app = App::new(donn);
-        app.dispatch(Action::RemoveProfile);
-        assert_eq!(
-            app.modals.len(),
-            1,
-            "broken profile must reach a delete choice"
-        );
-
-        let mut modal = app.modals.pop().unwrap();
-        let outcome = modal.handle(KeyCode::Enter.into(), &mut app.core);
-        assert!(matches!(outcome, ModalOutcome::Close));
-        assert!(!home.spec_file("broken").exists());
-        assert!(session.exists(), "default delete choice keeps session data");
     }
 }

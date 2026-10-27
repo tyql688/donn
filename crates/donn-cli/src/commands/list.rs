@@ -1,4 +1,4 @@
-//! `donn list`：快查表（comfy-table 排版）。无 profile 时输出引导文案。
+//! `donn list`：快速查看表（comfy-table 排版）。没有 profile 时输出引导文案。
 
 use comfy_table::{Table, presets};
 use donn_core::ModelSlot;

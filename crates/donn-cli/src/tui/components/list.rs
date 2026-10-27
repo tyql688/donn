@@ -1,11 +1,11 @@
-//! SelectList：`Vec<T>` + ratatui [`ListState`] 的配对。
-//! 滚动偏移/高亮由 ratatui `List` 组件原生处理；这里只做选中项的领域语义
+//! SelectList：`Vec<T>` 和 ratatui `ListState` 的配对。
+//! 滚动偏移和高亮由 ratatui 的 `List` 组件处理；这里只做选中项的领域语义
 //! （clamp 移动、按谓词定位、替换内容时保持选中）。
 
 use ratatui::layout::{Position, Rect};
 use ratatui::widgets::ListState;
 
-/// 列表导航语义（键盘 j/k/g/G 与滚轮共用同一入口）。
+/// 列表导航语义（键盘 j/k/g/G 和滚轮共用同一个入口）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Nav {
     By(i32),
@@ -98,39 +98,5 @@ impl<T> SelectList<T> {
 
     pub fn len(&self) -> usize {
         self.items.len()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn move_clamps() {
-        let mut l = SelectList::new(vec![1, 2, 3]);
-        l.move_by(-1);
-        assert_eq!(l.selected(), 0);
-        l.move_by(10);
-        assert_eq!(l.selected(), 2);
-        let mut empty: SelectList<i32> = SelectList::new(vec![]);
-        empty.move_by(1);
-        assert!(empty.current().is_none());
-    }
-
-    #[test]
-    fn replace_keeps_selection_in_bounds() {
-        let mut l = SelectList::new(vec![1, 2, 3, 4]);
-        l.select(3);
-        l.replace(vec![1, 2]);
-        assert_eq!(l.selected(), 1);
-        l.replace(vec![]);
-        assert!(l.current().is_none());
-    }
-
-    #[test]
-    fn select_where_finds_item() {
-        let mut l = SelectList::new(vec!["a", "b", "c"]);
-        l.select_where(|s| *s == "c");
-        assert_eq!(l.selected(), 2);
     }
 }

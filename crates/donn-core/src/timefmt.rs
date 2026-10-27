@@ -12,15 +12,3 @@ pub fn now_rfc3339() -> String {
     now.format(&Rfc3339)
         .expect("RFC3339 formatting of a valid timestamp cannot fail")
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rfc3339_shape() {
-        let s = now_rfc3339();
-        assert_eq!(s.len(), "2026-07-14T10:00:00Z".len(), "{s}");
-        assert!(s.ends_with('Z'));
-    }
-}

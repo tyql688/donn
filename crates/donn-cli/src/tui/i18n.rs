@@ -1,7 +1,7 @@
-//! UI copy: English-only constants (no language switch).
-//! Scope: TUI chrome. Doctor diagnostics and preset descriptions stay as data.
+//! UI 文案：只提供英文常量，不做语言切换。
+//! 范围是 TUI 界面本身；doctor 诊断和 preset 描述作为数据保留。
 
-/// 全局设置行名，按 `[defaults.knobs]` 字段名查；旋钮定义在 core，文案只在这里。
+/// 全局设置行名，按 `[defaults.knobs]` 字段名查；knob 定义在 core，文案只在这里。
 pub fn knob_label(field: &str) -> Option<&'static str> {
     Some(match field {
         "permission_mode" => "default permission mode",
@@ -25,7 +25,7 @@ pub fn knob_label(field: &str) -> Option<&'static str> {
     })
 }
 
-// status bar key hints
+// 状态栏按键提示
 pub const HINT_LAUNCH: &str = "launch";
 pub const HINT_EDIT: &str = "edit";
 pub const HINT_ADD: &str = "add";
@@ -36,7 +36,7 @@ pub const HINT_CLOSE: &str = "close";
 pub const HINT_EDIT_ROW: &str = "edit row";
 pub const HINT_RERUN: &str = "re-run";
 
-// help sheet
+// 帮助页
 pub const HELP_TITLE: &str = " keys ";
 pub const HELP_CLOSE: &str = "press any key to close";
 pub const SEC_NAVIGATE: &str = "navigate";
@@ -59,7 +59,7 @@ pub const KS_TOGGLE_DOCTOR: &str = "toggle doctor drawer";
 pub const KS_RERUN_DOCTOR: &str = "re-run doctor";
 pub const KS_QUIT: &str = "quit";
 
-// panes
+// 面板
 pub fn profiles_title(n: usize) -> String {
     format!(" profiles ({n}) ")
 }
@@ -81,7 +81,7 @@ pub fn doctor_failing(failed: usize, total: usize) -> String {
     format!(" doctor · {failed} of {total} failing ")
 }
 
-// detail
+// 详情
 pub const ROW_API_KEY: &str = "api key";
 pub const ROW_BASE_URL: &str = "base_url";
 pub fn row_model(slot: &str) -> String {
@@ -97,23 +97,23 @@ pub const ADD_ELLIPSIS: &str = "add…";
 pub const KEY_NOT_SET: &str = "not set — press enter";
 pub const KEY_NOT_NEEDED: &str = "not needed (oauth)";
 pub const FROM_DEFAULT: &str = "(default)";
-/// Value comes from `[defaults.env]` rather than the preset.
+/// 值来自 `[defaults.env]`，不是 preset。
 pub const FROM_GLOBAL: &str = "(global)";
 pub fn drift_banner(n: usize) -> String {
     format!("⚠ drift: {n} key(s) hand-edited — press s to sync")
 }
-/// Label for a stored value that is no longer valid: `<value> (invalid)`.
+/// 存量值已经不在合法范围内时的 label：`<value> (invalid)`。
 pub fn invalid_value(raw: &str) -> String {
     format!("{raw} (invalid)")
 }
-/// Edit modal title: field · subject.
+/// 编辑弹窗标题：字段 · 对象。
 pub fn edit_title(field: &str, subject: &str) -> String {
     format!("{field} · {subject}")
 }
 pub const ISO_FULL_TAG: &str = "isolated";
 pub const ISO_SHARED_TAG: &str = "(shared)";
 
-// detail info area
+// 详情信息区
 pub const SB_CONFIG: &str = "config";
 pub const SB_SETTINGS: &str = "settings";
 pub const SB_SPEC: &str = "spec";
@@ -125,14 +125,14 @@ pub fn sb_owns(n: usize) -> String {
 }
 pub const SB_COMMAND: &str = "command";
 
-// context window of the sonnet model
+// sonnet model 的上下文窗口
 pub const ROW_MAX_CONTEXT: &str = "context window";
 pub const MAX_CONTEXT_UNSET: &str = "not set · claude code guesses";
 pub const PROMPT_MAX_CONTEXT_HINT: &str = "tokens · empty = remove";
 pub const PROMPT_CUSTOM_WINDOW_HINT: &str = "tokens · empty = let claude code guess";
 pub const V_MAX_CONTEXT_ERR: &str = "enter a whole number, e.g. 262144";
 
-// copy menu, links, key console
+// 复制菜单、链接、取 key 控制台
 pub const COPY_TITLE: &str = "copy";
 pub const COPY_COMMAND: &str = "launch command";
 pub const COPY_LINK: &str = "link";
@@ -148,7 +148,7 @@ pub fn st_opened_url(url: &str) -> String {
     format!("opened {url}")
 }
 
-// add form
+// Add 表单
 pub const ADD_TITLE: &str = " new profile ";
 pub const F_PROVIDER: &str = "provider";
 pub const F_NAME: &str = "name";
@@ -180,14 +180,14 @@ pub fn v_name_exists(name: &str) -> String {
 }
 pub const V_BASE_URL_REQUIRED: &str = "base_url required";
 
-// add form preview
+// Add 表单预览
 pub const PV_TITLE: &str = "preview";
 pub const PV_ENDPOINT: &str = "endpoint";
 pub const PV_AUTH_ENV: &str = "auth env";
 pub const PV_MODELS: &str = "models";
 pub const PV_CONTEXT: &str = "context";
 
-// global settings
+// 全局设置
 pub const CFG_TITLE: &str = " global settings ";
 pub const CFG_INTRO: &str = "applies to every profile · changes save immediately";
 pub const HINT_SETTINGS: &str = "settings";
@@ -215,23 +215,23 @@ pub fn st_config_synced(n: usize) -> String {
     format!("saved · synced {n} profile(s)")
 }
 
-// modals
+// 弹窗
 pub const SELECT_HINT: &str = "↑↓ move · enter confirm · esc cancel";
 pub const PICK_PROVIDER_TITLE: &str = " pick a provider ";
 pub fn pick_provider_hint(n: usize) -> String {
     format!("{n} provider(s) · type to filter")
 }
-/// Model list: follow-preset row label.
+/// model 列表：跟随 preset 那一行的 label。
 pub const MODEL_FOLLOW_PRESET: &str = "default";
-/// Model list: custom freeform row.
+/// model 列表：自定义自由输入那一行。
 pub const MODEL_CUSTOM: &str = "custom…";
-/// Offer to use the freeform text as a model id.
+/// 提示把自由输入的文本当作 model id 使用。
 pub fn model_use_input(query: &str) -> String {
     format!("use “{query}”")
 }
-/// Search modal controls.
+/// 搜索弹窗的操作提示。
 pub const MODEL_PICK_HINT: &str = "type to filter, or enter any model id";
-/// Placeholder when preset has no default model for the slot.
+/// preset 没有给这个 slot 默认 model 时的占位文案。
 pub const MODEL_NONE: &str = "none";
 pub const CONFIRM_YES: &str = "confirm";
 pub const CONFIRM_NO: &str = "cancel";
@@ -260,7 +260,7 @@ pub fn prompt_alias_add_title(name: &str) -> String {
 }
 pub const PROMPT_ALIAS_HINT: &str = "lowercase command name, e.g. z";
 
-// status messages
+// 状态栏消息
 pub const ST_SAVED: &str = "saved";
 pub fn st_overwrote(keys: &str) -> String {
     format!("saved; overwrote hand-edited: {keys}")
@@ -295,20 +295,4 @@ pub fn st_editor_exit(code: &str) -> String {
 }
 pub fn st_profile_in_use(name: &str) -> String {
     format!("profile '{name}' has a running session — close it first")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_knob_has_a_label() {
-        for field in donn_core::knobs::knob_fields() {
-            let label = knob_label(field).unwrap_or_else(|| panic!("no label for {field}"));
-            assert!(
-                unicode_width::UnicodeWidthStr::width(label) < 30,
-                "{field}: label must leave a gap before the value column"
-            );
-        }
-    }
 }

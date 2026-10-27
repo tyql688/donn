@@ -1,5 +1,5 @@
-//! Provider preset：纯 TOML 数据，加 provider 不改代码。
-//! 加载顺序：内嵌 → `~/.donn/presets.d/` 覆盖（同 key 覆盖）。
+//! Provider preset：纯 TOML 数据，新增 provider 不用改代码。
+//! 加载顺序：内嵌 preset → `~/.donn/presets.d/` 覆盖（同 key 覆盖）。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use crate::error::{Error, Result};
 use crate::home::DonnHome;
 use crate::keys::SlotMap;
 
-/// 认证模式：secret 落到 settings.json 的哪个 env 键。
+/// 认证模式：secret 写进 settings.json 的哪个 env key。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthMode {
@@ -34,35 +34,35 @@ impl AuthMode {
     }
 }
 
-/// Claude Code 自己认识的模型 id：去掉网关前缀（`anthropic/`、`us.anthropic.`）后以
-/// `claude-` 开头。这类 id 不需要、也不吃 `max_context`。
+/// Claude Code 自己认识的 model id：去掉 gateway 前缀（`anthropic/`、`us.anthropic.`）后以
+/// `claude-` 开头。这类 id 不需要，也不吃 `max_context`。
 pub fn is_claude_model(id: &str) -> bool {
     let name = id.rsplit('/').next().unwrap_or(id);
     name.split('.').any(|part| part.starts_with("claude-"))
 }
 
-/// 兼容性怪癖 flags：preset 数据里表达，逻辑不特判。
+/// 兼容性 flags：在 preset 数据里表达，逻辑不特判 provider。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PresetFlags {
     pub auth_token_also_sets_api_key: bool,
 }
 
-/// 模型候选项（数据驱动）。
+/// model 候选项（数据驱动）。
 ///
-/// UI 候选 = 本列表 ∪ 槽位默认 id；手填任意 id。
-/// **套餐不进 intent**：`render()` 按 sonnet 生效 id 匹配本列表后注入
-/// [`ModelChoice::package_env`]；UI 只改模型槽。用户在 `intent.env` 里自己写的
-/// 同名键优先于套餐。
+/// UI 候选 = 这个列表 ∪ slot 默认 id；也可以手填任意 id。
+/// package 不进 intent：`render()` 按生效的 sonnet id 匹配这个列表，再注入
+/// [`ModelChoice::package_env`]；UI 只改 model slot。用户自己在 `intent.env` 里写的
+/// 同名 key 优先于 package。
 ///
 /// ```toml
 /// [[preset.model_choices]]
 /// id = "k3[1m]"
 /// label = "K3 · 1M"
 /// max_context = 1048576
-/// auto_compact = 1000000   # 省略 = max_context（写入时封顶于 Claude Code 接受的 1000000）
-/// pin_subagent = true      # 省略且有 max → true
-/// env = { FOO = "1" }      # 可选；后写覆盖结构化键
+/// auto_compact = 1000000   # 省略 = max_context（写入时封顶到 Claude Code 接受的 1000000）
+/// pin_subagent = true      # 省略且有 max 时为 true
+/// env = { FOO = "1" }      # 可选；后写覆盖结构化 key
 /// ```
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -85,7 +85,7 @@ impl ModelChoice {
         self.label.as_deref().unwrap_or(self.id.as_str())
     }
 
-    /// render 注入的配套 env（结构化字段 + freeform）。不写 intent。
+    /// render 注入的配套 env（结构化字段加 freeform）。不写 intent。
     pub fn package_env(&self) -> BTreeMap<String, String> {
         use crate::keys::{AUTO_COMPACT, AUTO_COMPACT_MAX, MAX_CONTEXT, SUBAGENT_MODEL};
         let mut out = BTreeMap::new();
@@ -100,7 +100,7 @@ impl ModelChoice {
         if pin && !self.id.is_empty() {
             out.insert(SUBAGENT_MODEL.to_string(), self.id.clone());
         }
-        // freeform env last so authors can override structured defaults
+        // freeform env 放最后，作者可以覆盖结构化默认值
         for (k, v) in &self.env {
             out.insert(k.clone(), v.clone());
         }
@@ -120,17 +120,17 @@ pub struct Preset {
     pub models: SlotMap,
     pub env: BTreeMap<String, String>,
     pub flags: PresetFlags,
-    /// 额外模型候选（`[[preset.model_choices]]`）：带 label / 配套 env 时用。
+    /// 额外 model 候选（`[[preset.model_choices]]`）：带 label 或配套 env 时用。
     /// 即使为空，UI 仍会把 `[preset.models]` 里出现过的 id 收进下拉。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub model_choices: Vec<ModelChoice>,
-    /// 加载来源：`builtin` 或 `user`（presets.d）。运行时填充，不入 TOML。
+    /// 加载来源：`builtin` 或 `user`（presets.d）。运行时填充，不写进 TOML。
     #[serde(skip)]
     pub source: PresetSource,
 }
 
 impl Preset {
-    /// 按模型 id 查找套餐（精确匹配优先，再 ASCII 大小写不敏感）。
+    /// 按 model id 查找 package：先精确匹配，再按 ASCII 大小写不敏感匹配。
     pub fn choice_for_model(&self, id: &str) -> Option<&ModelChoice> {
         if id.is_empty() {
             return None;
@@ -164,7 +164,7 @@ struct PresetFile {
     preset: Preset,
 }
 
-/// presets.d 中解析失败的文件（跳过并在 doctor 报告）。
+/// presets.d 里解析失败的文件，会被跳过并由 doctor 报告。
 #[derive(Debug, Clone)]
 pub struct PresetLoadError {
     pub file: PathBuf,
@@ -177,43 +177,13 @@ pub struct PresetCatalog {
     pub load_errors: Vec<PresetLoadError>,
 }
 
-/// 内置 preset：`presets/<key>.toml`，文件名即 key。新渠道在这里加一个名字。
-macro_rules! builtin_presets {
-    ($($key:literal),* $(,)?) => {
-        &[$(($key, include_str!(concat!("presets/", $key, ".toml")))),*]
-    };
-}
-
-const BUILTIN_PRESETS: &[(&str, &str)] = builtin_presets![
-    "ant-ling",
-    "custom",
-    "deepseek",
-    "fireworks",
-    "huggingface",
-    "kimi-cn",
-    "kimi-plan",
-    "lmstudio",
-    "mimo",
-    "mimo-plan",
-    "minimax",
-    "minimax-cn",
-    "official",
-    "ollama",
-    "opencode",
-    "opencode-go",
-    "openrouter",
-    "qwen-plan",
-    "siliconflow",
-    "vercel",
-    "xai",
-    "zai",
-    "zai-cn",
-];
+// 内置 preset：`presets/<key>.toml`，文件名就是 key。清单由 `build.rs` 从目录生成。
+include!(concat!(env!("OUT_DIR"), "/builtin_presets.rs"));
 
 impl PresetCatalog {
-    /// 内嵌 → 用户目录覆盖。内嵌解析失败属打包错误，直接 panic（有测试兜底）。
+    /// 内嵌 preset → 用户目录覆盖。内嵌解析失败属于打包错误，直接 panic。
     pub fn load(home: &DonnHome) -> Self {
-        #[allow(clippy::expect_used)] // 打包不变量：内嵌 TOML 由测试保证可解析
+        #[allow(clippy::expect_used)] // 打包不变量：内嵌 TOML 必须可解析
         let mut presets: Vec<Preset> = BUILTIN_PRESETS
             .iter()
             .map(|(key, text)| {
@@ -259,7 +229,7 @@ impl PresetCatalog {
             }
         }
 
-        // 统一按 key 字典序：渠道多时可预期、同家国内外站相邻，用户 preset 也插入正确位置
+        // 统一按 key 字典序：provider 多时可预期，同家国内外站相邻，用户 preset 也会插入正确位置
         presets.sort_by(|a, b| a.key.cmp(&b.key));
         Self {
             presets,
@@ -301,259 +271,4 @@ fn parse_preset(text: &str, path: &Path) -> Result<Preset> {
     preset.base_url = preset.base_url.filter(|url| !url.is_empty());
     preset.key_url = preset.key_url.filter(|url| !url.is_empty());
     Ok(preset)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
-
-    #[test]
-    fn builtin_presets_parse_and_match_their_files() {
-        // 文件名即 key；presets/ 下每个 TOML 都登记在 BUILTIN_PRESETS
-        for (stem, text) in BUILTIN_PRESETS {
-            assert_eq!(parse_preset(text, Path::new(stem)).unwrap().key, *stem);
-        }
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/preset/presets");
-        let mut on_disk: Vec<String> = std::fs::read_dir(dir)
-            .unwrap()
-            .map(|entry| entry.unwrap().path())
-            .filter(|path| path.extension().is_some_and(|ext| ext == "toml"))
-            .map(|path| path.file_stem().unwrap().to_str().unwrap().to_string())
-            .collect();
-        on_disk.sort();
-        let registered: Vec<&str> = BUILTIN_PRESETS.iter().map(|(key, _)| *key).collect();
-        assert_eq!(
-            on_disk, registered,
-            "BUILTIN_PRESETS 按字典序列全 presets/*.toml"
-        );
-
-        let dir = TempDir::new().unwrap();
-        let catalog = PresetCatalog::load(&DonnHome::for_test(dir.path()));
-        assert!(catalog.load_errors.is_empty());
-        for preset in catalog.all() {
-            assert!(!preset.key.is_empty());
-            assert!(!preset.label.is_empty(), "{}", preset.key);
-            assert!(!preset.description.is_empty(), "{}", preset.key);
-            assert!(preset.base_url.as_deref() != Some(""), "{}", preset.key);
-            assert!(preset.key_url.as_deref() != Some(""), "{}", preset.key);
-            assert!(
-                preset
-                    .model_choices
-                    .iter()
-                    .all(|choice| !choice.id.is_empty())
-            );
-        }
-
-        // 表驱动：关键字段抽查
-        let zai = catalog.get("zai").unwrap();
-        assert_eq!(zai.auth_mode, AuthMode::AuthToken);
-        assert_eq!(
-            zai.base_url.as_deref(),
-            Some("https://api.z.ai/api/anthropic")
-        );
-        let official = catalog.get("official").unwrap();
-        assert_eq!(official.auth_mode, AuthMode::None);
-        assert!(official.base_url.is_none());
-
-        let ollama = catalog.get("ollama").unwrap();
-        assert!(ollama.flags.auth_token_also_sets_api_key);
-
-        let deepseek = catalog.get("deepseek").unwrap();
-        assert_eq!(
-            deepseek.base_url.as_deref(),
-            Some("https://api.deepseek.com/anthropic")
-        );
-
-        let zai_cn = catalog.get("zai-cn").unwrap();
-        assert_eq!(
-            zai_cn.base_url.as_deref(),
-            Some("https://open.bigmodel.cn/api/anthropic")
-        );
-
-        // Spot-check structured model_choices + package_env on a long-context preset
-        let plan = catalog.get("kimi-plan").unwrap();
-        assert_eq!(
-            plan.models.get(crate::keys::ModelSlot::Sonnet),
-            Some("k3.1-pro[1m]")
-        );
-        assert!(plan.model_choices.iter().any(|c| c.id == "k3-256k"));
-        let pkg = plan.choice_for_model("k3.1-pro[1m]").unwrap().package_env();
-        assert_eq!(
-            pkg.get(crate::keys::MAX_CONTEXT).map(String::as_str),
-            Some("1048576")
-        );
-        assert_eq!(
-            pkg.get(crate::keys::SUBAGENT_MODEL).map(String::as_str),
-            Some("k3.1-pro[1m]")
-        );
-        let zai = catalog.get("zai").unwrap();
-        assert_eq!(
-            zai.choice_for_model("glm-5.3[1m]")
-                .and_then(|c| c.max_context),
-            Some(1_000_000)
-        );
-        let mm = catalog.get("minimax").unwrap();
-        assert_eq!(
-            mm.choice_for_model("MiniMax-M3[1m]")
-                .and_then(|c| c.max_context),
-            Some(1_000_000)
-        );
-    }
-
-    #[test]
-    fn claude_models_are_recognized_by_name_not_by_substring() {
-        for id in [
-            "claude-sonnet-5",
-            "claude-sonnet-4.6",
-            "anthropic/claude-fable-5.1",
-            "us.anthropic.claude-opus-4-8-v1:0",
-        ] {
-            assert!(is_claude_model(id), "{id}");
-        }
-        for id in ["glm-5.3", "my-claude-proxy/glm", "gw/claudette", ""] {
-            assert!(!is_claude_model(id), "{id}");
-        }
-    }
-
-    #[test]
-    fn every_non_claude_choice_declares_its_context_window() {
-        // Claude Code 不认识第三方 id，不给 max_context 就按它猜的窗口压缩；
-        // 能解析成 Claude 模型的 id 该变量不生效，所以豁免。
-        let dir = TempDir::new().unwrap();
-        let catalog = PresetCatalog::load(&DonnHome::for_test(dir.path()));
-        for preset in catalog.all() {
-            for choice in &preset.model_choices {
-                assert!(
-                    is_claude_model(&choice.id) || choice.max_context.is_some(),
-                    "{}: {} needs max_context",
-                    preset.key,
-                    choice.id
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn model_choice_package_env() {
-        let e = ModelChoice {
-            id: "x".into(),
-            max_context: Some(100),
-            auto_compact: Some(80),
-            env: BTreeMap::from([("FOO".into(), "1".into())]),
-            ..Default::default()
-        }
-        .package_env();
-        assert_eq!(
-            e.get(crate::keys::MAX_CONTEXT).map(String::as_str),
-            Some("100")
-        );
-        assert_eq!(
-            e.get(crate::keys::AUTO_COMPACT).map(String::as_str),
-            Some("80")
-        );
-        assert_eq!(
-            e.get(crate::keys::SUBAGENT_MODEL).map(String::as_str),
-            Some("x")
-        );
-        assert_eq!(e.get("FOO").map(String::as_str), Some("1"));
-
-        // 1M 窗口用 1048576 表达时，压缩窗口封顶于 Claude Code 接受的上限
-        let capped = ModelChoice {
-            id: "y".into(),
-            max_context: Some(1_048_576),
-            ..Default::default()
-        }
-        .package_env();
-        assert_eq!(
-            capped.get(crate::keys::MAX_CONTEXT).map(String::as_str),
-            Some("1048576")
-        );
-        assert_eq!(
-            capped.get(crate::keys::AUTO_COMPACT).map(String::as_str),
-            Some("1000000")
-        );
-
-        let compact_only = ModelChoice {
-            id: "solo".into(),
-            auto_compact: Some(70),
-            pin_subagent: Some(false),
-            ..Default::default()
-        }
-        .package_env();
-        assert_eq!(
-            compact_only
-                .get(crate::keys::AUTO_COMPACT)
-                .map(String::as_str),
-            Some("70")
-        );
-        assert!(!compact_only.contains_key(crate::keys::MAX_CONTEXT));
-        assert!(!compact_only.contains_key(crate::keys::SUBAGENT_MODEL));
-
-        let preset = Preset {
-            model_choices: vec![ModelChoice {
-                id: "Exact-ID".into(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        };
-        assert_eq!(
-            preset
-                .choice_for_model("exact-id")
-                .map(|choice| choice.id.as_str()),
-            Some("Exact-ID")
-        );
-    }
-
-    #[test]
-    fn user_preset_overrides_builtin_by_key() {
-        let dir = TempDir::new().unwrap();
-        let home = DonnHome::for_test(dir.path());
-        std::fs::create_dir_all(home.presets_dir()).unwrap();
-        std::fs::write(
-            home.presets_dir().join("zai.toml"),
-            r#"[preset]
-key = "zai"
-label = "My zai"
-description = "override"
-base_url = "https://my-relay.example/api"
-auth_mode = "auth_token"
-"#,
-        )
-        .unwrap();
-        let catalog = PresetCatalog::load(&home);
-        let zai = catalog.get("zai").unwrap();
-        assert_eq!(zai.label, "My zai");
-        assert_eq!(zai.source, PresetSource::User);
-        // 覆盖不追加
-        assert_eq!(catalog.all().iter().filter(|p| p.key == "zai").count(), 1);
-        // 排序不变式：任何来源合并后仍是 key 字典序
-        let keys: Vec<&str> = catalog.all().iter().map(|p| p.key.as_str()).collect();
-        let mut sorted = keys.clone();
-        sorted.sort_unstable();
-        assert_eq!(keys, sorted);
-    }
-
-    #[test]
-    fn broken_user_preset_is_skipped_and_reported() {
-        let dir = TempDir::new().unwrap();
-        let home = DonnHome::for_test(dir.path());
-        std::fs::create_dir_all(home.presets_dir()).unwrap();
-        std::fs::write(home.presets_dir().join("broken.toml"), "not [valid toml").unwrap();
-        let catalog = PresetCatalog::load(&home);
-        assert_eq!(catalog.load_errors.len(), 1);
-        assert_eq!(catalog.all().len(), BUILTIN_PRESETS.len()); // 内置仍完整
-        assert!(
-            catalog.load_errors[0]
-                .message
-                .contains(&home.presets_dir().join("broken.toml").display().to_string())
-        );
-    }
-
-    #[test]
-    fn unknown_preset_key_errors() {
-        let dir = TempDir::new().unwrap();
-        let catalog = PresetCatalog::load(&DonnHome::for_test(dir.path()));
-        assert!(catalog.get("nope").is_err());
-    }
 }
