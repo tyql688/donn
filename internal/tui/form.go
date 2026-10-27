@@ -19,7 +19,11 @@ func (m *App) pickProvider() tea.Cmd {
 			return nil, err
 		}
 		if m.form != nil {
-			m.form.Preset = p.Key
+			if m.form.Preset != p.Key {
+				m.form.Preset = p.Key
+				m.form.Key = core.Secret{}
+				m.form.Intent = core.NewSpec().Intent
+			}
 			m.refreshRight()
 			return nil, nil
 		}

@@ -60,6 +60,7 @@ type removeCheckMsg struct {
 	live      core.LiveStatus
 }
 type processMsg struct{ err error }
+type browserMsg struct{ err error }
 type launchMsg struct {
 	cmd     *exec.Cmd
 	notices []string
@@ -158,6 +159,14 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.left.Select(index)
 		m.refreshRight()
 		m.resize()
+		return m, nil
+	case browserMsg:
+		if msg.err != nil {
+			m.setError(msg.err)
+		} else {
+			m.status = "opened link"
+			m.statusError = false
+		}
 		return m, nil
 	case operationMsg:
 		m.busy = false

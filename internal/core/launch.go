@@ -47,7 +47,10 @@ func (d *Donn) PrepareLaunch(name string, args []string) (*exec.Cmd, []string, e
 	if err != nil {
 		return nil, notices, err
 	}
-	profileEnv := envEntries(settings)
+	profileEnv, err := envEntries(settings)
+	if err != nil {
+		return nil, notices, err
+	}
 	delete(profileEnv, ConfigDir)
 	for key, value := range profileEnv {
 		if err := ValidateEnv(key, value); err != nil {

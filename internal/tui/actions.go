@@ -213,9 +213,9 @@ func (m *App) windowPrompt(id, value string, accept func(uint64) tea.Cmd) tea.Cm
 		value = strings.TrimSpace(value)
 		var tokens uint64
 		if value != "" {
-			n, err := strconv.ParseUint(value, 10, 64)
+			n, err := strconv.ParseUint(value, 10, 63)
 			if err != nil || n == 0 {
-				return nil, fmt.Errorf("enter a positive integer")
+				return nil, fmt.Errorf("enter an integer from 1 to 9223372036854775807")
 			}
 			tokens = n
 		}
@@ -235,9 +235,6 @@ func (m *App) modelPicker(p core.Preset, windows map[string]uint64, slot core.Sl
 		id := strings.TrimSpace(raw)
 		if choice, ok := p.Choice(id); ok {
 			id = choice.ID
-		}
-		if id == p.Models[slot] {
-			id = ""
 		}
 		if slot == core.Sonnet && core.NeedsWindow(p, windows, id) {
 			return m.windowPrompt(id, "262144", func(n uint64) tea.Cmd { return accept(id, &n) }), nil
@@ -416,7 +413,7 @@ func (m *App) openKeyURL() tea.Cmd {
 	return m.openURL(url)
 }
 func (m *App) openURL(url string) tea.Cmd {
-	return func() tea.Msg { return operationMsg{text: "opened provider page", err: browser.OpenURL(url)} }
+	return func() tea.Msg { return browserMsg{err: browser.OpenURL(url)} }
 }
 func (m *App) openEditor() tea.Cmd {
 	path := m.donn.Home.ConfigFile()
@@ -453,13 +450,20 @@ func (m *App) copyPicker() tea.Cmd {
 	if v.Spec.Isolation == core.Shared {
 		items[3].value = m.donn.Home.MainClaudeDir()
 	}
+	if len(v.Spec.Wrapper.Aliases) > 0 {
+		path := core.WrapperPath(m.config.ResolveBinDir(m.donn.Home), v.Spec.Wrapper.Aliases[0])
+		items = append(items, item{title: "wrapper path", value: path})
+	}
 	env, err := m.donn.ProfileEnv(v.Name)
 	if err != nil {
 		m.setError(err)
-		return nil
 	}
 	for _, key := range slices.Sorted(maps.Keys(env)) {
 		items = append(items, item{title: key, value: env[key]})
 	}
-	return m.pick("copy", items, command, true, false, func(value string) (tea.Cmd, error) { m.status = "copied"; return tea.SetClipboard(value), nil })
+	return m.pick("copy", items, command, true, false, func(value string) (tea.Cmd, error) {
+		m.status = "copied"
+		m.statusError = false
+		return tea.SetClipboard(value), nil
+	})
 }

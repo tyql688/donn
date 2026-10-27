@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -88,10 +89,12 @@ func (d *Donn) inspect(name string, catalog Catalog, defaults Defaults) (Profile
 	if err != nil {
 		return v, err
 	}
+	v.Spec = s
 	p, err := catalog.Get(s.Preset)
 	if err != nil {
 		return v, err
 	}
+	v.Preset = p
 	settings, err := readJSON(d.Home.SettingsFile(name))
 	if err != nil {
 		return v, err
@@ -99,13 +102,17 @@ func (d *Donn) inspect(name string, catalog Catalog, defaults Defaults) (Profile
 	if _, err := readJSON(d.Home.ClaudeJSONFile(name)); err != nil {
 		return v, err
 	}
-	r := Render(s, p, secretFrom(settings), defaults)
+	secret, err := secretFrom(settings)
+	if err != nil {
+		return v, err
+	}
+	r := Render(s, p, secret, defaults)
 	if err := r.Validate(); err != nil {
 		return v, err
 	}
 	key := "not needed"
 	if p.AuthMode.NeedsKey() {
-		key = secretFrom(settings).String()
+		key = secret.String()
 	}
 	return ProfileView{Name: name, Spec: s, Preset: p, BaseURL: EffectiveBaseURL(s, p), Models: EffectiveModels(s, p, defaults), Key: key, Effort: EffectiveEffort(r, defaults), Context: r.Effective(MaxContext), Drift: driftFor(settings, r)}, nil
 }
@@ -127,30 +134,33 @@ func (d *Donn) RevealKey(name string) (Secret, error) {
 		return Secret{}, err
 	}
 	o, err := readJSON(d.Home.SettingsFile(name))
-	return secretFrom(o), err
+	if err != nil {
+		return Secret{}, err
+	}
+	return secretFrom(o)
 }
 func (d *Donn) ProfileEnv(name string) (map[string]string, error) {
 	if err := ValidateName(name); err != nil {
 		return nil, err
 	}
 	o, err := readJSON(d.Home.SettingsFile(name))
-	return envEntries(o), err
+	if err != nil {
+		return nil, err
+	}
+	return envEntries(o)
 }
 
 type SyncReport struct{ Overwritten []string }
 
 func now() string { return time.Now().UTC().Format(time.RFC3339Nano) }
-func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret) (SyncReport, error) {
+func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret, catalog Catalog, defaults Defaults) (SyncReport, error) {
 	report := SyncReport{}
-	catalog, err := d.Presets()
-	if err != nil {
-		return report, err
+	for _, tokens := range s.Intent.ModelWindows {
+		if tokens > math.MaxInt64 {
+			return report, fmt.Errorf("model context window must not exceed %d", int64(math.MaxInt64))
+		}
 	}
 	p, err := catalog.Get(s.Preset)
-	if err != nil {
-		return report, err
-	}
-	c, err := d.Config()
 	if err != nil {
 		return report, err
 	}
@@ -162,17 +172,20 @@ func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret) (Sy
 	if err != nil {
 		return report, err
 	}
-	secret := secretFrom(settings)
+	secret, err := secretFrom(settings)
+	if err != nil {
+		return report, err
+	}
 	prior := Rendered{}
 	if old != nil {
 		if oldPreset, e := catalog.Get(old.Preset); e == nil {
-			prior = Render(*old, oldPreset, secret, c.Defaults)
+			prior = Render(*old, oldPreset, secret, defaults)
 		}
 	}
 	if explicit != nil {
 		secret = *explicit
 	}
-	r := Render(s, p, secret, c.Defaults)
+	r := Render(s, p, secret, defaults)
 	if err := r.Validate(); err != nil {
 		return report, err
 	}
@@ -196,7 +209,7 @@ func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret) (Sy
 	}
 	overlay := Object{}
 	if s.Isolation == Shared {
-		overlay = SharedOverlay(s, p, c.Defaults)
+		overlay = SharedOverlay(s, p, defaults)
 	}
 	if len(overlay) == 0 {
 		if err := os.Remove(d.Home.OverlayFile(s.Name)); err != nil && !os.IsNotExist(err) {
@@ -227,20 +240,18 @@ func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret) (Sy
 	report.Overwritten = overwritten
 	return report, nil
 }
-func (d *Donn) syncUnlocked(name string) (SyncReport, error) {
+func (d *Donn) syncUnlocked(name string, catalog Catalog, defaults Defaults) (SyncReport, error) {
 	s, err := d.Spec(name)
 	if err != nil {
 		return SyncReport{}, err
 	}
 	next := s
-	catalog, err := d.Presets()
+	p, err := catalog.Get(s.Preset)
 	if err != nil {
 		return SyncReport{}, err
 	}
-	if p, e := catalog.Get(s.Preset); e == nil {
-		next.Auth.Mode = p.AuthMode
-	}
-	return d.regenerate(&s, next, nil)
+	next.Auth.Mode = p.AuthMode
+	return d.regenerate(&s, next, nil, catalog, defaults)
 }
 func (d *Donn) Sync(name string) (SyncReport, error) {
 	l, err := lockWrites(d.Home)
@@ -248,7 +259,15 @@ func (d *Donn) Sync(name string) (SyncReport, error) {
 		return SyncReport{}, err
 	}
 	defer l.Close()
-	return d.syncUnlocked(name)
+	c, err := d.Config()
+	if err != nil {
+		return SyncReport{}, err
+	}
+	catalog, err := d.Presets()
+	if err != nil {
+		return SyncReport{}, err
+	}
+	return d.syncUnlocked(name, catalog, c.Defaults)
 }
 
 type ChangeKind int
@@ -323,7 +342,15 @@ func (d *Donn) Edit(name string, changes ...Change) (SyncReport, error) {
 			return SyncReport{}, fmt.Errorf("unknown profile change")
 		}
 	}
-	return d.regenerate(&s, next, nil)
+	c, err := d.Config()
+	if err != nil {
+		return SyncReport{}, err
+	}
+	catalog, err := d.Presets()
+	if err != nil {
+		return SyncReport{}, err
+	}
+	return d.regenerate(&s, next, nil, catalog, c.Defaults)
 }
 func (d *Donn) SetKey(name string, key Secret) (SyncReport, error) {
 	l, err := lockWrites(d.Home)
@@ -335,7 +362,15 @@ func (d *Donn) SetKey(name string, key Secret) (SyncReport, error) {
 	if err != nil {
 		return SyncReport{}, err
 	}
-	return d.regenerate(&s, s, &key)
+	c, err := d.Config()
+	if err != nil {
+		return SyncReport{}, err
+	}
+	catalog, err := d.Presets()
+	if err != nil {
+		return SyncReport{}, err
+	}
+	return d.regenerate(&s, s, &key, catalog, c.Defaults)
 }
 
 type Draft struct {
@@ -372,10 +407,11 @@ func (d *Donn) Create(draft Draft) (receipt CreateReceipt, err error) {
 	if err != nil {
 		return receipt, err
 	}
-	bin, err := d.BinDir()
+	c, err := d.Config()
 	if err != nil {
 		return receipt, err
 	}
+	bin := c.ResolveBinDir(d.Home)
 	aliases := slices.Clone(draft.Aliases)
 	if len(aliases) == 0 {
 		aliases = []string{draft.Name}
@@ -409,7 +445,7 @@ func (d *Donn) Create(draft Draft) (receipt CreateReceipt, err error) {
 		return receipt, fmt.Errorf("invalid isolation")
 	}
 	s.Wrapper.Aliases = aliases
-	if _, err = d.regenerate(nil, s, &draft.Key); err != nil {
+	if _, err = d.regenerate(nil, s, &draft.Key, catalog, c.Defaults); err != nil {
 		return receipt, err
 	}
 	for _, alias := range aliases {
@@ -539,8 +575,12 @@ func (d *Donn) EditConfig(change ConfigChange) (ConfigReport, error) {
 	if err != nil {
 		return report, err
 	}
+	catalog, err := d.Presets()
+	if err != nil {
+		return report, err
+	}
 	for _, name := range names {
-		_, err := d.syncUnlocked(name)
+		_, err := d.syncUnlocked(name, catalog, c.Defaults)
 		if err != nil {
 			report.Errors = append(report.Errors, name+": "+err.Error())
 			continue

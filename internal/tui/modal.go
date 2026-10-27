@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -25,7 +26,6 @@ type modal struct {
 	list             list.Model
 	input            textinput.Model
 	viewport         viewport.Model
-	custom           bool
 	rowHeight        int
 	accept           func(string) (tea.Cmd, error)
 }
@@ -39,7 +39,19 @@ func (m *App) pick(title string, options []item, current string, search, custom 
 			selected = i
 		}
 	}
+	if custom {
+		items = append(items, item{id: "custom", title: "Use typed model ID"})
+	}
 	l := newList(items)
+	if custom {
+		l.Filter = func(term string, targets []string) []list.Rank {
+			matches := list.DefaultFilter(term, targets[:len(options)])
+			if strings.TrimSpace(term) != "" && !slices.ContainsFunc(options, func(i item) bool { return strings.EqualFold(i.value, strings.TrimSpace(term)) }) {
+				matches = append(matches, list.Rank{Index: len(options)})
+			}
+			return matches
+		}
+	}
 	delegate := list.NewDefaultDelegate()
 	delegate.ShowDescription = slices.ContainsFunc(options, func(i item) bool { return i.description != "" })
 	delegate.SetSpacing(0)
@@ -47,7 +59,7 @@ func (m *App) pick(title string, options []item, current string, search, custom 
 	l.SetFilteringEnabled(search)
 	l.SetShowFilter(search)
 	l.Select(selected)
-	m.modal = &modal{kind: pickerModal, title: title, list: l, custom: custom, accept: accept, rowHeight: delegate.Height()}
+	m.modal = &modal{kind: pickerModal, title: title, list: l, accept: accept, rowHeight: delegate.Height()}
 	m.resize()
 	return nil
 }
@@ -142,10 +154,19 @@ func (m *App) updateModal(msg tea.Msg) tea.Cmd {
 			if modal.kind == pickerModal {
 				modal.refreshMatches()
 				if selected, ok := modal.list.SelectedItem().(item); ok {
+					if selected.id == "custom" {
+						value := strings.TrimSpace(modal.list.FilterValue())
+						if value == "" {
+							return m.prompt(modal.title, "", "model ID", false, func(value string) (tea.Cmd, error) {
+								if strings.TrimSpace(value) == "" {
+									return nil, fmt.Errorf("enter a model ID")
+								}
+								return modal.accept(value)
+							})
+						}
+						return m.submitModal(value)
+					}
 					return m.submitModal(selected.value)
-				}
-				if modal.custom && strings.TrimSpace(modal.list.FilterValue()) != "" {
-					return m.submitModal(strings.TrimSpace(modal.list.FilterValue()))
 				}
 				return nil
 			}
@@ -191,9 +212,6 @@ func (m *App) modalView() string {
 		}
 	case pickerModal:
 		content = modal.list.View()
-		if len(modal.list.VisibleItems()) == 0 && modal.custom && modal.list.FilterValue() != "" {
-			content += "\nEnter: use " + modal.list.FilterValue()
-		}
 	case noticeModal:
 		content = modal.viewport.View()
 	}

@@ -42,6 +42,8 @@ alias 记录 donn 路径并执行 `donn run <profile> -- <args>`；路径失效�
 
 启动环境先继承 shell，再剥掉 donn 管理的 env 和切换云厂商、覆盖 model 的 key，随后注入 profile settings 中的 env；full 最后强制设置 `CLAUDE_CONFIG_DIR`。shared 默认追加 `--settings <overlay>`。用户自己传入 `--settings` 时使用用户参数，并明确提示此次没有加载 donn overlay。
 
+settings 中缺少 `env` 表示没有额外变量；存在的 `env` 必须是 JSON 对象，结构错误会阻止启动。
+
 CLI 在 Unix 上用 exec 替换进程，Windows 上等待子进程并返回其退出码。TUI 使用 Bubble Tea 的 Exec 暂停界面，将标准输入输出交给 Claude 或编辑器，进程结束后恢复终端和界面。
 
 ## Preset
@@ -50,7 +52,7 @@ CLI 在 Unix 上用 exec 替换进程，Windows 上等待子进程并返回其�
 
 ## 文件安全与并发
 
-- 写操作持有 gofrs/flock 跨进程锁，最长等 5 秒。全局编辑在锁内重新读配置，只修改指定字段，然后逐 profile 同步并汇报失败。
+- 写操作持有 gofrs/flock 跨进程锁，最长等 5 秒。写操作加载所需的全局配置与 preset catalog，在本次操作内作为参数传给渲染与同步。全局编辑只修改指定字段，然后使用本次配置逐 profile 同步并汇报失败。
 - natefinch/atomic 写临时文件并替换目标，已存在文件保持权限，新文件使用 0600，目录使用 0700；Unix 上替换后尽力同步父目录。Windows 权限由目录 ACL 决定。
 - JSON 用通用对象与 json.Number 保留未知字段和大整数。TOML 使用 go-toml 做类型映射、tomledit 保留未知顶层字段及关联注释。全局配置的模板注释在启动和保存时刷新。
 - 内容相同就不写。profile 比较只忽略 updated_at，稳态 sync 保持文件字节和 mtime。
@@ -65,7 +67,9 @@ Bubble Tea 管理事件循环与外部进程，Bubbles 提供 list、fuzzy filte
 
 每次列表刷新从磁盘读取一次全局配置和 preset catalog，逐 profile 检查时复用本次读取的值。Doctor 同样在一次检查内复用配置和 catalog。
 
-model picker 合并 preset 候选、slot 默认、自定义窗口和当前值。无匹配的搜索文本可作为任意 model ID；第三方 Sonnet 缺少窗口时继续询问 token 数，取消不会提前保存。provider 列表展示名称和 endpoint，model 列表展示 ID 和上下文窗口。小于 60 列时切为单面板。
+model picker 合并 preset 候选、slot 默认、自定义窗口和当前值。搜索文本没有精确命中时可选择使用原始输入；选择具体 ID 会保存显式覆盖，选择 `Follow default` 则清除覆盖。第三方 Sonnet 缺少窗口时继续询问 token 数，取消不会提前保存。窗口值必须是能存入 TOML 的正整数，最大为 `9223372036854775807`，留空清除窗口覆盖。provider 列表展示名称和 endpoint，model 列表展示 ID 和上下文窗口。小于 60 列时切为单面板。
+
+新建表单切换 provider 时清空 key 和 provider 相关覆盖，保留名称、aliases 和 isolation。复制菜单提供启动命令、配置路径和首个 wrapper 路径；配置损坏时保留可用路径并显示错误。打开链接只更新操作状态。
 
 鼠标选择按屏幕坐标定位 Bubbles 列表。完整显示的 URL 用 xurls 识别，左键在焦点和选中项未变化时打开，右键复制；省略的 URL 不打开。浏览器使用 cli/browser，剪贴板通过终端 OSC 52，支持情况取决于终端设置。
 

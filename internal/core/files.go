@@ -187,28 +187,28 @@ func sameJSON(a, b any) bool {
 	bb, e2 := json.Marshal(b)
 	return e1 == nil && e2 == nil && bytes.Equal(aa, bb)
 }
-func envEntries(o Object) map[string]string {
+func envEntries(o Object) (map[string]string, error) {
 	out := map[string]string{}
 	env, err := objectChild(o, "env")
 	if err != nil {
-		return out
+		return nil, err
 	}
 	for k, v := range env {
 		out[k] = Scalar(v)
 	}
-	return out
+	return out, nil
 }
-func secretFrom(o Object) Secret {
+func secretFrom(o Object) (Secret, error) {
 	env, err := objectChild(o, "env")
 	if err != nil {
-		return Secret{}
+		return Secret{}, err
 	}
 	for _, key := range []string{AuthTokenKey, APIKey} {
 		if s, ok := env[key].(string); ok && s != "" {
-			return NewSecret(s)
+			return NewSecret(s), nil
 		}
 	}
-	return Secret{}
+	return Secret{}, nil
 }
 
 // mergeTOML replaces owned top-level fields while retaining other fields and attached comments.
