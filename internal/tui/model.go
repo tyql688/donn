@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/viewport"
@@ -51,6 +52,7 @@ type loadedMsg struct {
 }
 type operationMsg struct {
 	text, created string
+	overwritten   []string
 	err           error
 }
 type doctorMsg []core.Check
@@ -86,6 +88,7 @@ func New(d *core.Donn) *App {
 }
 func (m *App) Init() tea.Cmd { return tea.Batch(m.load(""), tea.RequestBackgroundColor) }
 func (m *App) load(selectName string) tea.Cmd {
+	m.busy = true
 	d := m.donn
 	return func() tea.Msg {
 		config, err := d.Config()
@@ -116,6 +119,13 @@ func (m *App) setError(err error) {
 func (m *App) run(text string, fn func() error) tea.Cmd {
 	m.busy = true
 	return func() tea.Msg { return operationMsg{text: text, err: fn()} }
+}
+func (m *App) runSync(text string, fn func() (core.SyncReport, error)) tea.Cmd {
+	m.busy = true
+	return func() tea.Msg {
+		report, err := fn()
+		return operationMsg{text: text, overwritten: report.Overwritten, err: err}
+	}
 }
 func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -175,13 +185,15 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.status = msg.text
+		if len(msg.overwritten) > 0 {
+			m.status = "restored: " + strings.Join(msg.overwritten, ", ") + " · " + msg.text
+		}
 		m.statusError = false
 		if msg.created != "" {
 			m.form = nil
 			m.mode = profilesMode
 			m.focusRight = true
 		}
-		m.busy = true
 		return m, m.load(msg.created)
 	case doctorMsg:
 		m.checks = msg
@@ -322,7 +334,7 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.focusRight && m.mode == profilesMode {
 			if m.revealed != nil {
 				m.revealed = nil
-			} else if v := m.current(); v != nil {
+			} else if v := m.current(); v != nil && v.Preset.AuthMode.NeedsKey() {
 				key, err := m.donn.RevealKey(v.Name)
 				if err != nil {
 					m.setError(err)

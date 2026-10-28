@@ -53,3 +53,10 @@ func ValidateEnv(key, value string) error {
 	}
 	return nil
 }
+
+func ValidateEnvOverride(key, value string) error {
+	if key == APIKey || key == AuthTokenKey {
+		return fmt.Errorf("%s must be set through the profile API key field", key)
+	}
+	return ValidateEnv(key, value)
+}

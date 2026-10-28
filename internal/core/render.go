@@ -24,11 +24,24 @@ func (r Rendered) Footprint() Footprint {
 	}
 	return f
 }
-func EffectiveBaseURL(s ProfileSpec, p Preset) string {
-	if s.Intent.BaseURL != "" {
-		return s.Intent.BaseURL
+func EffectiveBaseURL(s ProfileSpec, p Preset, d Defaults) EffectiveValue {
+	url := EffectiveValue{}
+	if p.BaseURL != "" {
+		url = EffectiveValue{p.BaseURL, SourceDefault}
 	}
-	return p.BaseURL
+	if value, ok := p.Env[BaseURL]; ok {
+		url = EffectiveValue{value, SourceDefault}
+	}
+	if value, ok := d.Env[BaseURL]; ok {
+		url = EffectiveValue{value, SourceGlobal}
+	}
+	if s.Intent.BaseURL != "" {
+		url = EffectiveValue{s.Intent.BaseURL, SourceProfile}
+	}
+	if value, ok := s.Intent.Env[BaseURL]; ok {
+		url = EffectiveValue{value, SourceProfile}
+	}
+	return url
 }
 func EffectiveModels(s ProfileSpec, p Preset, d Defaults) map[Slot]EffectiveValue {
 	models := map[Slot]EffectiveValue{}
@@ -113,6 +126,9 @@ func Render(s ProfileSpec, p Preset, secret Secret, d Defaults) Rendered {
 	remove := func(k string) { delete(r.Env, k); delete(r.Sources, k) }
 	write := func(env map[string]string, source ValueSource) {
 		for k, v := range env {
+			if k == BaseURL || k == APIKey || k == AuthTokenKey {
+				continue
+			}
 			set(k, v, source)
 		}
 	}
@@ -132,18 +148,16 @@ func Render(s ProfileSpec, p Preset, secret Secret, d Defaults) Rendered {
 			write(m.PackageEnv(), SourceDefault)
 		}
 	}
-	endpoint := EffectiveBaseURL(s, p)
-	if endpoint != "" {
-		source := SourceDefault
-		if s.Intent.BaseURL != "" {
-			source = SourceProfile
-		}
-		set(BaseURL, endpoint, source)
+	endpoint := EffectiveBaseURL(s, p, d)
+	if endpoint.Source != "" {
+		set(BaseURL, endpoint.Value, endpoint.Source)
+	}
+	if endpoint.Value != "" {
 		set(APITimeout, Scalar(KnobValue(d, "api_timeout_ms")), SourceDefault)
 	}
 	for _, field := range []string{"agent_teams", "disable_nonessential_traffic"} {
 		k, _ := FindKnob(field)
-		if (!k.EndpointOnly || endpoint != "") && k.Value(d.Knobs) == true {
+		if (!k.EndpointOnly || endpoint.Value != "") && k.Value(d.Knobs) == true {
 			set(k.Key, "1", SourceDefault)
 		}
 	}
@@ -169,12 +183,12 @@ func Render(s ProfileSpec, p Preset, secret Secret, d Defaults) Rendered {
 	slots(p.Models, SourceDefault)
 	write(p.Env, SourceDefault)
 	pack(SourceDefault)
-	if v, ok := d.Knobs["api_timeout_ms"]; ok && endpoint != "" {
+	if v, ok := d.Knobs["api_timeout_ms"]; ok && endpoint.Value != "" {
 		set(APITimeout, Scalar(v), SourceGlobal)
 	}
 	for _, field := range []string{"agent_teams", "disable_nonessential_traffic"} {
 		k, _ := FindKnob(field)
-		if v, ok := d.Knobs[field]; ok && (!k.EndpointOnly || endpoint != "") {
+		if v, ok := d.Knobs[field]; ok && (!k.EndpointOnly || endpoint.Value != "") {
 			if v == true {
 				set(k.Key, "1", SourceGlobal)
 			} else {

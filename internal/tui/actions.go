@@ -20,6 +20,22 @@ import (
 func row(id, label, value string) item {
 	return item{id: id, title: pad(label, 18) + "  " + value, value: value}
 }
+
+func modelRows(prefix string, models map[core.Slot]core.EffectiveValue, context core.EffectiveValue) []item {
+	var rows []item
+	for _, slot := range core.Slots {
+		value := models[slot].String()
+		if models[slot].Value == "" {
+			value = "-"
+		}
+		rows = append(rows, row(prefix+"model:"+string(slot), "model "+string(slot), value))
+		if slot == core.Sonnet && models[slot].Value != "" {
+			rows = append(rows, row(prefix+"window", "  context window", context.String()))
+		}
+	}
+	return rows
+}
+
 func (m *App) refreshRight() {
 	selected := ""
 	if old, ok := m.right.SelectedItem().(item); ok {
@@ -66,17 +82,11 @@ func (m *App) refreshRight() {
 		if m.revealed != nil {
 			key = m.revealed.Reveal()
 		}
-		rows = append(rows, row("key", "api key", key), row("base", "base_url", v.BaseURL), row("effort", "effort", v.Effort.String()), row("isolation", "isolation", string(v.Spec.Isolation)))
-		for _, slot := range core.Slots {
-			value := v.Models[slot].String()
-			if v.Models[slot].Value == "" {
-				value = "-"
-			}
-			rows = append(rows, row("model:"+string(slot), "model "+string(slot), value))
-			if slot == core.Sonnet && v.Models[slot].Value != "" {
-				rows = append(rows, row("window", "  context window", v.Context.String()))
-			}
+		if v.Preset.AuthMode.NeedsKey() {
+			rows = append(rows, row("key", "api key", key))
 		}
+		rows = append(rows, row("base", "base_url", v.BaseURL), row("effort", "effort", v.Effort.String()), row("isolation", "isolation", string(v.Spec.Isolation)))
+		rows = append(rows, modelRows("", v.Models, v.Context)...)
 		for _, key := range slices.Sorted(maps.Keys(v.Spec.Intent.Env)) {
 			if key == core.Effort {
 				continue
@@ -113,7 +123,7 @@ func (m *App) edit(changes ...core.Change) tea.Cmd {
 		return nil
 	}
 	name, d := v.Name, m.donn
-	return m.run("saved", func() error { _, err := d.Edit(name, changes...); return err })
+	return m.runSync("saved", func() (core.SyncReport, error) { return d.Edit(name, changes...) })
 }
 func (m *App) syncProfile() tea.Cmd {
 	v := m.current()
@@ -121,7 +131,7 @@ func (m *App) syncProfile() tea.Cmd {
 		return nil
 	}
 	name, d := v.Name, m.donn
-	return m.run("synced "+name, func() error { _, err := d.Sync(name); return err })
+	return m.runSync("synced "+name, func() (core.SyncReport, error) { return d.Sync(name) })
 }
 func (m *App) activateRow() tea.Cmd {
 	r, ok := m.right.SelectedItem().(item)
@@ -154,10 +164,10 @@ func (m *App) activateRow() tea.Cmd {
 			if key.Empty() {
 				return nil, fmt.Errorf("key must not be empty")
 			}
-			return m.run("key saved", func() error { _, err := d.SetKey(name, key); return err }), nil
+			return m.runSync("key saved", func() (core.SyncReport, error) { return d.SetKey(name, key) }), nil
 		})
 	case "base":
-		return m.prompt("base_url · "+name, v.Spec.Intent.BaseURL, "empty = follow preset", false, func(value string) (tea.Cmd, error) {
+		return m.prompt("base_url · "+name, v.Spec.Intent.BaseURL, "empty = follow defaults", false, func(value string) (tea.Cmd, error) {
 			return m.edit(core.Change{Kind: core.ChangeBaseURL, Value: strings.TrimSpace(value)}), nil
 		})
 	case "effort":
@@ -245,7 +255,7 @@ func (m *App) modelPicker(p core.Preset, windows map[string]uint64, slot core.Sl
 func (m *App) addEnv(global bool) tea.Cmd {
 	return m.prompt("environment variable", "", "name", false, func(key string) (tea.Cmd, error) {
 		key = strings.TrimSpace(key)
-		if err := core.ValidateEnv(key, ""); err != nil {
+		if err := core.ValidateEnvOverride(key, ""); err != nil {
 			return nil, err
 		}
 		return m.envPrompt(key, "", global), nil
@@ -253,7 +263,7 @@ func (m *App) addEnv(global bool) tea.Cmd {
 }
 func (m *App) envPrompt(key, value string, global bool) tea.Cmd {
 	return m.prompt(key, value, "value", key == core.APIKey || key == core.AuthTokenKey, func(value string) (tea.Cmd, error) {
-		if err := core.ValidateEnv(key, value); err != nil {
+		if err := core.ValidateEnvOverride(key, value); err != nil {
 			return nil, err
 		}
 		if global {
@@ -285,7 +295,7 @@ func (m *App) changeConfig(change core.ConfigChange) tea.Cmd {
 		if len(report.Errors) > 0 {
 			text += " · " + strings.Join(report.Errors, "; ")
 		}
-		return operationMsg{text: text}
+		return operationMsg{text: text, overwritten: report.Overwritten}
 	}
 }
 func (m *App) editSetting(id string) tea.Cmd {

@@ -6,14 +6,18 @@ donn 管理一个 Claude Code 二进制和多套配置。Bubble Tea TUI、Cobra 
 
 `profile.toml` 是 schema v2 的配置意图，包含 preset、isolation、model/env 覆盖、alias 与 footprint；API key 只存在于 profile 的 `settings.json`。`Render` 纯函数计算应有配置，`reconcile` 按上次的 footprint 清理拥有的 key，再写入新值，保留未知 JSON 字段。认证模式变化时，sync 从 settings 中恢复 secret 并写入当前认证 key。
 
+认证 key 由 profile 的专用入口维护，普通 env 编辑拒绝 `ANTHROPIC_API_KEY` 和 `ANTHROPIC_AUTH_TOKEN`。同步会将 `intent.env` 中的认证值转存到 settings，并清除 spec 中的对应字段；显式修改 API key 使用本次输入。无需认证的 provider 不展示 API key 输入行。
+
 footprint 记录上次管理的 key。用户修改这些 key 会产生 drift，详情和 Doctor 会报告；sync 恢复 spec 定义的值。生效值和来源由 core 统一计算，TUI 直接展示。
+
+TUI 编辑与同步会提示被恢复的手改字段。全局修改使用修改前的 defaults 计算旧渲染，区分正常配置变化与手改 drift。
 
 ## 渲染顺序
 
 后面的层覆盖前面的层：
 
-1. endpoint 与需要始终参与的 knob 默认值。
-2. 认证 key。
+1. 最终 endpoint 与需要始终参与的 knob 默认值。
+2. 按认证模式写入 profile key。
 3. preset 的 model slot、env、Sonnet model package。
 4. 用户显式配置的全局 knob。
 5. `[defaults.env]`，以及它选中的 Sonnet package。
@@ -21,6 +25,8 @@ footprint 记录上次管理的 key。用户修改这些 key 会产生 drift，�
 7. donn 常量：`DISABLE_AUTOUPDATER=1`；shared 下的 `ENABLE_CLAUDEAI_MCP_SERVERS=0`。
 
 model slot 依次由 preset 的 models、preset 的 env、`defaults.env`、`intent.models`、`intent.env` 覆盖；显式空 env 值也参与覆盖。列表、TUI 和 shared overlay 使用同一组生效值与来源。model package 只展开最终 Sonnet 的候选配置，放在选中该模型的配置层；全局与 profile 的显式 env 覆盖同层 package。package 的窗口、自动压缩窗口和 subagent model 由同一个函数展开，用户的 `model_windows` 使用同一规则。settings 顶层值按 knob、`[defaults.settings]` 的顺序覆盖。
+
+endpoint 依次由 preset 的 `base_url`、preset env、`defaults.env`、`intent.base_url`、`intent.env` 决定，界面和启动使用同一结果。认证 key 与 endpoint 由各自入口生成，model package 不覆盖这两个字段。
 
 `KnobCatalog` 统一定义字段、行名、类型、默认值和校验。单 key 映射由表驱动，有条件或配对写入的 `TargetSpecial` 在 render 中处理；显式 env knob 在 preset 后再应用一次。具体写入规则见 [GLOBAL-SETTINGS.md](GLOBAL-SETTINGS.md)。
 
@@ -66,6 +72,8 @@ CLI 在 Unix 上用 exec 替换进程，Windows 上等待子进程并返回其�
 Bubble Tea 管理事件循环与外部进程，Bubbles 提供 list、fuzzy filter、textinput 和 viewport，Lip Gloss 负责布局与显示宽度。磁盘操作通过 Cmd 执行，返回消息后更新界面；modal 独占输入，有限选项用 picker，删除与丢弃用确认选择。
 
 每次列表刷新从磁盘读取一次全局配置和 preset catalog，逐 profile 检查时复用本次读取的值。Doctor 同样在一次检查内复用配置和 catalog。
+
+刷新期间使用 busy 状态阻止编辑和重复刷新。详情与新建表单共用模型及窗口行的生成逻辑。
 
 model picker 合并 preset 候选、slot 默认、自定义窗口和当前值。搜索文本没有精确命中时可选择使用原始输入；选择具体 ID 会保存显式覆盖，选择 `Follow default` 则清除覆盖。第三方 Sonnet 缺少窗口时继续询问 token 数，取消不会提前保存。窗口值必须是能存入 TOML 的正整数，最大为 `9223372036854775807`，留空清除窗口覆盖。provider 列表展示名称和 endpoint，model 列表展示 ID 和上下文窗口。小于 60 列时切为单面板。
 

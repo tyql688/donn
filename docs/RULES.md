@@ -36,7 +36,7 @@
 
 ## 变更时要守住的语义
 
-- 用户自定义的 env 只做操作系统无法表示内容的校验：变量名不能为空、不能含 `=` 或 NUL，值不能含 NUL；报错信息里不能带上可能是 secret 的值。
+- 认证 key 使用 profile 的专用 API key 入口，不能通过 env 编辑器写入 TOML。其余用户自定义 env 只做操作系统无法表示内容的校验：变量名不能为空、不能含 `=` 或 NUL，值不能含 NUL；报错信息里不能带上可能是 secret 的值。
 - `auth_token` 模式下要写一个空的 `ANTHROPIC_API_KEY`，用来屏蔽从 shell 继承下来的游离 key。这是认证优先级的边界，不能省。
 - 启动时要从继承的 shell env 里剥掉 donn 会写的所有 env key，以及 `ManagedEnvKeys()` 中的 shell override key（`ANTHROPIC_MODEL`、`CLAUDE_CODE_USE_BEDROCK` 这类会改道到别的云厂商或盖掉 model 映射的 key）。profile 的身份、路由和 model 只能来自 donn 的配置。
 - knob 写入哪个 key、什么条件下写，以 `docs/GLOBAL-SETTINGS.md` 的表为准；改语义时那张表要一起改。

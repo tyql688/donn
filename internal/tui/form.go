@@ -65,18 +65,12 @@ func (m *App) formRows() []item {
 	f := m.form
 	s, p := m.formSpec()
 	rendered := core.Render(s, p, f.Key, m.config.Defaults)
-	rows := []item{row("form:provider", "provider", p.Label), row("form:name", "name", f.Name), row("form:key", "api key", f.Key.String()), row("form:base", "base_url", core.EffectiveBaseURL(s, p)), row("form:effort", "effort", core.EffectiveEffort(rendered, m.config.Defaults).String()), row("form:isolation", "isolation", string(f.Isolation))}
-	models := core.EffectiveModels(s, p, m.config.Defaults)
-	for _, slot := range core.Slots {
-		value := models[slot].String()
-		if models[slot].Value == "" {
-			value = "-"
-		}
-		rows = append(rows, row("form:model:"+string(slot), "model "+string(slot), value))
-		if slot == core.Sonnet && models[slot].Value != "" {
-			rows = append(rows, row("form:window", "  context window", rendered.Effective(core.MaxContext).String()))
-		}
+	rows := []item{row("form:provider", "provider", p.Label), row("form:name", "name", f.Name)}
+	if p.AuthMode.NeedsKey() {
+		rows = append(rows, row("form:key", "api key", f.Key.String()))
 	}
+	rows = append(rows, row("form:base", "base_url", rendered.Env[core.BaseURL]), row("form:effort", "effort", core.EffectiveEffort(rendered, m.config.Defaults).String()), row("form:isolation", "isolation", string(f.Isolation)))
+	rows = append(rows, modelRows("form:", core.EffectiveModels(s, p, m.config.Defaults), rendered.Effective(core.MaxContext))...)
 	aliases := strings.Join(f.Aliases, ", ")
 	if aliases == "" {
 		aliases = f.Name + "  (default)"
@@ -110,11 +104,8 @@ func (m *App) editForm(id string) tea.Cmd {
 			return nil, nil
 		})
 	case "form:base":
-		return m.prompt("base_url", f.Intent.BaseURL, "empty = follow provider", false, func(value string) (tea.Cmd, error) {
+		return m.prompt("base_url", f.Intent.BaseURL, "empty = follow defaults", false, func(value string) (tea.Cmd, error) {
 			f.Intent.BaseURL = strings.TrimSpace(value)
-			if f.Intent.BaseURL == p.BaseURL {
-				f.Intent.BaseURL = ""
-			}
 			m.refreshRight()
 			return nil, nil
 		})
@@ -187,7 +178,7 @@ func (m *App) createProfile() tea.Cmd {
 	}
 	draft := *m.form
 	s, p := m.formSpec()
-	if p.AuthMode.NeedsKey() && core.EffectiveBaseURL(s, p) == "" {
+	if p.AuthMode.NeedsKey() && core.EffectiveBaseURL(s, p, m.config.Defaults).Value == "" {
 		m.setError(fmt.Errorf("base_url is required for this provider"))
 		return nil
 	}

@@ -114,7 +114,7 @@ func (d *Donn) inspect(name string, catalog Catalog, defaults Defaults) (Profile
 	if p.AuthMode.NeedsKey() {
 		key = secret.String()
 	}
-	return ProfileView{Name: name, Spec: s, Preset: p, BaseURL: EffectiveBaseURL(s, p), Models: EffectiveModels(s, p, defaults), Key: key, Effort: EffectiveEffort(r, defaults), Context: r.Effective(MaxContext), Drift: driftFor(settings, r)}, nil
+	return ProfileView{Name: name, Spec: s, Preset: p, BaseURL: r.Env[BaseURL], Models: EffectiveModels(s, p, defaults), Key: key, Effort: EffectiveEffort(r, defaults), Context: r.Effective(MaxContext), Drift: driftFor(settings, r)}, nil
 }
 func (d *Donn) Profiles(catalog Catalog, defaults Defaults) ([]ProfileView, error) {
 	names, err := d.Names()
@@ -153,7 +153,7 @@ func (d *Donn) ProfileEnv(name string) (map[string]string, error) {
 type SyncReport struct{ Overwritten []string }
 
 func now() string { return time.Now().UTC().Format(time.RFC3339Nano) }
-func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret, catalog Catalog, defaults Defaults) (SyncReport, error) {
+func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret, catalog Catalog, defaults, previous Defaults) (SyncReport, error) {
 	report := SyncReport{}
 	for _, tokens := range s.Intent.ModelWindows {
 		if tokens > math.MaxInt64 {
@@ -164,6 +164,10 @@ func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret, cat
 	if err != nil {
 		return report, err
 	}
+	if !p.AuthMode.NeedsKey() && explicit != nil && !explicit.Empty() {
+		return report, fmt.Errorf("this provider does not use an API key")
+	}
+	s.Auth.Mode = p.AuthMode
 	settings, err := readJSON(d.Home.SettingsFile(s.Name))
 	if err != nil {
 		return report, err
@@ -179,9 +183,18 @@ func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret, cat
 	prior := Rendered{}
 	if old != nil {
 		if oldPreset, e := catalog.Get(old.Preset); e == nil {
-			prior = Render(*old, oldPreset, secret, defaults)
+			prior = Render(*old, oldPreset, secret, previous)
 		}
 	}
+	for _, key := range []string{AuthTokenKey, APIKey} {
+		if value := s.Intent.Env[key]; value != "" {
+			secret = NewSecret(value)
+			break
+		}
+	}
+	s.Intent.Env = maps.Clone(s.Intent.Env)
+	delete(s.Intent.Env, AuthTokenKey)
+	delete(s.Intent.Env, APIKey)
 	if explicit != nil {
 		secret = *explicit
 	}
@@ -240,18 +253,12 @@ func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret, cat
 	report.Overwritten = overwritten
 	return report, nil
 }
-func (d *Donn) syncUnlocked(name string, catalog Catalog, defaults Defaults) (SyncReport, error) {
+func (d *Donn) syncUnlocked(name string, catalog Catalog, defaults, previous Defaults) (SyncReport, error) {
 	s, err := d.Spec(name)
 	if err != nil {
 		return SyncReport{}, err
 	}
-	next := s
-	p, err := catalog.Get(s.Preset)
-	if err != nil {
-		return SyncReport{}, err
-	}
-	next.Auth.Mode = p.AuthMode
-	return d.regenerate(&s, next, nil, catalog, defaults)
+	return d.regenerate(&s, s, nil, catalog, defaults, previous)
 }
 func (d *Donn) Sync(name string) (SyncReport, error) {
 	l, err := lockWrites(d.Home)
@@ -267,7 +274,7 @@ func (d *Donn) Sync(name string) (SyncReport, error) {
 	if err != nil {
 		return SyncReport{}, err
 	}
-	return d.syncUnlocked(name, catalog, c.Defaults)
+	return d.syncUnlocked(name, catalog, c.Defaults, c.Defaults)
 }
 
 type ChangeKind int
@@ -325,7 +332,7 @@ func (d *Donn) Edit(name string, changes ...Change) (SyncReport, error) {
 			if c.Remove {
 				delete(next.Intent.Env, c.Key)
 			} else {
-				if err := ValidateEnv(c.Key, c.Value); err != nil {
+				if err := ValidateEnvOverride(c.Key, c.Value); err != nil {
 					return SyncReport{}, err
 				}
 				if c.Key == Effort && c.Value != "auto" && !slices.Contains(EffortLevels, c.Value) {
@@ -350,7 +357,7 @@ func (d *Donn) Edit(name string, changes ...Change) (SyncReport, error) {
 	if err != nil {
 		return SyncReport{}, err
 	}
-	return d.regenerate(&s, next, nil, catalog, c.Defaults)
+	return d.regenerate(&s, next, nil, catalog, c.Defaults, c.Defaults)
 }
 func (d *Donn) SetKey(name string, key Secret) (SyncReport, error) {
 	l, err := lockWrites(d.Home)
@@ -370,7 +377,7 @@ func (d *Donn) SetKey(name string, key Secret) (SyncReport, error) {
 	if err != nil {
 		return SyncReport{}, err
 	}
-	return d.regenerate(&s, s, &key, catalog, c.Defaults)
+	return d.regenerate(&s, s, &key, catalog, c.Defaults, c.Defaults)
 }
 
 type Draft struct {
@@ -445,7 +452,7 @@ func (d *Donn) Create(draft Draft) (receipt CreateReceipt, err error) {
 		return receipt, fmt.Errorf("invalid isolation")
 	}
 	s.Wrapper.Aliases = aliases
-	if _, err = d.regenerate(nil, s, &draft.Key, catalog, c.Defaults); err != nil {
+	if _, err = d.regenerate(nil, s, &draft.Key, catalog, c.Defaults, c.Defaults); err != nil {
 		return receipt, err
 	}
 	for _, alias := range aliases {
@@ -510,8 +517,9 @@ type ConfigChange struct {
 	Remove       bool
 }
 type ConfigReport struct {
-	Synced int
-	Errors []string
+	Synced      int
+	Overwritten []string
+	Errors      []string
 }
 
 func (d *Donn) EditConfig(change ConfigChange) (ConfigReport, error) {
@@ -529,6 +537,10 @@ func (d *Donn) EditConfig(change ConfigChange) (ConfigReport, error) {
 	if key == "" {
 		return report, fmt.Errorf("key must not be empty")
 	}
+	previous := c.Defaults
+	c.Defaults.Knobs = maps.Clone(c.Defaults.Knobs)
+	c.Defaults.Env = maps.Clone(c.Defaults.Env)
+	c.Defaults.Settings = maps.Clone(c.Defaults.Settings)
 	switch change.Section {
 	case "knob":
 		k, ok := FindKnob(key)
@@ -551,7 +563,7 @@ func (d *Donn) EditConfig(change ConfigChange) (ConfigReport, error) {
 			if !ok {
 				return report, fmt.Errorf("env value must be a string")
 			}
-			if err := ValidateEnv(key, v); err != nil {
+			if err := ValidateEnvOverride(key, v); err != nil {
 				return report, err
 			}
 			c.Defaults.Env[key] = v
@@ -580,12 +592,15 @@ func (d *Donn) EditConfig(change ConfigChange) (ConfigReport, error) {
 		return report, err
 	}
 	for _, name := range names {
-		_, err := d.syncUnlocked(name, catalog, c.Defaults)
+		sync, err := d.syncUnlocked(name, catalog, c.Defaults, previous)
 		if err != nil {
 			report.Errors = append(report.Errors, name+": "+err.Error())
 			continue
 		}
 		report.Synced++
+		for _, key := range sync.Overwritten {
+			report.Overwritten = append(report.Overwritten, name+":"+key)
+		}
 	}
 	return report, nil
 }
@@ -677,6 +692,7 @@ func (d *Donn) Remove(name string, keepSessions bool) error {
 	}
 	aliases := s.Wrapper.Aliases
 	if specErr != nil {
+		aliases = nil
 		entries, e := os.ReadDir(bin)
 		if e != nil && !os.IsNotExist(e) {
 			return e
