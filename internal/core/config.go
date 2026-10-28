@@ -142,6 +142,11 @@ func loadSpec(h Home, name string) (ProfileSpec, error) {
 	if s.Auth.Mode != AuthAPIKey && s.Auth.Mode != AuthToken && s.Auth.Mode != AuthNone {
 		return s, fmt.Errorf("invalid auth mode in %s", h.SpecFile(name))
 	}
+	for _, alias := range s.Wrapper.Aliases {
+		if err := ValidateName(alias); err != nil {
+			return s, fmt.Errorf("invalid alias in %s: %w", h.SpecFile(name), err)
+		}
+	}
 	return s, nil
 }
 func saveSpec(h Home, s ProfileSpec) error {

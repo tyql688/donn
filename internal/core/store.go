@@ -114,7 +114,22 @@ func (d *Donn) inspect(name string, catalog Catalog, defaults Defaults) (Profile
 	if p.AuthMode.NeedsKey() {
 		key = secret.String()
 	}
-	return ProfileView{Name: name, Spec: s, Preset: p, BaseURL: r.Env[BaseURL], Models: EffectiveModels(s, p, defaults), Key: key, Effort: EffectiveEffort(r, defaults), Context: r.Effective(MaxContext), Drift: driftFor(settings, r)}, nil
+	drift := driftFor(settings, r)
+	if s.Isolation == Shared {
+		path := d.Home.OverlayFile(name)
+		overlay, err := readJSON(path)
+		if err != nil {
+			return v, err
+		}
+		if !sameJSON(overlay, r.sharedOverlay(defaults)) {
+			kind := "modified"
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				kind = "missing"
+			}
+			drift = append(drift, Drift{"shared-settings.json", kind})
+		}
+	}
+	return ProfileView{Name: name, Spec: s, Preset: p, BaseURL: r.Env[BaseURL], Models: r.Models(), Key: key, Effort: EffectiveEffort(r, defaults), Context: r.Effective(MaxContext), Drift: drift}, nil
 }
 func (d *Donn) Profiles(catalog Catalog, defaults Defaults) ([]ProfileView, error) {
 	names, err := d.Names()
@@ -222,7 +237,7 @@ func (d *Donn) regenerate(old *ProfileSpec, s ProfileSpec, explicit *Secret, cat
 	}
 	overlay := Object{}
 	if s.Isolation == Shared {
-		overlay = SharedOverlay(s, p, defaults)
+		overlay = r.sharedOverlay(defaults)
 	}
 	if len(overlay) == 0 {
 		if err := os.Remove(d.Home.OverlayFile(s.Name)); err != nil && !os.IsNotExist(err) {
@@ -311,18 +326,21 @@ func (d *Donn) Edit(name string, changes ...Change) (SyncReport, error) {
 	for _, c := range changes {
 		switch c.Kind {
 		case ChangeBaseURL:
+			delete(next.Intent.Env, BaseURL)
 			next.Intent.BaseURL = c.Value
 		case ChangeModel:
 			slot := Slot(c.Key)
 			if !slices.Contains(Slots, slot) {
 				return SyncReport{}, fmt.Errorf("unknown model slot")
 			}
+			delete(next.Intent.Env, slot.EnvKey())
 			if c.Value == "" {
 				delete(next.Intent.Models, slot)
 			} else {
 				next.Intent.Models[slot] = c.Value
 			}
 		case ChangeWindow:
+			delete(next.Intent.Env, MaxContext)
 			if c.Tokens == 0 {
 				delete(next.Intent.ModelWindows, c.Key)
 			} else {

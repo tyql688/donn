@@ -43,10 +43,13 @@ func EffectiveBaseURL(s ProfileSpec, p Preset, d Defaults) EffectiveValue {
 	}
 	return url
 }
-func EffectiveModels(s ProfileSpec, p Preset, d Defaults) map[Slot]EffectiveValue {
+func effectiveModels(s ProfileSpec, p Preset, d Defaults) map[Slot]EffectiveValue {
 	models := map[Slot]EffectiveValue{}
 	for _, slot := range Slots {
-		model := EffectiveValue{p.Models[slot], SourceDefault}
+		model := EffectiveValue{}
+		if value := p.Models[slot]; value != "" {
+			model = EffectiveValue{value, SourceDefault}
+		}
 		if value, ok := p.Env[slot.EnvKey()]; ok {
 			model = EffectiveValue{value, SourceDefault}
 		}
@@ -60,6 +63,13 @@ func EffectiveModels(s ProfileSpec, p Preset, d Defaults) map[Slot]EffectiveValu
 			model = EffectiveValue{value, SourceProfile}
 		}
 		models[slot] = model
+	}
+	return models
+}
+func (r Rendered) Models() map[Slot]EffectiveValue {
+	models := map[Slot]EffectiveValue{}
+	for _, slot := range Slots {
+		models[slot] = r.Effective(slot.EnvKey())
 	}
 	return models
 }
@@ -108,13 +118,13 @@ func settingsLayer(d Defaults) (Object, string) {
 	}
 	return top, mode
 }
-func SharedOverlay(s ProfileSpec, p Preset, d Defaults) Object {
+func (r Rendered) sharedOverlay(d Defaults) Object {
 	top, mode := settingsLayer(d)
 	if mode != "" {
 		top["permissions"] = Object{PermissionDefault: mode}
 	}
 	if _, ok := top["model"]; !ok {
-		if m := EffectiveModels(s, p, d)[Sonnet].Value; m != "" {
+		if m := r.Env[Sonnet.EnvKey()]; m != "" {
 			top["model"] = m
 		}
 	}
@@ -126,20 +136,14 @@ func Render(s ProfileSpec, p Preset, secret Secret, d Defaults) Rendered {
 	remove := func(k string) { delete(r.Env, k); delete(r.Sources, k) }
 	write := func(env map[string]string, source ValueSource) {
 		for k, v := range env {
-			if k == BaseURL || k == APIKey || k == AuthTokenKey {
+			if k == BaseURL || k == APIKey || k == AuthTokenKey || slices.ContainsFunc(Slots, func(slot Slot) bool { return k == slot.EnvKey() }) {
 				continue
 			}
 			set(k, v, source)
 		}
 	}
-	slots := func(m SlotMap, source ValueSource) {
-		for _, slot := range Slots {
-			if m[slot] != "" {
-				set(slot.EnvKey(), m[slot], source)
-			}
-		}
-	}
-	sonnet := EffectiveModels(s, p, d)[Sonnet]
+	models := effectiveModels(s, p, d)
+	sonnet := models[Sonnet]
 	pack := func(source ValueSource) {
 		if sonnet.Source != source || sonnet.Value == "" {
 			return
@@ -180,7 +184,6 @@ func Render(s ProfileSpec, p Preset, secret Secret, d Defaults) Rendered {
 	if r.ApproveKey {
 		r.ApprovedSuffix = secret.Suffix()
 	}
-	slots(p.Models, SourceDefault)
 	write(p.Env, SourceDefault)
 	pack(SourceDefault)
 	if v, ok := d.Knobs["api_timeout_ms"]; ok && endpoint.Value != "" {
@@ -216,12 +219,16 @@ func Render(s ProfileSpec, p Preset, secret Secret, d Defaults) Rendered {
 	}
 	pack(SourceGlobal)
 	write(d.Env, SourceGlobal)
-	slots(s.Intent.Models, SourceProfile)
 	pack(SourceProfile)
 	if n, ok := s.Intent.ModelWindows[sonnet.Value]; ok && sonnet.Value != "" {
 		write((ModelChoice{ID: sonnet.Value, MaxContext: &n}).PackageEnv(), SourceProfile)
 	}
 	write(s.Intent.Env, SourceProfile)
+	for _, slot := range Slots {
+		if model := models[slot]; model.Source != "" {
+			set(slot.EnvKey(), model.Value, model.Source)
+		}
+	}
 	if s.Isolation == Full {
 		r.Settings, r.PermissionMode = settingsLayer(d)
 	}

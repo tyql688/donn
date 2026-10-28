@@ -24,9 +24,11 @@ TUI 编辑与同步会提示被恢复的手改字段。全局修改使用修改�
 6. profile 的 model slot、Sonnet package、自定义 model window、`intent.env`。
 7. donn 常量：`DISABLE_AUTOUPDATER=1`；shared 下的 `ENABLE_CLAUDEAI_MCP_SERVERS=0`。
 
-model slot 依次由 preset 的 models、preset 的 env、`defaults.env`、`intent.models`、`intent.env` 覆盖；显式空 env 值也参与覆盖。列表、TUI 和 shared overlay 使用同一组生效值与来源。model package 只展开最终 Sonnet 的候选配置，放在选中该模型的配置层；全局与 profile 的显式 env 覆盖同层 package。package 的窗口、自动压缩窗口和 subagent model 由同一个函数展开，用户的 `model_windows` 使用同一规则。settings 顶层值按 knob、`[defaults.settings]` 的顺序覆盖。
+model slot 依次由 preset 的 models、preset 的 env、`defaults.env`、`intent.models`、`intent.env` 覆盖，空 env 值也参与覆盖。Render 计算最终 slot，列表、TUI 和 shared overlay 从渲染结果读取模型及来源。model package 展开最终 Sonnet 的附加配置，放在选中该模型的配置层；全局与 profile 的 env 覆盖同层 package。package 的窗口、自动压缩窗口和 subagent model 由同一个函数展开，用户的 `model_windows` 使用同一规则。settings 顶层值按 knob、`[defaults.settings]` 的顺序覆盖。
 
-endpoint 依次由 preset 的 `base_url`、preset env、`defaults.env`、`intent.base_url`、`intent.env` 决定，界面和启动使用同一结果。认证 key 与 endpoint 由各自入口生成，model package 不覆盖这两个字段。
+endpoint 依次由 preset 的 `base_url`、preset env、`defaults.env`、`intent.base_url`、`intent.env` 决定，界面和启动使用同一结果。认证 key、endpoint 和 model slot 由各自的配置入口生成，model package 中的这些 env key 会被忽略。
+
+在详情中编辑 base_url、model slot 或 context window 时，会清除 `intent.env` 中对应的覆盖。清空字段会同时清除专用字段和对应 env，恢复下层配置。
 
 `KnobCatalog` 统一定义字段、行名、类型、默认值和校验。单 key 映射由表驱动，有条件或配对写入的 `TargetSpecial` 在 render 中处理；显式 env knob 在 preset 后再应用一次。具体写入规则见 [GLOBAL-SETTINGS.md](GLOBAL-SETTINGS.md)。
 
@@ -83,7 +85,7 @@ model picker 合并 preset 候选、slot 默认、自定义窗口和当前值。
 
 ## Doctor 与 session
 
-Doctor 检查 Claude 可执行文件及 10 秒内的版本响应、PATH、未知 knob、preset 解析、profile 状态、认证、drift、wrapper 与文件权限。单项错误不终止其它检查。
+Doctor 检查 Claude 可执行文件及 10 秒内的版本响应、PATH、未知 knob、preset 解析、profile 状态、认证、drift、wrapper 与文件权限。shared profile 的 overlay 按渲染结果整份比较，缺失、JSON 错误和内容变化会在列表或 Doctor 中报告。单项错误不终止其它检查。
 
 删除 full profile 前用 `lsof +D` 检查活动 session，3 秒超时，发现活动 session 就拒绝删除。shared 不探测公共目录；损坏 profile 按 full 保守处理。探测不可用时界面会提示，默认选择保留 session。
 

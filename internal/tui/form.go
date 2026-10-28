@@ -70,7 +70,7 @@ func (m *App) formRows() []item {
 		rows = append(rows, row("form:key", "api key", f.Key.String()))
 	}
 	rows = append(rows, row("form:base", "base_url", rendered.Env[core.BaseURL]), row("form:effort", "effort", core.EffectiveEffort(rendered, m.config.Defaults).String()), row("form:isolation", "isolation", string(f.Isolation)))
-	rows = append(rows, modelRows("form:", core.EffectiveModels(s, p, m.config.Defaults), rendered.Effective(core.MaxContext))...)
+	rows = append(rows, modelRows("form:", rendered.Models(), rendered.Effective(core.MaxContext))...)
 	aliases := strings.Join(f.Aliases, ", ")
 	if aliases == "" {
 		aliases = f.Name + "  (default)"
@@ -126,7 +126,7 @@ func (m *App) editForm(id string) tea.Cmd {
 			return nil, nil
 		})
 	case "form:window":
-		model := core.EffectiveModels(s, p, m.config.Defaults)[core.Sonnet].Value
+		model := core.Render(s, p, f.Key, m.config.Defaults).Env[core.Sonnet.EnvKey()]
 		value := ""
 		if n, ok := f.Intent.ModelWindows[model]; ok {
 			value = fmt.Sprint(n)
